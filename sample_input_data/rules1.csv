@@ -1,0 +1,4 @@
+﻿rule_id,destination_table,destination_field,source_table,source_field,term_mapping,coding_system,operation
+0,person,person_id,patients_sample,id,n,user defined,n
+1,person,year_of_birth,patients_sample,birthdate,n,user defined,extract year
+2,person,gender_concept_id,patients_sample,gender,y,user defined,n
