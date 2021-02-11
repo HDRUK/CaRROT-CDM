@@ -1,0 +1,20 @@
+name: ci
+on: [push]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: 
+        run: |
+          python etltool.py --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
+      - name: check lookup file
+        run: cat data/lookup_person_person_id.csv
+      - name: check mapped CDM output
+        run: cat data/mapped_person.csv 
+      - uses: actions/upload-artifact@v2
+        with:
+          name: outputs
+          path: data
+          retention-days: 1
