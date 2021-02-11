@@ -1,3 +1,10 @@
+"""
+ETLTool: a program for mapping ETL to CDM based on input datasets, structual mapping and term mapping csv files
+
+Contact: CO-CONNECT@dundee.ac.uk
+First Created: 11/02/2021
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -5,6 +12,7 @@ import argparse
 import logging
 import coloredlogs
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
+
 
 parser = argparse.ArgumentParser(description='Tool for mapping datasets')
 parser.add_argument('--inputs','-i', nargs='+', required=True,
@@ -21,10 +29,17 @@ parser.add_argument('-v','--verbose',help='set debugging level',action='store_tr
 
 class ETLTool:
     """
-
+    A class for the ETLTool runner, this will handle the loading of the input files
     """
     def get_source_table_name(self, fname):
         """
+        Retrieve source table name from the file name
+        - strip the directory name
+        - check that the file is a csv file
+        - throw and error if it's not a csv file, because we cant handle that yet (ever?)
+        - if is a csv file, return the name:
+           - if the fname is /blahhh/patients.csv
+           - 'patients' will be returned as teh source table name
         """
         fname = fname.split("/")[-1]
         self.logger.debug(f'Extracting the name of the table for input: {fname}')
@@ -35,6 +50,12 @@ class ETLTool:
 
     def get_df(self,fname,lower_case=True):
         """
+        Extract a pandas Dataframe from an input csv file
+        Args:
+           fname (str): the file name
+           lower_case (bool): whether to lower all the names of the columns to be lowercase or not 
+        Returns: 
+           Pandas DataFrame
         """
         df = pd.read_csv(fname)
         if lower_case:
@@ -42,6 +63,9 @@ class ETLTool:
         return df
 
     def create_logger(self):
+        """
+        Initialisation of a logging system for cli messages
+        """
         self.logger = logging.getLogger(self.__class__.__name__)
         if self.verbose:
             self.logger.setLevel(logging.DEBUG)
@@ -55,10 +79,25 @@ class ETLTool:
         self.logger.info('Starting the tool')
 
     def load_cdm(self):
+        """
+        Load the default cdm model (v5.3.1) into a pandas dataframe
+        Args:
+           None
+        Returns:
+           None
+        """
         self.df_cdm = pd.read_csv(self.f_cdm,encoding="ISO-8859-1").set_index('table')
         self.logger.debug(self.df_cdm)
         
     def load_input_data(self):
+        """
+        Load the input data, which is a list of input files into pandas dataframes
+        and map, based on the original file name, to the dataframe: {name: dataframe}
+        Args:
+           None
+        Returns:
+           None
+        """
         self.map_input_data = { 
             self.get_source_table_name(fname): self.get_df(fname)
             for fname in self.f_inputs
@@ -66,6 +105,19 @@ class ETLTool:
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
 
     def load_structural_mapping(self):
+        """
+        Load the structural mapping into a pandas dataframe
+
+        Args:
+           None
+        Returns:
+           None
+        """
+        #set the index to be a multindex of ['destination_table','rule_id']
+        #this is just going to help us out down the line
+        #when we use df_structural_mapping.loc[table_name] to easily extract
+        #structural mapping rules for associated with the given source table
+        
         self.df_structural_mapping = self.get_df(self.f_structural_mapping)\
                                          .set_index(['destination_table','rule_id'])
         self.logger.debug(self.df_structural_mapping)
