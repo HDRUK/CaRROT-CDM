@@ -81,7 +81,7 @@ class ETLTool:
 
     def save_lookup_table(self,df,table,source_field):
         series = df[source_field].rename(f'source_{source_field}')
-        series.to_csv(f'{self.output_data_folder}/{table}-{source_field}.csv',
+        series.to_csv(f'{self.output_data_folder}/lookup_{table}_{source_field}.csv',
                       index_label=f'destination_{source_field}')
 
         
@@ -117,6 +117,10 @@ class ETLTool:
         self.f_term_mapping = args.term_mapping
         self.f_structural_mapping = args.structural_mapping
         self.output_data_folder = args.output_folder
+        if not os.path.exists(self.output_data_folder):
+            self.logger.info(f'Creating an output data folder: {self.output_data_folder}')
+            os.makedirs(self.output_data_folder)
+        
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.logger.debug(f'Directory path... {self.dir_path}')
         self.f_cdm = f'{self.dir_path}/cdm/OMOP_CDM_v5_3_1.csv'
@@ -205,11 +209,16 @@ class ETLTool:
         df_destination = pd.concat(columns_output,axis=1)
         df_destination = df_destination[output_fields]
 
+        self.save_lookup_table(df_destination,table,'person_id')
+
+        
         df_destination_final = df_destination.drop('person_id',axis=1)\
                         .reset_index()\
                         .rename({'index':'person_id'},axis=1)
 
-        df_destination_final.to_csv('output.csv',index=False)
+
+        outname = f'{self.output_data_folder}/mapped_{table}.csv'
+        df_destination_final.to_csv(outname,index=False)
 
 
     def run(self):
