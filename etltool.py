@@ -376,14 +376,10 @@ class ETLTool:
         if source_table not in self.map_input_data:
             raise LookupError(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
         chunks_table_data = self.map_input_data[source_table]
-        total_size = sum([len(chunk) for chunk in chunks_table_data])
-        self.logger.debug(f'Total size of input data: {total_size} rows')
-        nchunks = sum(1 for chunk in chunks_table_data)
-        self.logger.debug(f'Number of chunks: {nchunks}')
 
         
         for icounter,df_table_data in enumerate(chunks_table_data):
-            self.logger.debug(f'Processing {icounter}/{nchunks}')
+            self.logger.debug(f'Processing {icounter}')
             
             df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
             columns_output = []
@@ -403,14 +399,14 @@ class ETLTool:
                     if rule['operation'] == 'n':
                         self.logger.debug("No operation set. Mapping one-to-one")
                         columns_output.append(
-                            self.map_one_to_one(chunks_table_data,source_field,destination_field)
+                            self.map_one_to_one(df_table_data,source_field,destination_field)
                         )
                     else:
                         operation = rule['operation']
                         if operation not in self.allowed_operations.keys():
                             raise ValueError(f'Unknown Operation {operation}')
                         self.logger.debug(f'Applying {operation}')
-                        ret = self.allowed_operations[operation](chunks_table_data,column=source_field)
+                        ret = self.allowed_operations[operation](df_table_data,column=source_field)
                         columns_output.append(
                             ret.to_frame(destination_field)
                         )
@@ -427,7 +423,7 @@ class ETLTool:
             df_destination = pd.concat(columns_output,axis=1)
             self.logger.debug(f'concatenated the output columns into a new dataframe')
             df_destination = df_destination[destination_fields]
-            self.logger.info(f'{icounter}/{nchunks} chunk completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
+            self.logger.info(f'{icounter} chunk completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
 
             #since we are looping over chunks
