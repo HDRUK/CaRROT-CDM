@@ -34,7 +34,10 @@ Which can be installed via `pip install -r requirements.txt`
 Then you can try out the sample input data:
 
 ```bash
-python etltool.py --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
+python etltool.py -v \
+       --inputs sample_input_data/patients_sample.csv\
+       --structural-mapping sample_input_data/rules1.csv\
+       --term-mapping sample_input_data/rules2.csv 
 ```
 Which by default will create files in a folder called `data/`
 
