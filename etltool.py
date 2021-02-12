@@ -251,7 +251,7 @@ class ETLTool:
         return retval[0]
 
 
-    def map_via_rule(self,df,df_map,source_field,destination_field):
+    def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=True):
         df_orig = df[[source_field]]
         df_orig = df_orig.merge(df_map,
                                 left_on=source_field,
@@ -261,6 +261,17 @@ class ETLTool:
             {
                 'destination_term':destination_field
             },axis=1)
+
+        df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
+        if len(df_bad) > 0 :
+            self.logger.warning(f'Found bad row {df_bad}')
+            self.logger.warning(df[[source_field]][df_orig.isnull().any(axis=1)].to_dict())
+            self.logger.warning('This has no specification of how to map it')
+            self.logger.warning(f'Options are: \n {df_map}')
+            #add a switch to drop any rows that have a nan value aka the term mapping failed
+            if drop_bad:
+                df_orig = df_orig.dropna()
+                
         return df_orig
         
     
@@ -455,7 +466,7 @@ class ETLTool:
             df_destination = pd.concat(columns_output,axis=1)
             self.logger.debug(f'concatenated the output columns into a new dataframe')
             df_destination = df_destination[destination_fields]
-            self.logger.info(f'{icounter} chunk completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
+            self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
 
             #since we are looping over chunks
