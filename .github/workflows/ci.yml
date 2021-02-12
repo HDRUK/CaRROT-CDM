@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: 
         run: |
+          pip3 install -r requirements.txt
           python3 etltool.py --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
       - name: check lookup file
         run: cat data/lookup_person_person_id.csv
