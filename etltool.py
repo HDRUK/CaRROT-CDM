@@ -233,7 +233,7 @@ class ETLTool:
         # - get the datetime object via .dt
         # - get only the year via the .dt object
         # - convert the series back into a pandas dataframe
-        return pd.to_datetime(series).dt.year.to_frame()
+        return pd.to_datetime(series).dt.year
 
     def get_month_from_date(self,df,**kwargs):
         """
@@ -283,7 +283,7 @@ class ETLTool:
         #map lookup name with a function to perform an operation on a field(s)
         self.allowed_operations = {
             'extract year': self.get_year_from_date,
-            'extract month': self.get_month_from_date
+            #'extract month': self.get_month_from_date
         }
         
         self.load_cdm()
@@ -351,8 +351,9 @@ class ETLTool:
                     if operation not in self.allowed_operations.keys():
                         raise ValueError(f'Unknown Operation {operation}')
                     self.logger.debug(f'Applying {operation}')
+                    ret = self.allowed_operations[operation](df_table_data,column=source_field)
                     columns_output.append(
-                        self.allowed_operations[operation](df_table_data,column=source_field)
+                        ret.to_frame(destination_field)
                     )
             else:
                 rule_id = rule['rule_id']
