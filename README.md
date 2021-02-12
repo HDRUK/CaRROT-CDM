@@ -50,7 +50,11 @@ docker build . -t etltool:latest
 
 Running
 ```bash
-docker run -it -v `pwd`:/data/ etltool:latest --inputs /data/sample_input_data/patients_sample.csv --structural-mapping /data/sample_input_data/rules1.csv --term-mapping /data/sample_input_data/rules2.csv --output-folder /data/output_data/
+docker run -it -v `pwd`:/data/ etltool:latest\
+            --inputs /data/sample_input_data/patients_sample.csv\
+	    --structural-mapping /data/sample_input_data/rules1.csv\
+	    --term-mapping /data/sample_input_data/rules2.csv\
+	    --output-folder /data/output_data/
 ```
 
 * `-v <folder>:/data/`: will mount any local folder containing the data
