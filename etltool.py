@@ -19,7 +19,7 @@ parser.add_argument('--inputs','-i', nargs='+', required=True,
                     help='input .csv files for the original data to be mapped to the CDM')
 parser.add_argument('--output-folder','-o', default='./data',
                     help='location of where to store the data')
-parser.add_argument('--term-mapping','-tm', required=True,
+parser.add_argument('--term-mapping','-tm', required=False,
                     help='file that will handle the term mapping')
 parser.add_argument('--structural-mapping','-sm', required=True,
                     help='file that will handle the structural mapping')
@@ -48,7 +48,19 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def get_df(self,fname,lower_case=True):
+    def get_df_chunks(self,fname,chunksize=1000):
+        """
+        Extract a pandas Dataframe from an input csv file
+        Args:
+           fname (str): the file name
+           chunksize(int): specify how many rows to read in per chunk
+        Returns: 
+           Pandas TextFileReader
+        """
+        chunks = pd.read_csv(fname,chunksize=chunksize)
+        return chunks
+
+    def get_df(self,fname,lower_case=True,chunksize=None):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -99,7 +111,7 @@ class ETLTool:
            None
         """
         self.map_input_data = { 
-            self.get_source_table_name(fname): self.get_df(fname)
+            self.get_source_table_name(fname): self.get_df_chunks(fname)
             for fname in self.f_inputs
         }
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
@@ -133,14 +145,18 @@ class ETLTool:
         Returns:
            None
         """
-
+        if self.f_term_mapping == None:
+            self.logger.warning('No term mapping specified')
+            self.df_term_mapping = pd.DataFrame()
+            return
+        
         self.df_term_mapping = self.get_df(self.f_term_mapping)\
                                          .set_index(['rule_id'])
         self.logger.debug(self.df_term_mapping)
         self.logger.info(f'Loaded the term mapping with {len(self.df_term_mapping)} rules')
 
 
-    def save_lookup_table(self,df,table,source_field):
+    def save_lookup_table(self,df,source_table,table,source_field,mode='w',header=True):
         """
         Save a dataframe series in a table to a file
         Args:
@@ -150,14 +166,16 @@ class ETLTool:
         """
 
         series = df[source_field].rename(f'source_{source_field}')
-        oname = f'{self.output_data_folder}/lookup_{table}_{source_field}.csv'
+        oname = f'{self.output_data_folder}/lookup_{source_table}_{table}_{source_field}.csv'
         self.logger.info(f'Writing a lookup dictionary of {source_field} to index')
         self.logger.info(f'Final being saved: {oname}')
         series.to_csv(oname,
-                      index_label=f'destination_{source_field}')
+                      index_label=f'destination_{source_field}',
+                      mode=mode,
+                      header=header)
 
         
-    def get_output_tables(self):
+    def get_destination_tables(self):
         """
         Get the names of all unique names of 'destination_table' that are defined in the df_structural mapping
         Args:
@@ -203,6 +221,20 @@ class ETLTool:
             raise ValueError('Something really wrong if there are different source tables for this mapping')
         return retval[0]
 
+
+    def map_via_rule(self,df,df_map,source_field):
+        df_orig = df[[source_field]]
+        df_orig = df_orig.merge(df_map,
+                                left_on=source_field,
+                                right_on='source_term',
+                                how='left')
+        df_orig = df_orig[['destination_term']].rename(
+            {
+                'destination_term':destination_field
+            },axis=1)
+        return df_orig
+        
+    
     def map_one_to_one(self,df,source_field,destination_field):
         """
         Perform one-to-one mapping of variables between the source and destination field
@@ -211,7 +243,7 @@ class ETLTool:
            source_field (str): the name of the field(column) in the source data 
            destination_field: the name of the field(column) to be set as the new output
         Returns:
-           str: the name of the source table associated with this mapping
+           a new pandas dataframe where the source field has been directly mapped to the destination field
         """
         #make a series which is just the source field
         #convert it to a dataframe and change the name to be the destination field
@@ -294,111 +326,144 @@ class ETLTool:
         self.load_structural_mapping()
         self.load_term_mapping()
         
-        self.output_tables = self.get_output_tables()
-        self.logger.info(f'Output tables to create... {list(self.output_tables)}')
+        self.destination_tables = self.get_destination_tables()
+
+        #perform a check that all the output tables are actually valid CDM objects
+        cdm_objects = list(self.df_cdm.index.unique())
+
+        for table in self.destination_tables:
+            if table not in cdm_objects:
+                self.logger.error(f'Found "{table}" in {self.f_structural_mapping}')
+                self.logger.error(f'"{table}" not a cdm object')
+                self.logger.error('Printing cdm objects...')
+                self.logger.error(cdm_objects)
+                raise KeyError(f'For some reason you are looking up "{table}", which has been specified in your structural mapping ({ self.f_structural_mapping}) but this isnt a valid CDM object ')
+
+        
+        self.logger.info(f'Destination tables to create... {list(self.destination_tables)}')
 
     
     def process_table(self,table):
         """
-        Process an output(destination) table
+        Process a destination table
         """
         self.logger.info(f'Now running on Table "{table}"')
 
         #load the CDM for this table, e.g. patient
         #note - need to add a catch here to make sure the table is valid in the CDM
         partial_cdm = self.df_cdm.loc[table]
+        
         self.logger.info('Loaded the CDM for this table which has the following fields..')
 
         #get a list of all 
-        output_fields = partial_cdm['field']
+        destination_fields = partial_cdm['field']
         mapped_fields = self.get_mapped_fields(table)
 
         for x in mapped_fields:
-            if x not in list(output_fields):
-                raise ValueError(f'You are trying to map a field "{x}" that is not in this CDM! Fields are called ... {list(output_fields)}')
+            if x not in list(destination_fields):
+                raise ValueError(f'You are trying to map a field "{x}" that is not in this CDM! Fields are called ... {list(destination_fields)}')
         
-        unmapped_fields = list(set(output_fields) - set(mapped_fields))
+        unmapped_fields = list(set(destination_fields) - set(mapped_fields))
 
-        self.logger.info(f'The CDM for "{table}" has {len(output_fields)}, you have mapped {len(mapped_fields)} leaving {len(unmapped_fields)} fields unmapped')
-        self.logger.debug(f'All fields {list(output_fields)}') 
+        self.logger.info(f'The CDM for "{table}" has {len(destination_fields)}, you have mapped {len(mapped_fields)} leaving {len(unmapped_fields)} fields unmapped')
+        self.logger.debug(f'All fields {list(destination_fields)}') 
         self.logger.debug(f'Mapped fields {list(mapped_fields)}')
 
 
         source_table = self.get_source_table(table)
         df_mapping = self.get_structural_mapping(table)
-        df_table_data = self.map_input_data[source_table]
 
-        df_table_data_blank = df_table_data.reset_index()[['index']]
+        if source_table not in self.map_input_data:
+            raise LookupError(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+        chunks_table_data = self.map_input_data[source_table]
+        total_size = sum([len(chunk) for chunk in chunks_table_data])
+        self.logger.debug(f'Total size of input data: {total_size} rows')
+        nchunks = sum(1 for chunk in chunks_table_data)
+        self.logger.debug(f'Number of chunks: {nchunks}')
+
         
-        columns_output = []
+        for icounter,df_table_data in enumerate(chunks_table_data):
+            self.logger.debug(f'Processing {icounter}/{nchunks}')
+            
+            df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
+            columns_output = []
+            
+            #first create nan columns for unmapped fields in the CDM
+            for destination_field in unmapped_fields:
+                df_table_data_blank[destination_field] = np.nan
+                columns_output.append(df_table_data_blank[destination_field])
 
-        #first create nan columns for unmapped fields in the CDM
-        for destination_field in unmapped_fields:
-            df_table_data_blank[destination_field] = np.nan
-            columns_output.append(df_table_data_blank[destination_field])
-
-        #now start the real work of making new columns based on the mapping rules
-        for destination_field in mapped_fields:
-            self.logger.info(f'Working on {destination_field}')
-            rule = df_mapping.loc[destination_field]
-            source_field = rule['source_field']
-            if rule['term_mapping'] == 'n':
-                self.logger.debug("No mapping term defined for this rule")
-                if rule['operation'] == 'n':
-                    self.logger.debug("No operation set. Mapping one-to-one")
-                    columns_output.append(
-                        self.map_one_to_one(df_table_data,source_field,destination_field)
-                    )
+            #now start the real work of making new columns based on the mapping rules
+            for destination_field in mapped_fields:
+                self.logger.info(f'Working on {destination_field}')
+                rule = df_mapping.loc[destination_field]
+                source_field = rule['source_field']
+                if rule['term_mapping'] == 'n':
+                    self.logger.debug("No mapping term defined for this rule")
+                    if rule['operation'] == 'n':
+                        self.logger.debug("No operation set. Mapping one-to-one")
+                        columns_output.append(
+                            self.map_one_to_one(chunks_table_data,source_field,destination_field)
+                        )
+                    else:
+                        operation = rule['operation']
+                        if operation not in self.allowed_operations.keys():
+                            raise ValueError(f'Unknown Operation {operation}')
+                        self.logger.debug(f'Applying {operation}')
+                        ret = self.allowed_operations[operation](chunks_table_data,column=source_field)
+                        columns_output.append(
+                            ret.to_frame(destination_field)
+                        )
                 else:
-                    operation = rule['operation']
-                    if operation not in self.allowed_operations.keys():
-                        raise ValueError(f'Unknown Operation {operation}')
-                    self.logger.debug(f'Applying {operation}')
-                    ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                    rule_id = rule['rule_id']
+                    self.logger.debug(f'Mapping term found. Applying..')
+                    self.logger.debug(f'{rule.to_dict()}')
+                    df_map = self.df_term_mapping.loc[rule_id]
                     columns_output.append(
-                        ret.to_frame(destination_field)
+                        self.map_via_rule(df_table_data,df_map,source_field)
                     )
-            else:
-                rule_id = rule['rule_id']
-                self.logger.debug(f'Mapping term found. Applying..')
-                self.logger.debug(f'{rule.to_dict()}')
-                columns_output.append(
-                    df_table_data[[source_field]]\
-                            .merge(self.df_term_mapping.loc[rule_id],
-                                   left_on=source_field,
-                                   right_on='source_term',
-                                   how='left')\
-                            [['destination_term']].rename(
-                                {
-                                    'destination_term':destination_field
-                                },axis=1)
-                )
+                    
+        
+            df_destination = pd.concat(columns_output,axis=1)
+            self.logger.debug(f'concatenated the output columns into a new dataframe')
+            df_destination = df_destination[destination_fields]
+            self.logger.info(f'{icounter}/{nchunks} chunk completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
-        
-        df_destination = pd.concat(columns_output,axis=1)
-        self.logger.debug(f'concatenated the output columns into a new dataframe')
-        df_destination = df_destination[output_fields]
-        self.logger.info(f'Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
-        
-        self.save_lookup_table(df_destination,table,'person_id')
 
-        
-        df_destination_final = df_destination.drop('person_id',axis=1)\
-                        .reset_index()\
-                        .rename({'index':'person_id'},axis=1)
+            #since we are looping over chunks
+            #- for the first chunk, save the headers and set the write mode to write
+            #- for the rest of the chunks, dont save the headers and set the write mode to append
+            mode = 'w'
+            header = True
+            if icounter > 0:
+                mode = 'a'
+                header = False
 
-        
-        outname = f'{self.output_data_folder}/mapped_{table}.csv'
-        df_destination_final.to_csv(outname,index=False)
-        self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
+            self.logger.debug(f'writing mode:"{mode}", save headers="{header}')
+            
+            #perform masking of the person id
+            #- perfom is person_id is in the cdm and is not empty/null
+            #- save the lookup to the person id
+            #- make an arbritary index for the person id instead
+            if 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
+                self.save_lookup_table(df_destination,source_table,table,'person_id')
+                df_destination = df_destination.drop('person_id',axis=1)\
+                                               .reset_index()\
+                                               .rename({'index':'person_id'},axis=1)
+                
+            #save the data into new csvs
+            outname = f'{self.output_data_folder}/mapped_{source_table}_{table}.csv'
+            df_destination.to_csv(outname,index=False,mode=mode,header=header)
+            self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
         
 
     def run(self):
         """
+        Start the program running by looping over the CDM destination tables defined by the user
         """
         self.logger.info('Starting ETL to CDM')
-        for output_table in self.output_tables:
-           self.process_table(output_table) 
+        for destination_table in self.destination_tables:
+           self.process_table(destination_table) 
 
         
 if __name__ == '__main__':
