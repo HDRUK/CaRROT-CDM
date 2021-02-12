@@ -150,7 +150,10 @@ class ETLTool:
         """
 
         series = df[source_field].rename(f'source_{source_field}')
-        series.to_csv(f'{self.output_data_folder}/lookup_{table}_{source_field}.csv',
+        oname = f'{self.output_data_folder}/lookup_{table}_{source_field}.csv'
+        self.logger.info(f'Writing a lookup dictionary of {source_field} to index')
+        self.logger.info(f'Final being saved: {oname}')
+        series.to_csv(oname,
                       index_label=f'destination_{source_field}')
 
         
@@ -357,7 +360,8 @@ class ETLTool:
                     )
             else:
                 rule_id = rule['rule_id']
-                self.logger.debug(f'Mappy term found. Applying.. {rule}')
+                self.logger.debug(f'Mapping term found. Applying..')
+                self.logger.debug(f'{rule.to_dict()}')
                 columns_output.append(
                     df_table_data[[source_field]]\
                             .merge(self.df_term_mapping.loc[rule_id],
@@ -372,8 +376,10 @@ class ETLTool:
 
         
         df_destination = pd.concat(columns_output,axis=1)
+        self.logger.debug(f'concatenated the output columns into a new dataframe')
         df_destination = df_destination[output_fields]
-
+        self.logger.info(f'Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
+        
         self.save_lookup_table(df_destination,table,'person_id')
 
         
@@ -381,10 +387,11 @@ class ETLTool:
                         .reset_index()\
                         .rename({'index':'person_id'},axis=1)
 
-
+        
         outname = f'{self.output_data_folder}/mapped_{table}.csv'
         df_destination_final.to_csv(outname,index=False)
-
+        self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
+        
 
     def run(self):
         """
