@@ -48,7 +48,7 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def get_df_chunks(self,fname,chunksize=1000):
+    def get_df_chunks(self,fname,chunksize=10**6):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -60,7 +60,7 @@ class ETLTool:
         chunks = pd.read_csv(fname,chunksize=chunksize)
         return chunks
 
-    def get_df(self,fname,lower_case=True,chunksize=None):
+    def get_df(self,fname,lower_case=True):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
