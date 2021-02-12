@@ -1,8 +1,36 @@
-"""
-ETLTool: a program for mapping ETL to CDM based on input datasets, structual mapping and term mapping csv files
+"""ETLTool
+
+A program for mapping ETL to CDM based on input datasets, structual mapping and term mapping csv files
 
 Contact: CO-CONNECT@dundee.ac.uk
 First Created: 11/02/2021
+
+Example:
+    Examples can be given using either the ``Example`` or ``Examples``
+    sections. Sections support any reStructuredText formatting, including
+    literal blocks::
+
+        $ python example_google.py
+
+Test
+
+Attributes:
+    module_level_variable1 (int): Module level variables may be documented in
+        either the ``Attributes`` section of the module docstring, or in an
+        inline docstring immediately following the variable.
+
+        Either form is acceptable, but the two should not be mixed. Choose
+        one convention to document module level variables and be consistent
+        with it.
+
+Todo:
+    * For module TODOs
+    * You have to also use ``sphinx.ext.todo`` extension
+
+.. _Google Python Style Guide:
+   http://google.github.io/styleguide/pyguide.html
+
+
 """
 
 import os
@@ -23,7 +51,8 @@ parser.add_argument('--term-mapping','-tm', required=False,
                     help='file that will handle the term mapping')
 parser.add_argument('--structural-mapping','-sm', required=True,
                     help='file that will handle the structural mapping')
-
+parser.add_argument('--chunk-size', default = 10**6, type=int,
+                    help='define how to "chunk" the dataframes, this specifies how many rows in the csv files to read in at a time')
 parser.add_argument('-v','--verbose',help='set debugging level',action='store_true')
 
 
@@ -48,7 +77,7 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def get_df_chunks(self,fname,chunksize=10**6):
+    def get_df_chunks(self,fname,chunk_size=10**6):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -57,7 +86,7 @@ class ETLTool:
         Returns: 
            Pandas TextFileReader
         """
-        chunks = pd.read_csv(fname,chunksize=chunksize)
+        chunks = pd.read_csv(fname,chunksize=chunk_size)
         return chunks
 
     def get_df(self,fname,lower_case=True):
@@ -111,7 +140,7 @@ class ETLTool:
            None
         """
         self.map_input_data = { 
-            self.get_source_table_name(fname): self.get_df_chunks(fname)
+            self.get_source_table_name(fname): self.get_df_chunks(fname,self.chunk_size)
             for fname in self.f_inputs
         }
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
@@ -202,7 +231,7 @@ class ETLTool:
         Args:
            table (str): name of a table
         Returns:
-           pandas dataframe
+           pandas.DataFrame : a new pandas dataframe with 'destination_field' as the index
         """
         return self.df_structural_mapping.loc[table].reset_index().set_index('destination_field')
     
@@ -302,6 +331,7 @@ class ETLTool:
         self.f_inputs = args.inputs
         self.f_term_mapping = args.term_mapping
         self.f_structural_mapping = args.structural_mapping
+        self.chunk_size = args.chunk_size
         self.output_data_folder = args.output_folder
         if not os.path.exists(self.output_data_folder):
             self.logger.info(f'Creating an output data folder: {self.output_data_folder}')
