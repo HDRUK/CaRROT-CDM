@@ -222,7 +222,7 @@ class ETLTool:
         return retval[0]
 
 
-    def map_via_rule(self,df,df_map,source_field):
+    def map_via_rule(self,df,df_map,source_field,destination_field):
         df_orig = df[[source_field]]
         df_orig = df_orig.merge(df_map,
                                 left_on=source_field,
@@ -379,6 +379,8 @@ class ETLTool:
 
         
         for icounter,df_table_data in enumerate(chunks_table_data):
+            df_table_data.columns = df_table_data.columns.str.lower()
+            
             self.logger.debug(f'Processing {icounter}')
             
             df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
@@ -416,7 +418,7 @@ class ETLTool:
                     self.logger.debug(f'{rule.to_dict()}')
                     df_map = self.df_term_mapping.loc[rule_id]
                     columns_output.append(
-                        self.map_via_rule(df_table_data,df_map,source_field)
+                        self.map_via_rule(df_table_data,df_map,source_field,destination_field)
                     )
                     
         
