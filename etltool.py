@@ -125,6 +125,15 @@ class ETLTool:
         
                 
     def load_term_mapping(self):
+        """
+        Load the term mapping into a pandas dataframe
+
+        Args:
+           None
+        Returns:
+           None
+        """
+
         self.df_term_mapping = self.get_df(self.f_term_mapping)\
                                          .set_index(['rule_id'])
         self.logger.debug(self.df_term_mapping)
@@ -132,36 +141,126 @@ class ETLTool:
 
 
     def save_lookup_table(self,df,table,source_field):
+        """
+        Save a dataframe series in a table to a file
+        Args:
+           None
+        Returns:
+           None
+        """
+
         series = df[source_field].rename(f'source_{source_field}')
         series.to_csv(f'{self.output_data_folder}/lookup_{table}_{source_field}.csv',
                       index_label=f'destination_{source_field}')
 
         
     def get_output_tables(self):
+        """
+        Get the names of all unique names of 'destination_table' that are defined in the df_structural mapping
+        Args:
+           None
+        Returns:
+           numpy.ndarray
+        """
         return self.df_structural_mapping.index.get_level_values(0).unique()
 
     def get_mapped_fields(self,table):
+        """
+        Get the names all the destination fields that are associated with the structural mapping of a partiular table
+        Args:
+           table (str): name of a table
+        Returns:
+           list
+        """
         return list(self.df_structural_mapping.loc[table]['destination_field'])
 
     def get_structural_mapping(self,table):
+        """
+        Gets the dataframe for the structural mapping and filtered by the table name
+        then sets the index to be the destination field (for later convienience 
+        Args:
+           table (str): name of a table
+        Returns:
+           pandas dataframe
+        """
         return self.df_structural_mapping.loc[table].reset_index().set_index('destination_field')
     
     def get_source_table(self,table):
+        """
+        Gets the dataframe for the structural mapping and filtered by the table name
+        then looks up all the unique source tables associated with this structural mapping
+        there really shouldn't be more than one source table associated to the (destination) table
+        Args:
+           table (str): name of a table
+        Returns:
+           str: the name of the source table associated with this mapping
+        """
         retval = self.df_structural_mapping.loc[table]['source_table'].unique()
         if len(retval)>1:
             raise ValueError('Something really wrong if there are different source tables for this mapping')
         return retval[0]
 
     def map_one_to_one(self,df,source_field,destination_field):
+        """
+        Perform one-to-one mapping of variables between the source and destination field
+        Args:
+           df (pandas dataframe): the dataframe for the original source data
+           source_field (str): the name of the field(column) in the source data 
+           destination_field: the name of the field(column) to be set as the new output
+        Returns:
+           str: the name of the source table associated with this mapping
+        """
+        #make a series which is just the source field
+        #convert it to a dataframe and change the name to be the destination field
         return df[source_field].to_frame(destination_field)
 
     def get_year_from_date(self,df,**kwargs):
+        """
+        Convert a dataframe containing a datatime into the year only
+        Args:
+           df (pandas dataframe): the dataframe for the original source data
+           **kwargs (dict) : keyword arguments, needed as this method gets called generically via allowed_operations
+        Returns:
+           pandas dataframe: with one column in datatime format only displaying the year 
+        """
+        #raise an error if we dont have column in the kwargs
+        #column == field
+        if 'column' not in kwargs:
+            raise ValueError(f'column not found in kwargs: {kwargs}')
+        #get the pandas series of the input dataframe (get the field of the input dataset) to be modified
         series = df[kwargs['column']]
-        return pd.to_datetime(series).dt.year
+        # - convert the series into a datetime series
+        # - get the datetime object via .dt
+        # - get only the year via the .dt object
+        # - convert the series back into a pandas dataframe
+        return pd.to_datetime(series).dt.year.to_frame()
+
+    def get_month_from_date(self,df,**kwargs):
+        """
+        Convert a dataframe containing a datatime into the month only
+        Args:
+           df (pandas dataframe): the dataframe for the original source data
+           **kwargs (dict) : keyword arguments, needed as this method gets called generically via allowed_operations
+        Returns:
+           pandas dataframe: with one column in datatime format only displaying the month 
+        """
+        #raise an error if we dont have column in the kwargs
+        #column == field
+        if 'column' not in kwargs:
+            raise ValueError(f'column not found in kwargs: {kwargs}')
+        #get the pandas series of the input dataframe (get the field of the input dataset) to be modified
+        series = df[kwargs['column']]
+        # - convert the series into a datetime series
+        # - get the datetime object via .dt
+        # - get only the month via the .dt object
+        # - convert the series back into a pandas dataframe
+        return pd.to_datetime(series).dt.month.to_frame()
     
     def __init__(self,args):
         """
-        
+        Class initialisation
+        - load all the neccessary files that get passed in via the cli arguments
+        - load all the inputs into pandas dataframes so we can manipulate 
         """
         self.verbose = args.verbose
         self.create_logger()
@@ -175,10 +274,17 @@ class ETLTool:
         
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.logger.debug(f'Directory path... {self.dir_path}')
+
+        #hard code OMPO CDM 5.3.1 for now
         self.f_cdm = f'{self.dir_path}/cdm/OMOP_CDM_v5_3_1.csv'
-
-
-        self.allowed_operations = {'extract year': self.get_year_from_date}
+        if not os.path.isfile(self.f_cdm):
+            raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {self.f_cdm}')
+        #hard code for now..
+        #map lookup name with a function to perform an operation on a field(s)
+        self.allowed_operations = {
+            'extract year': self.get_year_from_date,
+            'extract month': self.get_month_from_date
+        }
         
         self.load_cdm()
         self.load_input_data()
@@ -191,14 +297,17 @@ class ETLTool:
     
     def process_table(self,table):
         """
-        Process a table
+        Process an output(destination) table
         """
         self.logger.info(f'Now running on Table "{table}"')
 
+        #load the CDM for this table, e.g. patient
+        #note - need to add a catch here to make sure the table is valid in the CDM
         partial_cdm = self.df_cdm.loc[table]
         self.logger.info('Loaded the CDM for this table which has the following fields..')
+
+        #get a list of all 
         output_fields = partial_cdm['field']
-        
         mapped_fields = self.get_mapped_fields(table)
 
         for x in mapped_fields:
@@ -231,8 +340,9 @@ class ETLTool:
             rule = df_mapping.loc[destination_field]
             source_field = rule['source_field']
             if rule['term_mapping'] == 'n':
+                self.logger.debug("No mapping term defined for this rule")
                 if rule['operation'] == 'n':
-                    self.logger.debug("Mapping one-to-one")
+                    self.logger.debug("No operation set. Mapping one-to-one")
                     columns_output.append(
                         self.map_one_to_one(df_table_data,source_field,destination_field)
                     )
@@ -240,21 +350,23 @@ class ETLTool:
                     operation = rule['operation']
                     if operation not in self.allowed_operations.keys():
                         raise ValueError(f'Unknown Operation {operation}')
-                    self.logger.debug(f'applying {operation}')
-                    series = self.allowed_operations[operation](df_table_data,column=source_field)
+                    self.logger.debug(f'Applying {operation}')
                     columns_output.append(
-                        series.to_frame(destination_field)
+                        self.allowed_operations[operation](df_table_data,column=source_field)
                     )
             else:
                 rule_id = rule['rule_id']
-                self.logger.debug(f'applying {rule}')
+                self.logger.debug(f'Mappy term found. Applying.. {rule}')
                 columns_output.append(
                     df_table_data[[source_field]]\
-                    .merge(self.df_term_mapping.loc[rule_id],
-                           left_on=source_field,
-                           right_on='source_term',
-                           how='left')\
-                    [['destination_term']].rename({'destination_term':destination_field},axis=1)
+                            .merge(self.df_term_mapping.loc[rule_id],
+                                   left_on=source_field,
+                                   right_on='source_term',
+                                   how='left')\
+                            [['destination_term']].rename(
+                                {
+                                    'destination_term':destination_field
+                                },axis=1)
                 )
 
         
