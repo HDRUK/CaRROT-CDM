@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="CO-CONNECT-ETLTools", 
+    name="co-connect-etltools", 
     version="0.0.1",
     author="CO-CONNECT",
     author_email="CO-CONNECT@dundee.ac.uk",
