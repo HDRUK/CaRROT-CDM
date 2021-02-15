@@ -1,6 +1,11 @@
-# ETLTool
+# CO-CONNECT Tools
 
-A tool for converting a ETL to a CDM, as used by the UK (CO-CONNECT)[co-connect.ac.uk] project
+Welcome to our repo for `python` tools used by/with the CO-CONNECT project
+
+
+## ETLTool
+
+A tool for converting a ETL to a CDM, as used by the UK [CO-CONNECT](https://co-connect.ac.uk) project.
 ```
 usage: etl2cdm [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] [--term-mapping TERM_MAPPING]
                --structural-mapping STRUCTURAL_MAPPING [--chunk-size CHUNK_SIZE] [-v]
@@ -24,7 +29,7 @@ optional arguments:
 ```
 
 
-## Installing
+### Installing
 
 To install the tools, you can use `pip`
 ```
@@ -37,7 +42,7 @@ pip install -e .
 ```
 
 
-## Running etl2cdm locally
+### Running etl2cdm locally
 
 To run this tool contained within the co-connect-tools package
 
@@ -49,9 +54,10 @@ etl2cdm -v \
 ```
 Which by default will create files in a folder called `data/`
 
-## Running with Docker
+### Running with Docker
 
-First you need to build the docker image
+First you need to build the docker image from this source
+
 ```bash
 docker build . -t etltool:latest
 ```

@@ -7,14 +7,14 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
     
 setuptools.setup(
-    name="co-connect", 
+    name="co-connect-tools", 
     version="0.0.1",
     author="CO-CONNECT",
     author_email="CO-CONNECT@dundee.ac.uk",
     description="Python package for performing mapping of ETL to CDM ",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/CO-CONNECT/etl-tools",
+    url="https://github.com/CO-CONNECT/co-connect-tools",
     entry_points = {
         'console_scripts': ['etl2cdm = etl2cdm:main'],
     },
