@@ -1,11 +1,8 @@
 FROM python:3.8
 
 WORKDIR /etltool/
-COPY ./requirements.txt /etltool/
+COPY ./ /etltool/
 
-RUN pip install -r requirements.txt
+RUN pip3 install -e .
 
-COPY ./etltool.py /etltool/
-
-RUN python etl2cdm.py 
-CMD ["python","etl2cdm.py"]
+CMD ["etl2cdm"]
