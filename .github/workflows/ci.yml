@@ -10,11 +10,11 @@ jobs:
         with:
           python-version: 3.8
       - uses: actions/checkout@v2
+      - run: ls .
       - name: Install setuptools
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - uses: actions/checkout@v2
       - name: 
         run: |
           etl2cdm  --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
