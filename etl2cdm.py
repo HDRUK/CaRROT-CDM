@@ -18,8 +18,8 @@ parser.add_argument('--chunk-size', default = None, type=int,
                     help='define how to "chunk" the dataframes, this specifies how many rows in the csv files to read in at a time')
 parser.add_argument('-v','--verbose',help='set debugging level',action='store_true')
 
-        
-if __name__ == '__main__':
+
+def main():
     args = parser.parse_args()
     runner = ETLTool()
 
@@ -36,3 +36,7 @@ if __name__ == '__main__':
         runner.load_term_mapping(args.term_mapping)
 
     runner.run()
+
+        
+if __name__ == '__main__':
+    main()

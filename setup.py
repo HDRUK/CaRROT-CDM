@@ -15,6 +15,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/CO-CONNECT/etl-tools",
+    entry_points = {
+        'console_scripts': ['etl2cdm = etl2cdm:main'],
+    },
     packages=setuptools.find_packages(),
     install_requires=required,
     classifiers=[
