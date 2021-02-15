@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from ETLTools import ETLTool
+from coconnect import ETLTool
 
 import argparse
 
