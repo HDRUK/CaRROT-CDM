@@ -67,7 +67,7 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def get_df_chunks(self,fname,chunk_size=10**6):
+    def load_df_chunks(self,fname,chunk_size=10**6):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -79,7 +79,7 @@ class ETLTool:
         chunks = pd.read_csv(fname,chunksize=chunk_size)
         return chunks
 
-    def get_df(self,fname,lower_case=True):
+    def load_df(self,fname,lower_case=True):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -153,7 +153,7 @@ class ETLTool:
            None
         """
         self.map_input_data = { 
-            self.get_source_table_name(fname): self.get_df_chunks(fname,self.chunk_size)
+            self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
             for fname in f_inputs
         }
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
@@ -172,7 +172,7 @@ class ETLTool:
         #when we use df_structural_mapping.loc[table_name] to easily extract
         #structural mapping rules for associated with the given source table
         
-        self.df_structural_mapping = self.get_df(f_structural_mapping)\
+        self.df_structural_mapping = self.load_df(f_structural_mapping)\
                                          .set_index(['destination_table','rule_id'])
         self.logger.debug(self.df_structural_mapping)
         self.logger.info(f'Loaded the structural mapping with {len(self.df_structural_mapping)} rules')
@@ -193,7 +193,7 @@ class ETLTool:
             self.df_term_mapping = pd.DataFrame()
             return
         
-        self.df_term_mapping = self.get_df(f_term_mapping)\
+        self.df_term_mapping = self.load_df(f_term_mapping)\
                                          .set_index(['rule_id'])
         self.logger.debug(self.df_term_mapping)
         self.logger.info(f'Loaded the term mapping with {len(self.df_term_mapping)} rules')
@@ -532,7 +532,9 @@ class ETLTool:
             outname = f'{self.output_data_folder}/mapped_{source_table}_{table}.csv'
             df_destination.to_csv(outname,index=False,mode=mode,header=header)
             self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
-        
+
+            self.df_output = df_destination
+            
 
     def run(self):
         """
