@@ -1,7 +1,7 @@
 # ETLTool
 
 ```
-usage: etltool.py [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] --term-mapping
+usage: etl2cdm.py [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] --term-mapping
                   TERM_MAPPING --structural-mapping STRUCTURAL_MAPPING [-v]
 
 Tool for mapping datasets
@@ -34,7 +34,7 @@ Which can be installed via `pip install -r requirements.txt`
 Then you can try out the sample input data:
 
 ```bash
-python etltool.py -v \
+python etl2cdm.py -v \
        --inputs sample_input_data/patients_sample.csv\
        --structural-mapping sample_input_data/rules1.csv\
        --term-mapping sample_input_data/rules2.csv 

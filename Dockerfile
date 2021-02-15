@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 
 COPY ./etltool.py /etltool/
 
-ENTRYPOINT ["python","etltool.py"]
+ENTRYPOINT ["python","etl2cdm.py"]
