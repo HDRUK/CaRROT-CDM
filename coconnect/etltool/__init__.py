@@ -162,6 +162,15 @@ class ETLTool:
         """
         self.df_cdm = pd.read_csv(f_cdm,encoding="ISO-8859-1").set_index('table')
         self.logger.debug(self.df_cdm)
+
+
+    def check_file(self,fname):
+        if not os.path.exists(fname):
+            fname = f'{self.dir_path}/{fname}'
+            if not os.path.exists(fname):
+                raise FileNotFoundError(f'Cannot find the file "{fname}", also tried also looking in "{self.dir_path}" ')
+        return fname
+            
         
     def load_input_data(self,f_inputs):
         """
@@ -172,6 +181,9 @@ class ETLTool:
         Returns:
            None
         """
+
+        f_inputs = [self.check_file(fname) for fname in f_inputs]
+            
         self.map_input_data = { 
             self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
             for fname in f_inputs
@@ -189,6 +201,10 @@ class ETLTool:
         Returns:
            None
         """
+
+        #perform a check to see if the file exists
+        f_structural_mapping = self.check_file(f_structural_mapping)
+        
         #set the index to be a multindex of ['destination_table','rule_id']
         #this is just going to help us out down the line
         #when we use df_structural_mapping.loc[table_name] to easily extract
@@ -214,6 +230,8 @@ class ETLTool:
                 self.logger.warning('No term mapping specified')
             self.df_term_mapping = pd.DataFrame()
             return
+
+        f_term_mapping = self.check_file(f_term_mapping)
         
         self.df_term_mapping = self.load_df(f_term_mapping)\
                                          .set_index(['rule_id'])
