@@ -8,7 +8,7 @@ with open('requirements.txt') as f:
     
 setuptools.setup(
     name="co-connect-tools", 
-    version="0.0.4",
+    version="0.0.6",
     author="CO-CONNECT",
     author_email="CO-CONNECT@dundee.ac.uk",
     description="Python package for performing mapping of ETL to CDM ",
@@ -20,6 +20,8 @@ setuptools.setup(
     },
     packages=setuptools.find_packages(),
     install_requires=required,
+    package_data={'coconnect': ['cdm/*','sample_input_data/*']},
+    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
