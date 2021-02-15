@@ -39,6 +39,7 @@ coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
 import os
 import pandas as pd
 import numpy as np
+import copy
 
 class NoInputData(Exception):
     pass
@@ -93,6 +94,25 @@ class ETLTool:
             df.columns = df.columns.str.lower()
         return df
 
+    def get_structural_mapping_df(self):
+        return self.df_structural_mapping
+
+    def get_term_mapping_df(self):
+        return self.df_term_mapping
+
+    def get_input_names(self):
+        return list(self.map_input_data.keys())
+
+    def get_input_df(self,key,n=10):
+        df =  pd.read_csv(self.map_original_files[key])
+        return df
+
+    def get_output_df(self):
+        if self.df_output is None:
+            self.logger.warning("You're trying to get the output df before running the tool")
+            return None
+        return self.df_output
+    
     def create_logger(self):
         """
         Initialisation of a logging system for cli messages
@@ -156,6 +176,8 @@ class ETLTool:
             self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
             for fname in f_inputs
         }
+        self.map_original_files = { name: fname for name,fname in zip(self.map_input_data.keys(),f_inputs) }
+        
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
 
     def load_structural_mapping(self,f_structural_mapping):
@@ -394,6 +416,7 @@ class ETLTool:
         self.df_term_mapping = None
         self.df_structural_mapping = None
         self.map_input_data = None
+        self.df_output = None
         self.tool_initialised = False
         
         #create a logger
