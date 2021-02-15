@@ -1,8 +1,9 @@
 # ETLTool
 
+A tool for converting a ETL to a CDM, as used by the UK (CO-CONNECT)[co-connect.ac.uk] project
 ```
-usage: etltool.py [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] --term-mapping
-                  TERM_MAPPING --structural-mapping STRUCTURAL_MAPPING [-v]
+usage: etl2cdm [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] [--term-mapping TERM_MAPPING]
+               --structural-mapping STRUCTURAL_MAPPING [--chunk-size CHUNK_SIZE] [-v]
 
 Tool for mapping datasets
 
@@ -16,25 +17,32 @@ optional arguments:
                         file that will handle the term mapping
   --structural-mapping STRUCTURAL_MAPPING, -sm STRUCTURAL_MAPPING
                         file that will handle the structural mapping
+  --chunk-size CHUNK_SIZE
+                        define how to "chunk" the dataframes, this specifies how many rows in the csv files to read
+                        in at a time
   -v, --verbose         set debugging level
-
 ```
 
 
-## Running locally
+## Installing
 
-To run this tool locally, you'll need the following packages installed:
+To install the tools, you can use `pip`
 ```
-numpy
-pandas
-coloredlogs
+pip install co-connect-tools
 ```
-Which can be installed via `pip install -r requirements.txt`
 
-Then you can try out the sample input data:
+Otherwise, to install locally, checkout the package, navigate to the directory containing the source code and run
+```
+pip install -e .
+```
+
+
+## Running etl2cdm locally
+
+To run this tool contained within the co-connect-tools package
 
 ```bash
-python etltool.py -v \
+etl2cdm -v \
        --inputs sample_input_data/patients_sample.csv\
        --structural-mapping sample_input_data/rules1.csv\
        --term-mapping sample_input_data/rules2.csv 

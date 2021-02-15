@@ -33,27 +33,18 @@ Todo:
 
 """
 
-import os
-import pandas as pd
-import numpy as np
-import argparse
 import logging
 import coloredlogs
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
+import os
+import pandas as pd
+import numpy as np
+import copy
 
-
-parser = argparse.ArgumentParser(description='Tool for mapping datasets')
-parser.add_argument('--inputs','-i', nargs='+', required=True,
-                    help='input .csv files for the original data to be mapped to the CDM')
-parser.add_argument('--output-folder','-o', default='./data',
-                    help='location of where to store the data')
-parser.add_argument('--term-mapping','-tm', required=False,
-                    help='file that will handle the term mapping')
-parser.add_argument('--structural-mapping','-sm', required=True,
-                    help='file that will handle the structural mapping')
-parser.add_argument('--chunk-size', default = 10**6, type=int,
-                    help='define how to "chunk" the dataframes, this specifies how many rows in the csv files to read in at a time')
-parser.add_argument('-v','--verbose',help='set debugging level',action='store_true')
+class NoInputData(Exception):
+    pass
+class NoStructuralMapping(Exception):
+    pass
 
 
 class ETLTool:
@@ -77,7 +68,7 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def get_df_chunks(self,fname,chunk_size=10**6):
+    def load_df_chunks(self,fname,chunk_size=10**6):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -89,7 +80,7 @@ class ETLTool:
         chunks = pd.read_csv(fname,chunksize=chunk_size)
         return chunks
 
-    def get_df(self,fname,lower_case=True):
+    def load_df(self,fname,lower_case=True):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -103,6 +94,25 @@ class ETLTool:
             df.columns = df.columns.str.lower()
         return df
 
+    def get_structural_mapping_df(self):
+        return self.df_structural_mapping
+
+    def get_term_mapping_df(self):
+        return self.df_term_mapping
+
+    def get_input_names(self):
+        return list(self.map_input_data.keys())
+
+    def get_input_df(self,key,n=10):
+        df =  pd.read_csv(self.map_original_files[key])
+        return df
+
+    def get_output_df(self):
+        if self.df_output is None:
+            self.logger.warning("You're trying to get the output df before running the tool")
+            return None
+        return self.df_output
+    
     def create_logger(self):
         """
         Initialisation of a logging system for cli messages
@@ -119,7 +129,30 @@ class ETLTool:
         self.logger.addHandler(ch)
         self.logger.info('Starting the tool')
 
-    def load_cdm(self):
+    def set_output_folder(self,output_folder):
+        self.output_data_folder = output_folder
+        if not os.path.exists(self.output_data_folder):
+            self.logger.info(f'Creating an output data folder: {self.output_data_folder}')
+            os.makedirs(self.output_data_folder)
+
+        
+    def set_verbose(self,verbose=True):
+        """
+        Set the message level of the tool to be verbose or not
+        Args:
+           verbose (bool):  whether to log messages to help debug or not
+        """
+        self.verbose = verbose
+
+    def set_chunk_size(self,chunk_size):
+        """
+        Set the chunk size of the number of rows of a table to load into memory in each batch
+        Args:
+            chunk_size (long int) : the number of rows to process 
+        """
+        self.chunk_size = chunk_size
+        
+    def load_cdm(self,f_cdm):
         """
         Load the default cdm model (v5.3.1) into a pandas dataframe
         Args:
@@ -127,10 +160,10 @@ class ETLTool:
         Returns:
            None
         """
-        self.df_cdm = pd.read_csv(self.f_cdm,encoding="ISO-8859-1").set_index('table')
+        self.df_cdm = pd.read_csv(f_cdm,encoding="ISO-8859-1").set_index('table')
         self.logger.debug(self.df_cdm)
         
-    def load_input_data(self):
+    def load_input_data(self,f_inputs):
         """
         Load the input data, which is a list of input files into pandas dataframes
         and map, based on the original file name, to the dataframe: {name: dataframe}
@@ -140,12 +173,14 @@ class ETLTool:
            None
         """
         self.map_input_data = { 
-            self.get_source_table_name(fname): self.get_df_chunks(fname,self.chunk_size)
-            for fname in self.f_inputs
+            self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
+            for fname in f_inputs
         }
+        self.map_original_files = { name: fname for name,fname in zip(self.map_input_data.keys(),f_inputs) }
+        
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
 
-    def load_structural_mapping(self):
+    def load_structural_mapping(self,f_structural_mapping):
         """
         Load the structural mapping into a pandas dataframe
 
@@ -159,13 +194,13 @@ class ETLTool:
         #when we use df_structural_mapping.loc[table_name] to easily extract
         #structural mapping rules for associated with the given source table
         
-        self.df_structural_mapping = self.get_df(self.f_structural_mapping)\
+        self.df_structural_mapping = self.load_df(f_structural_mapping)\
                                          .set_index(['destination_table','rule_id'])
         self.logger.debug(self.df_structural_mapping)
         self.logger.info(f'Loaded the structural mapping with {len(self.df_structural_mapping)} rules')
         
                 
-    def load_term_mapping(self):
+    def load_term_mapping(self,f_term_mapping=None, init=False):
         """
         Load the term mapping into a pandas dataframe
 
@@ -174,12 +209,13 @@ class ETLTool:
         Returns:
            None
         """
-        if self.f_term_mapping == None:
-            self.logger.warning('No term mapping specified')
+        if f_term_mapping == None:
+            if not init:
+                self.logger.warning('No term mapping specified')
             self.df_term_mapping = pd.DataFrame()
             return
         
-        self.df_term_mapping = self.get_df(self.f_term_mapping)\
+        self.df_term_mapping = self.load_df(f_term_mapping)\
                                          .set_index(['rule_id'])
         self.logger.debug(self.df_term_mapping)
         self.logger.info(f'Loaded the term mapping with {len(self.df_term_mapping)} rules')
@@ -330,42 +366,25 @@ class ETLTool:
         # - get only the month via the .dt object
         # - convert the series back into a pandas dataframe
         return pd.to_datetime(series).dt.month.to_frame()
-    
-    def __init__(self,args):
+
+    def initialise(self):
         """
         Class initialisation
         - load all the neccessary files that get passed in via the cli arguments
         - load all the inputs into pandas dataframes so we can manipulate 
         """
-        self.verbose = args.verbose
-        self.create_logger()
-        self.f_inputs = args.inputs
-        self.f_term_mapping = args.term_mapping
-        self.f_structural_mapping = args.structural_mapping
-        self.chunk_size = args.chunk_size
-        self.output_data_folder = args.output_folder
-        if not os.path.exists(self.output_data_folder):
-            self.logger.info(f'Creating an output data folder: {self.output_data_folder}')
-            os.makedirs(self.output_data_folder)
-        
-        self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.logger.debug(f'Directory path... {self.dir_path}')
+        if self.output_data_folder == None:
+            self.set_output_folder("./data/")
 
-        #hard code OMPO CDM 5.3.1 for now
-        self.f_cdm = f'{self.dir_path}/cdm/OMOP_CDM_v5_3_1.csv'
-        if not os.path.isfile(self.f_cdm):
-            raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {self.f_cdm}')
-        #hard code for now..
-        #map lookup name with a function to perform an operation on a field(s)
-        self.allowed_operations = {
-            'extract year': self.get_year_from_date,
-            #'extract month': self.get_month_from_date
-        }
-        
-        self.load_cdm()
-        self.load_input_data()
-        self.load_structural_mapping()
-        self.load_term_mapping()
+        if self.df_term_mapping is None:
+            self.df_term_mapping = self.load_term_mapping(init=True)
+
+        if self.df_structural_mapping is None:
+            raise NoStructuralMapping('No structural mapping has been defined so cant run anything')
+            
+        if self.map_input_data is None:
+            raise NoInputData('No Input data has been loaded, so cant run anything!')
+            
         
         self.destination_tables = self.get_destination_tables()
 
@@ -382,6 +401,48 @@ class ETLTool:
 
         
         self.logger.info(f'Destination tables to create... {list(self.destination_tables)}')
+        self.logger.info(f'Done with tool initialisation...')
+        self.tool_initialised = True
+    
+    def __init__(self):
+        """
+        Class __init__
+        - setup the tool
+        """
+        #some initial parameters
+        self.verbose = False
+        self.chunk_size = 10**6
+        self.output_data_folder = None
+        self.df_term_mapping = None
+        self.df_structural_mapping = None
+        self.map_input_data = None
+        self.df_output = None
+        self.tool_initialised = False
+        
+        #create a logger
+        self.create_logger()
+        
+        #setup the working directory path so we can find the data
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
+        self.logger.debug(f'Directory path... {self.dir_path}')
+
+        #hard code OMPO CDM 5.3.1 for now
+        f_cdm = f'{self.dir_path}/cdm/OMOP_CDM_v5_3_1.csv'
+        if not os.path.isfile(f_cdm):
+            raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {f_cdm}')
+        
+        self.load_cdm(f_cdm)
+
+        
+
+        #hard code for now..
+        #map lookup name with a function to perform an operation on a field(s)
+        self.allowed_operations = {
+            'extract year': self.get_year_from_date,
+            #'extract month': self.get_month_from_date
+        }
+        
 
     
     def process_table(self,table):
@@ -494,18 +555,18 @@ class ETLTool:
             outname = f'{self.output_data_folder}/mapped_{source_table}_{table}.csv'
             df_destination.to_csv(outname,index=False,mode=mode,header=header)
             self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
-        
+
+            self.df_output = df_destination
+            
 
     def run(self):
         """
         Start the program running by looping over the CDM destination tables defined by the user
         """
+        if not self.tool_initialised:
+            self.initialise()
+        
         self.logger.info('Starting ETL to CDM')
         for destination_table in self.destination_tables:
            self.process_table(destination_table) 
 
-        
-if __name__ == '__main__':
-    args = parser.parse_args()
-    runner = ETLTool(args)
-    runner.run()

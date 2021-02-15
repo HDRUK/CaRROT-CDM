@@ -10,11 +10,7 @@ jobs:
       - name: 
         run: |
           pip3 install -r requirements.txt
-          python3 etltool.py --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
-      - name: check lookup file
-        run: cat data/lookup_person_person_id.csv
-      - name: check mapped CDM output
-        run: cat data/mapped_person.csv 
+          python3 etl2cdm.py --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
       - uses: actions/upload-artifact@v2
         with:
           name: outputs

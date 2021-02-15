@@ -1,2 +1,7 @@
 data
 .ipynb_checkpoints
+*_pycache_*
+*egg-info
+dist
+.DS_store
+build
