@@ -16,7 +16,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/CO-CONNECT/co-connect-tools",
     entry_points = {
-        'console_scripts': ['etl2cdm = etl2cdm:main'],
+        'console_scripts': ['etl2cdm=coconnect.cli.etl2cdm:main'],
     },
     packages=setuptools.find_packages(),
     install_requires=required,
