@@ -442,7 +442,7 @@ class ETLTool:
         
         #setup the working directory path so we can find the data
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
+        #self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
         self.logger.debug(f'Directory path... {self.dir_path}')
 
         #hard code OMPO CDM 5.3.1 for now
