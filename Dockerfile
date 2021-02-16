@@ -5,4 +5,4 @@ COPY ./ /etltool/
 
 RUN pip3 install -e .
 
-CMD ["etl2cdm"]
+#CMD ["etl2cdm"]
