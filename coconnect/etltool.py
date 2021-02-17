@@ -51,7 +51,7 @@ class ETLTool:
     """
     A class for the ETLTool runner, this will handle the loading of the input files
     """
-    def get_source_table_name(self, fname):
+    def get_source_table_name(self, fname, truncate_because_excel_is_stupid=True):
         """
         Retrieve source table name from the file name
         - strip the directory name
@@ -62,9 +62,14 @@ class ETLTool:
            - 'patients' will be returned as teh source table name
         """
         fname = fname.split("/")[-1]
+            
         self.logger.debug(f'Extracting the name of the table for input: {fname}')
-        if fname[-4:] == '.csv': 
-            return fname.split('.csv')[0]
+        if fname[-4:] == '.csv':
+            fname = fname.split('.csv')[0]
+            if truncate_because_excel_is_stupid:
+                fname = fname[:31]
+
+            return fname
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
@@ -166,9 +171,10 @@ class ETLTool:
 
     def check_file(self,fname):
         if not os.path.exists(fname):
+            _fname = fname
             fname = f'{self.dir_path}/{fname}'
             if not os.path.exists(fname):
-                raise FileNotFoundError(f'Cannot find the file "{fname}", also tried also looking in "{self.dir_path}" ')
+                raise FileNotFoundError(f'Cannot find the file "{_fname}", also tried also looking in "{self.dir_path}" ')
         return fname
             
         
@@ -457,7 +463,7 @@ class ETLTool:
         #hard code for now..
         #map lookup name with a function to perform an operation on a field(s)
         self.allowed_operations = {
-            'extract year': self.get_year_from_date,
+            'EXTRACT_YEAR': self.get_year_from_date,
             #'extract month': self.get_month_from_date
         }
         
@@ -494,7 +500,13 @@ class ETLTool:
         df_mapping = self.get_structural_mapping(table)
 
         if source_table not in self.map_input_data:
-            raise LookupError(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+            self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+            self.logger.warning("Going to try with lowering the name to lower cases WhiteRabbit are stuck in the 90s")
+            _source_table = source_table
+            source_table = source_table.lower()
+            if source_table not in self.map_input_data:
+                self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+                raise LookupError(f'Cannot find {source_table}!')
         chunks_table_data = self.map_input_data[source_table]
 
         
@@ -518,7 +530,7 @@ class ETLTool:
                 source_field = rule['source_field']
                 if rule['term_mapping'] == 'n':
                     self.logger.debug("No mapping term defined for this rule")
-                    if rule['operation'] == 'n':
+                    if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                         self.logger.debug("No operation set. Mapping one-to-one")
                         columns_output.append(
                             self.map_one_to_one(df_table_data,source_field,destination_field)
@@ -581,6 +593,8 @@ class ETLTool:
         """
         Start the program running by looping over the CDM destination tables defined by the user
         """
+        self.logger.info('starting to run')
+        
         if not self.tool_initialised:
             self.initialise()
         
