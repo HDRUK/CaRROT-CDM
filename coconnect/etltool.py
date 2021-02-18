@@ -215,8 +215,8 @@ class ETLTool:
         #when we use df_structural_mapping.loc[table_name] to easily extract
         #structural mapping rules for associated with the given source table
         
-        self.df_structural_mapping = self.load_df(f_structural_mapping)\
-                                         .set_index(['destination_table','rule_id'])
+        self.df_structural_mapping = self.load_df(f_structural_mapping)
+
         self.logger.debug(self.df_structural_mapping)
         self.logger.info(f'Loaded the structural mapping with {len(self.df_structural_mapping)} rules')
         
@@ -271,8 +271,8 @@ class ETLTool:
         Returns:
            numpy.ndarray
         """
-        return self.df_structural_mapping.index.get_level_values(0).unique()
-
+        return self.df_structural_mapping['destination_table'].unique()
+    
     def get_mapped_fields(self,table):
         """
         Get the names all the destination fields that are associated with the structural mapping of a partiular table
@@ -517,11 +517,13 @@ class ETLTool:
         source_tables = self.get_source_tables(destination_table)
 
         if len(source_tables)>1:
+            self.logger.debug(source_tables)
+            self.logger.debug(destination_table)
             self.logger.error('not yet implemented to map multiple source tables to a destination table')
             for destination_field in mapped_fields:
-                print (mapped_fields)
+                self.logger.error(destination_field)
                 rule = df_mapping.loc[destination_field]
-                self.logger.debug(rule)
+                self.logger.debug(f"\n {rule}")
 
             exit(0)
 
