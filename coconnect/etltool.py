@@ -367,7 +367,7 @@ class ETLTool:
 
         if is_truncation:
             new_term = df_map.iloc[0]['destination_term']
-            df_orig[destination_field] = new_term
+            df_orig = df_orig.assign(destination_field = new_term)
             
             
         else:
@@ -687,7 +687,14 @@ class ETLTool:
                     #                                   .rename({'index':'person_id'},axis=1)
                 
                 #save the data into new csvs
-                outname = f'{self.output_data_folder}/mapped_{destination_table}_{source_table}.csv'
+                outname = f'{self.output_data_folder}/{destination_table}/'
+
+                if not os.path.exists(outname):
+                    self.logger.info(f'Creating a new folder: {outname}')
+                    os.makedirs(outname)
+
+                outname = f'{outname}/{source_table}.csv'
+
                 df_destination.to_csv(outname,index=False,mode=mode,header=header)
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
