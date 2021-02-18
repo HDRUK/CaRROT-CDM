@@ -600,14 +600,12 @@ class ETLTool:
                 for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
 
-                    print (df_mapping)
-                    rule = df_mapping.loc[destination_field]
-                    #again, use str.lower() 
+                    rules = df_mapping.loc[[destination_field]]
+
+                    rule = rules.iloc[0]
+                                                            
                     source_field = rule['source_field'].lower()
-                    print (rule)
-                    print (source_table)
-                    print (destination_table)
-                    print (destination_field)
+
                     if rule['term_mapping'] == 'n':
                         self.logger.debug("No mapping term defined for this rule")
                         if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
@@ -628,7 +626,7 @@ class ETLTool:
                         rule_id = rule['rule_id']
                         self.logger.debug(f'Mapping term found. Applying..')
                         self.logger.debug(f'{rule.to_dict()}')
-                        df_map = self.df_term_mapping.loc[rule_id]
+                        df_map = self.df_term_mapping.loc[[rule_id]]
 
                         columns_output.append(
                             self.map_via_rule(df_table_data,df_map,source_field,destination_field)
