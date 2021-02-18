@@ -304,8 +304,23 @@ class ETLTool:
            table (str): name of a (destination) table in the CDM
         Returns:
            list(str): the names of the source tables associated with this mapping
-        """
-        retval = self.df_structural_mapping.loc[table]['source_table'].unique()
+        """x
+        source_tables = self.df_structural_mapping.loc[table]['source_table'].unique()
+
+        #perform a check on the source tables to see if they've been loaded by the user
+        for i,source_table in enumerate(source_tables):
+            if source_table not in self.map_input_data:
+                self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+                self.logger.warning("Going to try with lowering the name to lower cases WhiteRabbit are stuck in the 90s")
+                _source_table = source_table
+                source_table = source_table.lower()
+                source_tables[i] = source_table
+                
+                if source_table not in self.map_input_data:
+                    self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+                    raise LookupError(f'Cannot find {source_table}!')
+                                
+        
         return retval
 
 
@@ -487,7 +502,9 @@ class ETLTool:
         for x in mapped_fields:
             if x not in list(destination_fields):
                 bad.append(x)
-                self.logger.error(f'You are trying to map a field "{x}" that is not in this CDM! Fields are called ... {list(destination_fields)}')
+                self.logger.error(f'BAD INPUT -- SKIPPING {x}')
+                self.logger.error(f'You are trying to map a field "{x}" that is not in this CDM!')
+                self.logger.warning(f'Fields are called ... {list(destination_fields)}')
         mapped_fields = [x for x in mapped_fields if x not in bad]
                            
         unmapped_fields = list(set(destination_fields) - set(mapped_fields))
@@ -501,19 +518,9 @@ class ETLTool:
         print (source_tables)
         df_mapping = self.get_structural_mapping(destination_table)
 
-
-        print (df_mapping)
+        chunks_table_data = self.map_input_data[source_table]
+                
         
-        # if source_table not in self.map_input_data:
-        #     self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
-        #     self.logger.warning("Going to try with lowering the name to lower cases WhiteRabbit are stuck in the 90s")
-        #     _source_table = source_table
-        #     source_table = source_table.lower()
-        #     if source_table not in self.map_input_data:
-        #         self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
-        #         raise LookupError(f'Cannot find {source_table}!')
-        # chunks_table_data = self.map_input_data[source_table]
-
         
         # for icounter,df_table_data in enumerate(chunks_table_data):
         #     df_table_data.columns = df_table_data.columns.str.lower()
