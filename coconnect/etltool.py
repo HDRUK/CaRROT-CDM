@@ -50,7 +50,8 @@ class NoTermMapping(Exception):
     pass
 class BadStructuralMapping(Exception):
     pass
-
+class MadMapping(Exception):
+    pass
 
 
 class ETLTool:
@@ -301,6 +302,7 @@ class ETLTool:
         """
         return self.df_structural_mapping\
                    .set_index(['destination_table','source_table'])\
+                   .sort_index()\
                    .loc[(destination_table,source_table)]\
                    .reset_index().set_index('destination_field')
     
@@ -340,19 +342,44 @@ class ETLTool:
         orig_type = df_orig[source_field].dtype
         map_type = df_map['source_term'].dtype
 
+        #check for truncation of terms!
+        is_truncation = any(df_map['source_term'].str.contains('List truncated'))
+        
+
         #need this step to make sure theyre the same type
         #this isnt working by default because we dumped the csvs with "blah","blah"
-        if map_type != orig_type:
-            df_map['source_term'] = df_map['source_term'].astype(orig_type)
-                        
-        df_orig = df_orig.merge(df_map,
+        if map_type != orig_type and not is_truncation:
+            try:
+                df_map['source_term'] = df_map['source_term'].astype(orig_type)
+            except ValueError as err:
+                self.logger.error("You're really trying some bizarre mapping here"
+                                  "The types are completely different")
+                self.logger.error(f"Mapping source type = {map_type}")
+                self.logger.error(f"Original source type = {orig_type}")
+
+                orig_example = df_orig[source_field].iloc[0]
+                new_example = df_map['source_term'].iloc[0]
+                self.logger.error(f"Source : {orig_example}")
+                self.logger.error(f"Trying being mapped with: {new_example}")
+                
+                raise MadMapping(err)
+                
+
+        if is_truncation:
+            new_term = df_map.iloc[0]['destination_term']
+            df_orig[destination_field] = new_term
+            
+            
+        else:
+            df_orig = df_orig.merge(df_map,
                                 left_on=source_field,
                                 right_on='source_term',
                                 how='left')
-        df_orig = df_orig[['destination_term']].rename(
-            {
-                'destination_term':destination_field
-            },axis=1)
+            
+            df_orig = df_orig[['destination_term']].rename(
+                {
+                    'destination_term':destination_field
+                },axis=1)
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
@@ -602,69 +629,69 @@ class ETLTool:
 
                     rules = df_mapping.loc[[destination_field]]
 
-                    rule = rules.iloc[0]
-                                                            
-                    source_field = rule['source_field'].lower()
+                    for i in range(len(rules)):
+                        rule = rules.iloc[i]
+                        source_field = rule['source_field'].lower()
 
-                    if rule['term_mapping'] == 'n':
-                        self.logger.debug("No mapping term defined for this rule")
-                        if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
-                            self.logger.debug("No operation set. Mapping one-to-one")
-                            columns_output.append(
-                                self.map_one_to_one(df_table_data,source_field,destination_field)
-                            )
+                        if rule['term_mapping'] == 'n':
+                            self.logger.debug("No mapping term defined for this rule")
+                            if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
+                                self.logger.debug("No operation set. Mapping one-to-one")
+                                columns_output.append(
+                                    self.map_one_to_one(df_table_data,source_field,destination_field)
+                                )
+                            else:
+                                operation = rule['operation']
+                                if operation not in self.allowed_operations.keys():
+                                    raise ValueError(f'Unknown Operation {operation}')
+                                self.logger.debug(f'Applying {operation}')
+                                ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                                columns_output.append(
+                                    ret.to_frame(destination_field)
+                                )
                         else:
-                            operation = rule['operation']
-                            if operation not in self.allowed_operations.keys():
-                                raise ValueError(f'Unknown Operation {operation}')
-                            self.logger.debug(f'Applying {operation}')
-                            ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                            rule_id = rule['rule_id']
+                            self.logger.debug(f'Mapping term found. Applying..')
+                            self.logger.debug(f'{rule.to_dict()}')
+                            df_map = self.df_term_mapping.loc[[rule_id]]
+                            
                             columns_output.append(
-                                ret.to_frame(destination_field)
+                                self.map_via_rule(df_table_data,df_map,source_field,destination_field)
                             )
-                    else:
-                        rule_id = rule['rule_id']
-                        self.logger.debug(f'Mapping term found. Applying..')
-                        self.logger.debug(f'{rule.to_dict()}')
-                        df_map = self.df_term_mapping.loc[[rule_id]]
-
-                        columns_output.append(
-                            self.map_via_rule(df_table_data,df_map,source_field,destination_field)
-                        )
                         
-        #     df_destination = pd.concat(columns_output,axis=1)
-        #     self.logger.debug(f'concatenated the output columns into a new dataframe')
-        #     df_destination = df_destination[destination_fields]
-        #     self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
-
-
-        #     #since we are looping over chunks
-        #     #- for the first chunk, save the headers and set the write mode to write
-        #     #- for the rest of the chunks, dont save the headers and set the write mode to append
-        #     mode = 'w'
-        #     header = True
-        #     if icounter > 0:
-        #         mode = 'a'
-        #         header = False
-
-        #     self.logger.debug(f'writing mode:"{mode}", save headers="{header}')
+                df_destination = pd.concat(columns_output,axis=1)
+                #self.logger.debug(f'concatenated the output columns into a new dataframe')
+                #df_destination = df_destination[destination_fields]
+                self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
             
-        #     #perform masking of the person id
-        #     #- perfom is person_id is in the cdm and is not empty/null
-        #     #- save the lookup to the person id
-        #     #- make an arbritary index for the person id instead
-        #     if 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
-        #         self.save_lookup_table(df_destination,source_table,destination_table,'person_id')
-        #         df_destination = df_destination.drop('person_id',axis=1)\
-        #                                        .reset_index()\
-        #                                        .rename({'index':'person_id'},axis=1)
                 
-        #     #save the data into new csvs
-        #     outname = f'{self.output_data_folder}/mapped_{source_table}_{destination_table}.csv'
-        #     df_destination.to_csv(outname,index=False,mode=mode,header=header)
-        #     self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
+                #since we are looping over chunks
+                #- for the first chunk, save the headers and set the write mode to write
+                #- for the rest of the chunks, dont save the headers and set the write mode to append
+                mode = 'w'
+                header = True
+                if icounter > 0:
+                    mode = 'a'
+                    header = False
+                    
+                self.logger.debug(f'writing mode:"{mode}", save headers="{header}')
+            
+                #perform masking of the person id
+                #- perfom is person_id is in the cdm and is not empty/null
+                #- save the lookup to the person id
+                #- make an arbritary index for the person id instead
+                #if 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
+                #    self.save_lookup_table(df_destination,source_table,destination_table,'person_id')
+                #    df_destination = df_destination.drop('person_id',axis=1)\
+                    #                                   .reset_index()\
+                    #                                   .rename({'index':'person_id'},axis=1)
+                
+                #save the data into new csvs
+                outname = f'{self.output_data_folder}/mapped_{destination_table}_{source_table}.csv'
+                df_destination.to_csv(outname,index=False,mode=mode,header=header)
+                self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
-        #     self.df_output = df_destination
+                self.df_output = df_destination
             
 
     def run(self):
