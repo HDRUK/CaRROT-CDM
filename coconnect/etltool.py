@@ -550,7 +550,6 @@ class ETLTool:
         self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
         
         for source_table in source_tables:
-
             #structural mapping associated with the destination table and the source table
             df_mapping = self.get_structural_mapping(destination_table,source_table)
 
@@ -576,6 +575,9 @@ class ETLTool:
                 #    df_table_data_blank[destination_field] = np.nan
                 #    columns_output.append(df_table_data_blank[destination_field])
 
+                print (df_mapping)
+                continue
+                
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields:
                     self.logger.info(f'Working on {destination_field}')
