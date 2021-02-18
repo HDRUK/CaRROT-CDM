@@ -65,7 +65,7 @@ class ETLTool:
             
         self.logger.debug(f'Extracting the name of the table for input: {fname}')
         if fname[-4:] == '.csv':
-            #fname = fname.split('.csv')[0]
+            #fname = fname.split('.csv')[0] #turn off for now -- revisit, Calum
             if truncate_because_excel_is_stupid:
                 fname = fname[:31]
 
@@ -117,16 +117,13 @@ class ETLTool:
             self.logger.warning("You're trying to get the output df before running the tool")
             return None
         return self.df_output
-    
+
     def create_logger(self):
         """
         Initialisation of a logging system for cli messages
         """
         self.logger = logging.getLogger(self.__class__.__name__)
-        if self.verbose:
-            self.logger.setLevel(logging.DEBUG)
-        else:
-            self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.INFO)
 
         ch = logging.StreamHandler()
         formatter = coloredlogs.ColoredFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -148,6 +145,8 @@ class ETLTool:
            verbose (bool):  whether to log messages to help debug or not
         """
         self.verbose = verbose
+        if self.verbose:
+            self.logger.setLevel(logging.DEBUG)
 
     def set_chunk_size(self,chunk_size):
         """
@@ -307,10 +306,6 @@ class ETLTool:
         """
         source_tables = self.df_structural_mapping.loc[table]['source_table'].unique()
 
-        print (source_tables)
-        exit(0)
-        
-        #perform a check on the source tables to see if they've been loaded by the user
         for i,source_table in enumerate(source_tables):
             if source_table not in self.map_input_data:
                 self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
@@ -324,7 +319,7 @@ class ETLTool:
                     raise LookupError(f'Cannot find {source_table}!')
                                 
         
-        return retval
+        return source_tables
 
 
     def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=True):
@@ -517,56 +512,68 @@ class ETLTool:
         self.logger.debug(f'Mapped fields {list(mapped_fields)}')
 
 
-        source_tables = self.get_source_tables(destination_table)
-        print (source_tables)
         df_mapping = self.get_structural_mapping(destination_table)
 
+        source_tables = self.get_source_tables(destination_table)
+
+        if len(source_tables)>1:
+            self.logger.error('not yet implemented to map multiple source tables to a destination table')
+            for destination_field in mapped_fields:
+                print (mapped_fields)
+                rule = df_mapping.loc[destination_field]
+                self.logger.debug(rule)
+
+            exit(0)
+
+        
+        source_table = source_tables[0]
+                
         chunks_table_data = self.map_input_data[source_table]
                 
         
-        
-        # for icounter,df_table_data in enumerate(chunks_table_data):
-        #     df_table_data.columns = df_table_data.columns.str.lower()
+        for icounter,df_table_data in enumerate(chunks_table_data):
+            df_table_data.columns = df_table_data.columns.str.lower()
             
-        #     self.logger.debug(f'Processing {icounter}')
+            self.logger.debug(f'Processing {icounter}')
             
-        #     df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
-        #     columns_output = []
-            
-        #     #first create nan columns for unmapped fields in the CDM
-        #     for destination_field in unmapped_fields:
-        #         df_table_data_blank[destination_field] = np.nan
-        #         columns_output.append(df_table_data_blank[destination_field])
+            df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
+            columns_output = []
 
-        #     #now start the real work of making new columns based on the mapping rules
-        #     for destination_field in mapped_fields:
-        #         self.logger.info(f'Working on {destination_field}')
-        #         rule = df_mapping.loc[destination_field]
-        #         source_field = rule['source_field']
-        #         if rule['term_mapping'] == 'n':
-        #             self.logger.debug("No mapping term defined for this rule")
-        #             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
-        #                 self.logger.debug("No operation set. Mapping one-to-one")
-        #                 columns_output.append(
-        #                     self.map_one_to_one(df_table_data,source_field,destination_field)
-        #                 )
-        #             else:
-        #                 operation = rule['operation']
-        #                 if operation not in self.allowed_operations.keys():
-        #                     raise ValueError(f'Unknown Operation {operation}')
-        #                 self.logger.debug(f'Applying {operation}')
-        #                 ret = self.allowed_operations[operation](df_table_data,column=source_field)
-        #                 columns_output.append(
-        #                     ret.to_frame(destination_field)
-        #                 )
-        #         else:
-        #             rule_id = rule['rule_id']
-        #             self.logger.debug(f'Mapping term found. Applying..')
-        #             self.logger.debug(f'{rule.to_dict()}')
-        #             df_map = self.df_term_mapping.loc[rule_id]
-        #             columns_output.append(
-        #                 self.map_via_rule(df_table_data,df_map,source_field,destination_field)
-        #             )
+            
+            #first create nan columns for unmapped fields in the CDM
+            for destination_field in unmapped_fields:
+                df_table_data_blank[destination_field] = np.nan
+                columns_output.append(df_table_data_blank[destination_field])
+
+            #now start the real work of making new columns based on the mapping rules
+            for destination_field in mapped_fields:
+                self.logger.info(f'Working on {destination_field}')
+                rule = df_mapping.loc[destination_field]
+                source_field = rule['source_field']
+                if rule['term_mapping'] == 'n':
+                    self.logger.debug("No mapping term defined for this rule")
+                    if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
+                        self.logger.debug("No operation set. Mapping one-to-one")
+                        columns_output.append(
+                            self.map_one_to_one(df_table_data,source_field,destination_field)
+                        )
+                    else:
+                        operation = rule['operation']
+                        if operation not in self.allowed_operations.keys():
+                            raise ValueError(f'Unknown Operation {operation}')
+                        self.logger.debug(f'Applying {operation}')
+                        ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                        columns_output.append(
+                            ret.to_frame(destination_field)
+                        )
+                else:
+                    rule_id = rule['rule_id']
+                    self.logger.debug(f'Mapping term found. Applying..')
+                    self.logger.debug(f'{rule.to_dict()}')
+                    df_map = self.df_term_mapping.loc[rule_id]
+                    columns_output.append(
+                        self.map_via_rule(df_table_data,df_map,source_field,destination_field)
+                    )
                     
         
         #     df_destination = pd.concat(columns_output,axis=1)

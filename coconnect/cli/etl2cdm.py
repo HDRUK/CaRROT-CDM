@@ -21,6 +21,7 @@ parser.add_argument('-v','--verbose',help='set debugging level',action='store_tr
 
 def main():
     args = parser.parse_args()
+
     runner = ETLTool()
 
     runner.set_verbose(args.verbose)
