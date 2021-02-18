@@ -65,7 +65,7 @@ class ETLTool:
             
         self.logger.debug(f'Extracting the name of the table for input: {fname}')
         if fname[-4:] == '.csv':
-            fname = fname.split('.csv')[0]
+            #fname = fname.split('.csv')[0]
             if truncate_because_excel_is_stupid:
                 fname = fname[:31]
 
@@ -307,6 +307,9 @@ class ETLTool:
         """
         source_tables = self.df_structural_mapping.loc[table]['source_table'].unique()
 
+        print (source_tables)
+        exit(0)
+        
         #perform a check on the source tables to see if they've been loaded by the user
         for i,source_table in enumerate(source_tables):
             if source_table not in self.map_input_data:
@@ -315,7 +318,7 @@ class ETLTool:
                 _source_table = source_table
                 source_table = source_table.lower()
                 source_tables[i] = source_table
-                
+
                 if source_table not in self.map_input_data:
                     self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
                     raise LookupError(f'Cannot find {source_table}!')
