@@ -46,8 +46,11 @@ class NoInputData(Exception):
     pass
 class NoStructuralMapping(Exception):
     pass
+class NoTermMapping(Exception):
+    pass
 class BadStructuralMapping(Exception):
     pass
+
 
 
 class ETLTool:
@@ -333,6 +336,15 @@ class ETLTool:
 
     def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=True):
         df_orig = df[[source_field]]
+
+        orig_type = df_orig[source_field].dtype
+        map_type = df_map['source_term'].dtype
+
+        #need this step to make sure theyre the same type
+        #this isnt working by default because we dumped the csvs with "blah","blah"
+        if map_type != orig_type:
+            df_map['source_term'] = df_map['source_term'].astype(orig_type)
+                        
         df_orig = df_orig.merge(df_map,
                                 left_on=source_field,
                                 right_on='source_term',
@@ -429,7 +441,14 @@ class ETLTool:
         if self.map_input_files is None:
             raise NoInputData('No Input data has been loaded, so cant run anything!')
 
-        #perform a check tht 
+
+        if 'y' in self.df_structural_mapping['term_mapping'].unique():
+            if self.df_term_mapping is None:
+                self.logger.error('Found term_mapping is needed!')
+                raise NoTermMapping("Your structural mapping is indicating there is term"
+                                    "But you didnt specify a source lookup for this via --term-mapping")
+                    
+        #perform a check that the source table names are consistent
         sm_source_tables = self.df_structural_mapping['source_table'].unique()
         data_source_tables = self.map_input_files.keys()
 
@@ -575,17 +594,13 @@ class ETLTool:
                 #    df_table_data_blank[destination_field] = np.nan
                 #    columns_output.append(df_table_data_blank[destination_field])
 
-                print (df_mapping)
-                continue
+                mapped_fields_for_current_source_table = df_mapping.index.to_list()
                 
                 #now start the real work of making new columns based on the mapping rules
-                for destination_field in mapped_fields:
+                for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
 
                     print (df_mapping)
-                    print (destination_field)
-                    print (source_table)
-                    print (destination_table)
                     rule = df_mapping.loc[destination_field]
                     #again, use str.lower() 
                     source_field = rule['source_field'].lower()
@@ -614,6 +629,7 @@ class ETLTool:
                         self.logger.debug(f'Mapping term found. Applying..')
                         self.logger.debug(f'{rule.to_dict()}')
                         df_map = self.df_term_mapping.loc[rule_id]
+
                         columns_output.append(
                             self.map_via_rule(df_table_data,df_map,source_field,destination_field)
                         )
