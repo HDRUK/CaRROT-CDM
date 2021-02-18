@@ -46,6 +46,8 @@ class NoInputData(Exception):
     pass
 class NoStructuralMapping(Exception):
     pass
+class BadStructuralMapping(Exception):
+    pass
 
 
 class ETLTool:
@@ -190,16 +192,12 @@ class ETLTool:
 
         f_inputs = [self.check_file(fname) for fname in f_inputs]
             
-        #self.map_input_data = { 
-        #    self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
-        #    for fname in f_inputs
-        #}
         self.map_input_files = {
             self.get_source_table_name(fname): fname
             for fname in f_inputs
         }
-        
-        self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
+        tables = list(self.map_input_files.keys())
+        self.logger.info(f'found the following input tables: {tables}')
 
     def load_structural_mapping(self,f_structural_mapping):
         """
@@ -220,7 +218,7 @@ class ETLTool:
         #structural mapping rules for associated with the given source table
         
         self.df_structural_mapping = self.load_df(f_structural_mapping)
-
+        
         self.logger.debug(self.df_structural_mapping)
         self.logger.info(f'Loaded the structural mapping with {len(self.df_structural_mapping)} rules')
         
@@ -288,18 +286,19 @@ class ETLTool:
         return self.df_structural_mapping.set_index('destination_table')\
                                          .loc[table]['destination_field'].to_list()
 
-    def get_structural_mapping(self,table):
+    def get_structural_mapping(self,destination_table,source_table):
         """
-        Gets the dataframe for the structural mapping and filtered by the table name
+        Gets the dataframe for the structural mapping and filtered by the table names
         then sets the index to be the destination field (for later convienience 
         Args:
-           table (str): name of a table
+           destination table (str): name of the CDM table
+           source table (str): name of the input dataset tabel
         Returns:
            pandas.DataFrame : a new pandas dataframe with 'destination_field' as the index
         """
         return self.df_structural_mapping\
-                   .set_index('destination_table')\
-                   .loc[table]\
+                   .set_index(['destination_table','source_table'])\
+                   .loc[(destination_table,source_table)]\
                    .reset_index().set_index('destination_field')
     
     def get_source_tables(self,table):
@@ -317,15 +316,15 @@ class ETLTool:
                              .loc[table]['source_table'].unique())
 
         for i,source_table in enumerate(source_tables):
-            if source_table not in self.map_input_data:
-                self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+            if source_table not in self.map_input_files.keys():
+                self.logger.warning(f"You have specified a mapping for  \"{source_table}\" but this cannot be found in any of the input datasets: {self.map_input_files.keys()}")
                 self.logger.warning("Going to try with lowering the name to lower cases WhiteRabbit are stuck in the 90s")
                 _source_table = source_table
                 source_table = source_table.lower()
                 source_tables[i] = source_table
 
-                if source_table not in self.map_input_data:
-                    self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_data.keys()}")
+                if source_table not in self.map_input_files.keys():
+                    self.logger.warning(f"You have specified a mapping for  \"{_source_table}\" but this cannot be found in any of the input datasets: {self.map_input_files.keys()}")
                     raise LookupError(f'Cannot find {source_table}!')
                                 
         
@@ -427,9 +426,29 @@ class ETLTool:
         if self.df_structural_mapping is None:
             raise NoStructuralMapping('No structural mapping has been defined so cant run anything')
             
-        if self.map_input_data is None:
+        if self.map_input_files is None:
             raise NoInputData('No Input data has been loaded, so cant run anything!')
+
+        #perform a check tht 
+        sm_source_tables = self.df_structural_mapping['source_table'].unique()
+        data_source_tables = self.map_input_files.keys()
+
+        diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+        if len(diff_tables) > 0 :
+            self.logger.warning("Names of sources in the structural mapping and source data are not matching up")
+            self.logger.warning("Im going to try going to lower case in the structural mapping")
+            self.logger.warning("This is because WhiteRabbit is a pile of toss")
             
+            self.df_structural_mapping['source_table'] = self.df_structural_mapping['source_table'].str.lower()
+            sm_source_tables = self.df_structural_mapping['source_table'].unique()
+
+            diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+            if len(diff_tables) > 0 :
+                self.logger.error('Still some different tables, see...')
+                self.logger.info(diff_tables)
+                raise BadStructuralMapping('Your structural mapping must be misconfigured or not meant for this data')
+            else:
+                self.logger.warning("Ok found them by using str.lower() on the table names!")
         
         self.destination_tables = self.get_destination_tables()
 
@@ -525,65 +544,78 @@ class ETLTool:
         all_unmapped_fields = json.dumps(list(unmapped_fields),indent=4)
         self.logger.debug(f'Unmapped fields \n {all_unmapped_fields}')
 
-        df_mapping = self.get_structural_mapping(destination_table)
         source_tables = self.get_source_tables(destination_table)
         
         all_source_tables = json.dumps(source_tables,indent=4)
         self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
         
+        for source_table in source_tables:
+
+            #structural mapping associated with the destination table and the source table
+            df_mapping = self.get_structural_mapping(destination_table,source_table)
+
+            #load the data we need
+            #load in chunks to conserve memory when we have huge inputs
+            chunks_table_data = self.load_df_chunks(self.map_input_files[source_table],
+                                                    self.chunk_size)
         
-        source_table = source_tables[0]
+            #start looping over the chunks of data
+            #the default will be to have ~100k rows per chunk
+            for icounter,df_table_data in enumerate(chunks_table_data):
                 
-        chunks_table_data = self.map_input_data[source_table]
-        print (chunks_table_data)
-        exit(0)
-        
-        
-        for icounter,df_table_data in enumerate(chunks_table_data):
-            df_table_data.columns = df_table_data.columns.str.lower()
-            
-            self.logger.debug(f'Processing {icounter}')
-            
-            df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
-            columns_output = []
+                #use lower case to be safe because of WhiteRabbit Issues...
+                df_table_data.columns = df_table_data.columns.str.lower()
+                self.logger.debug(f'Processing {icounter}')
+                
+                df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
+                columns_output = []
+                
+                
+                #first create nan columns for unmapped fields in the CDM
+                #for destination_field in unmapped_fields:
+                #    df_table_data_blank[destination_field] = np.nan
+                #    columns_output.append(df_table_data_blank[destination_field])
 
-            
-            #first create nan columns for unmapped fields in the CDM
-            for destination_field in unmapped_fields:
-                df_table_data_blank[destination_field] = np.nan
-                columns_output.append(df_table_data_blank[destination_field])
+                #now start the real work of making new columns based on the mapping rules
+                for destination_field in mapped_fields:
+                    self.logger.info(f'Working on {destination_field}')
 
-            #now start the real work of making new columns based on the mapping rules
-            for destination_field in mapped_fields:
-                self.logger.info(f'Working on {destination_field}')
-                rule = df_mapping.loc[destination_field]
-                source_field = rule['source_field']
-                if rule['term_mapping'] == 'n':
-                    self.logger.debug("No mapping term defined for this rule")
-                    if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
-                        self.logger.debug("No operation set. Mapping one-to-one")
-                        columns_output.append(
-                            self.map_one_to_one(df_table_data,source_field,destination_field)
-                        )
+                    print (df_mapping)
+                    print (destination_field)
+                    print (source_table)
+                    print (destination_table)
+                    rule = df_mapping.loc[destination_field]
+                    #again, use str.lower() 
+                    source_field = rule['source_field'].lower()
+                    print (rule)
+                    print (source_table)
+                    print (destination_table)
+                    print (destination_field)
+                    if rule['term_mapping'] == 'n':
+                        self.logger.debug("No mapping term defined for this rule")
+                        if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
+                            self.logger.debug("No operation set. Mapping one-to-one")
+                            columns_output.append(
+                                self.map_one_to_one(df_table_data,source_field,destination_field)
+                            )
+                        else:
+                            operation = rule['operation']
+                            if operation not in self.allowed_operations.keys():
+                                raise ValueError(f'Unknown Operation {operation}')
+                            self.logger.debug(f'Applying {operation}')
+                            ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                            columns_output.append(
+                                ret.to_frame(destination_field)
+                            )
                     else:
-                        operation = rule['operation']
-                        if operation not in self.allowed_operations.keys():
-                            raise ValueError(f'Unknown Operation {operation}')
-                        self.logger.debug(f'Applying {operation}')
-                        ret = self.allowed_operations[operation](df_table_data,column=source_field)
+                        rule_id = rule['rule_id']
+                        self.logger.debug(f'Mapping term found. Applying..')
+                        self.logger.debug(f'{rule.to_dict()}')
+                        df_map = self.df_term_mapping.loc[rule_id]
                         columns_output.append(
-                            ret.to_frame(destination_field)
+                            self.map_via_rule(df_table_data,df_map,source_field,destination_field)
                         )
-                else:
-                    rule_id = rule['rule_id']
-                    self.logger.debug(f'Mapping term found. Applying..')
-                    self.logger.debug(f'{rule.to_dict()}')
-                    df_map = self.df_term_mapping.loc[rule_id]
-                    columns_output.append(
-                        self.map_via_rule(df_table_data,df_map,source_field,destination_field)
-                    )
-                    
-        
+                        
         #     df_destination = pd.concat(columns_output,axis=1)
         #     self.logger.debug(f'concatenated the output columns into a new dataframe')
         #     df_destination = df_destination[destination_fields]
