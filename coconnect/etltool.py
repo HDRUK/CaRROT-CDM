@@ -32,7 +32,6 @@ Todo:
 
 
 """
-
 import logging
 import coloredlogs
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
@@ -40,6 +39,8 @@ import os
 import pandas as pd
 import numpy as np
 import copy
+import json
+
 
 class NoInputData(Exception):
     pass
@@ -109,7 +110,7 @@ class ETLTool:
         return list(self.map_input_data.keys())
 
     def get_input_df(self,key,n=10):
-        df =  pd.read_csv(self.map_original_files[key])
+        df =  pd.read_csv(self.map_input_files[key])
         return df
 
     def get_output_df(self):
@@ -189,11 +190,14 @@ class ETLTool:
 
         f_inputs = [self.check_file(fname) for fname in f_inputs]
             
-        self.map_input_data = { 
-            self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
+        #self.map_input_data = { 
+        #    self.get_source_table_name(fname): self.load_df_chunks(fname,self.chunk_size)
+        #    for fname in f_inputs
+        #}
+        self.map_input_files = {
+            self.get_source_table_name(fname): fname
             for fname in f_inputs
         }
-        self.map_original_files = { name: fname for name,fname in zip(self.map_input_data.keys(),f_inputs) }
         
         self.logger.info(f'found the following input tables: {list(self.map_input_data.keys())}')
 
@@ -279,9 +283,10 @@ class ETLTool:
         Args:
            table (str): name of a table
         Returns:
-           list
+           list: list of all destination fields defined in the rules for this cdm object
         """
-        return list(self.df_structural_mapping.loc[table]['destination_field'])
+        return self.df_structural_mapping.set_index('destination_table')\
+                                         .loc[table]['destination_field'].to_list()
 
     def get_structural_mapping(self,table):
         """
@@ -292,7 +297,10 @@ class ETLTool:
         Returns:
            pandas.DataFrame : a new pandas dataframe with 'destination_field' as the index
         """
-        return self.df_structural_mapping.loc[table].reset_index().set_index('destination_field')
+        return self.df_structural_mapping\
+                   .set_index('destination_table')\
+                   .loc[table]\
+                   .reset_index().set_index('destination_field')
     
     def get_source_tables(self,table):
         """
@@ -304,7 +312,9 @@ class ETLTool:
         Returns:
            list(str): the names of the source tables associated with this mapping
         """
-        source_tables = self.df_structural_mapping.loc[table]['source_table'].unique()
+        source_tables = list(self.df_structural_mapping\
+                             .set_index('destination_table')\
+                             .loc[table]['source_table'].unique())
 
         for i,source_table in enumerate(source_tables):
             if source_table not in self.map_input_data:
@@ -487,15 +497,15 @@ class ETLTool:
         self.logger.info(f'Now running on Table "{destination_table}"')
 
         #load the CDM for this destination_table, e.g. patient
-        #note - need to add a catch here to make sure the table is valid in the CDM
         partial_cdm = self.df_cdm.loc[destination_table]
         
-        self.logger.info('Loaded the CDM for this table which has the following fields..')
-
+        self.logger.info('Loaded the CDM for {destination_table}')
+        self.logger.debug(json.dumps(partial_cdm['field'].to_list(),indent=4))
+        
         #get a list of all 
         destination_fields = partial_cdm['field']
         mapped_fields = self.get_mapped_fields(destination_table)
-
+        
         bad = []
         for x in mapped_fields:
             if x not in list(destination_fields):
@@ -508,30 +518,26 @@ class ETLTool:
         unmapped_fields = list(set(destination_fields) - set(mapped_fields))
 
         self.logger.info(f'The CDM for "{destination_table}" has {len(destination_fields)}, you have mapped {len(mapped_fields)} leaving {len(unmapped_fields)} fields unmapped')
-        self.logger.debug(f'All fields {list(destination_fields)}') 
-        self.logger.debug(f'Mapped fields {list(mapped_fields)}')
-
+        all_destination_fields = json.dumps(list(destination_fields),indent=4)
+        self.logger.debug(f'All fields \n {all_destination_fields}')
+        all_mapped_fields = json.dumps(list(mapped_fields),indent=4)
+        self.logger.debug(f'Mapped fields \n {all_mapped_fields}')
+        all_unmapped_fields = json.dumps(list(unmapped_fields),indent=4)
+        self.logger.debug(f'Unmapped fields \n {all_unmapped_fields}')
 
         df_mapping = self.get_structural_mapping(destination_table)
-
         source_tables = self.get_source_tables(destination_table)
-
-        if len(source_tables)>1:
-            self.logger.debug(source_tables)
-            self.logger.debug(destination_table)
-            self.logger.error('not yet implemented to map multiple source tables to a destination table')
-            for destination_field in mapped_fields:
-                self.logger.error(destination_field)
-                rule = df_mapping.loc[destination_field]
-                self.logger.debug(f"\n {rule}")
-
-            exit(0)
-
+        
+        all_source_tables = json.dumps(source_tables,indent=4)
+        self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
+        
         
         source_table = source_tables[0]
                 
         chunks_table_data = self.map_input_data[source_table]
-                
+        print (chunks_table_data)
+        exit(0)
+        
         
         for icounter,df_table_data in enumerate(chunks_table_data):
             df_table_data.columns = df_table_data.columns.str.lower()
