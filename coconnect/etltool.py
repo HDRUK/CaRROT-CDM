@@ -304,7 +304,7 @@ class ETLTool:
            table (str): name of a (destination) table in the CDM
         Returns:
            list(str): the names of the source tables associated with this mapping
-        """x
+        """
         source_tables = self.df_structural_mapping.loc[table]['source_table'].unique()
 
         #perform a check on the source tables to see if they've been loaded by the user
