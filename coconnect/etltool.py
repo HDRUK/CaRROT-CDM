@@ -147,6 +147,8 @@ class ETLTool:
             self.logger.info(f'Creating an output data folder: {self.output_data_folder}')
             os.makedirs(self.output_data_folder)
 
+    def set_perform_person_id_mask(self,b_value):
+        self.perform_person_id_mask = b_value
         
     def set_verbose(self,verbose=True):
         """
@@ -270,10 +272,15 @@ class ETLTool:
         """
 
         series = df[source_field].rename(f'source_{source_field}')
-        oname = f'{self.output_data_folder}/lookup_{source_table}_{table}_{source_field}.csv'
+        outfolder = f'{self.output_data_folder}/masks'
+        if not os.path.exists(outfolder):
+            self.logger.info(f'Creating a new folder: {outfolder}')
+            os.makedirs(outfolder)
+
+        outname = f'{outfolder}/lookup_{source_table}_{table}_{source_field}.csv'
         self.logger.info(f'Writing a lookup dictionary of {source_field} to index')
-        self.logger.info(f'Final being saved: {oname}')
-        series.to_csv(oname,
+        self.logger.info(f'Final being saved: {outname}')
+        series.to_csv(outname,
                       index_label=f'destination_{source_field}',
                       mode=mode,
                       header=header)
@@ -552,6 +559,9 @@ class ETLTool:
         self.save_files = True
         self.merge_files = True
         self.record_duplicates = True
+
+        #default is to mask person_ids
+        self.perform_person_id_mask = True
         
         #create a logger
         self.create_logger()
@@ -715,14 +725,14 @@ class ETLTool:
                 #- perfom is person_id is in the cdm and is not empty/null
                 #- save the lookup to the person id
                 #- make an arbritary index for the person id instead
-                #if 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
-                #    self.save_lookup_table(df_destination,source_table,destination_table,'person_id')
-                #    df_destination = df_destination.drop('person_id',axis=1)\
-                    #                                   .reset_index()\
-                    #                                   .rename({'index':'person_id'},axis=1)
+                if self.perform_person_id_mask and 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
+                    self.save_lookup_table(df_destination,source_table,destination_table,'person_id')
+                    df_destination = df_destination.drop('person_id',axis=1)\
+                                                   .reset_index()\
+                                                   .rename({'index':'person_id'},axis=1)
                 
                 #save the data into new csvs
-                outname = f'{self.output_data_folder}/{destination_table}/'
+                outname = f'{self.output_data_folder}/cdm_split/{destination_table}/'
 
                 if not os.path.exists(outname):
                     self.logger.info(f'Creating a new folder: {outname}')
@@ -818,7 +828,7 @@ class ETLTool:
                 #save the others in a seperate frame
                 output_duplicates.append(others)
                 
-            outfolder = f'{self.output_data_folder}/cdm_output'
+            outfolder = f'{self.output_data_folder}/cdm_merged'
             if not os.path.exists(outfolder):
                 self.logger.info(f'Creating a new folder: {outfolder}')
                 os.makedirs(outfolder)
