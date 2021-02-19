@@ -80,7 +80,7 @@ class ETLTool:
         
         raise NotImplementedError(f"{fname} is not a .csv file. Don't know how to handle non csv files yet!")
 
-    def load_df_chunks(self,fname,chunk_size=10**6):
+    def load_df_chunks(self,fname,chunk_size=None):
         """
         Extract a pandas Dataframe from an input csv file
         Args:
@@ -89,6 +89,9 @@ class ETLTool:
         Returns: 
            Pandas TextFileReader
         """
+        if chunk_size == None:
+            chunk_size = self.chunk_size
+            
         chunks = pd.read_csv(fname,chunksize=chunk_size)
         return chunks
 
@@ -784,7 +787,9 @@ class ETLTool:
                 for output_file,chunks in chunks_output_file_map.items():
                     self.logger.info(f'.. working on the file {output_file}')
                     try:
-                        total.append(chunks.get_chunk())
+                        chunk = chunks.get_chunk()
+                        print ('get chunk',len(chunk))
+                        total.append(chunk)
                     except StopIteration:
                         complete = True
                         break
