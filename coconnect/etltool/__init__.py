@@ -41,17 +41,8 @@ import numpy as np
 import copy
 import json
 
-
-class NoInputData(Exception):
-    pass
-class NoStructuralMapping(Exception):
-    pass
-class NoTermMapping(Exception):
-    pass
-class BadStructuralMapping(Exception):
-    pass
-class MadMapping(Exception):
-    pass
+from .operations import ETLOperations
+from .exceptions import NoInputData, NoInputData, NoTermMapping, BadStructuralMapping, MadMapping
 
 
 class ETLTool:
@@ -584,17 +575,7 @@ class ETLTool:
         
         self.load_cdm(f_cdm)
 
-        
-
-        #hard code for now..
-        #map lookup name with a function to perform an operation on a field(s)
-        self.allowed_operations = {
-            'EXTRACT_YEAR': self.get_year_from_date,
-            #'extract month': self.get_month_from_date
-        }
-        print ('allowed operations')
-        print ( self.allowed_operations)
-        exit(0)
+        self.allowed_operations = ETLOperations()
 
     
     def process_destination_table(self,destination_table):
