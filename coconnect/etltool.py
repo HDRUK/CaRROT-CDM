@@ -813,8 +813,6 @@ class ETLTool:
                     
                 self.logger.debug(f"Missing columns: {missing_cols}")
 
-                #rearrange the order of the columns so they're the same as the order in the CDM
-                df_output = df_output[cdm_fields]
 
                 #define how to save the output file again
                 #- on the first loop (of chunks): write the headers and use write mode (recreate the file)
@@ -852,6 +850,9 @@ class ETLTool:
                     self.logger.info(f'Creating a new folder: {outfolder}')
                     os.makedirs(outfolder)
 
+                #rearrange the order of the columns so they're the same as the order in the CDM
+                df_output = df_output[cdm_fields]
+                    
                 outname = f'{outfolder}/{destination_table}.csv'
                 df_output.to_csv(outname,index=False,mode=mode,header=header)
                 self.logger.info(f'...saved to {outname}')
