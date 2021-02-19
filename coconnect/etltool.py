@@ -551,7 +551,7 @@ class ETLTool:
         #configure how to save files
         self.save_files = True
         self.merge_files = True
-        
+        self.record_duplicates = True
         
         #create a logger
         self.create_logger()
@@ -780,52 +780,87 @@ class ETLTool:
                 for output_file in outputs
             }
 
+            #slightly complex way looping over the output files associated with a cdm
+            #but doing this in chunks... i.e 10k lines at a time
             complete = False
+            icounter = 0 
             while not complete:
-
                 total = []
                 for output_file,chunks in chunks_output_file_map.items():
-                    self.logger.info(f'.. working on the file {output_file}')
                     try:
                         chunk = chunks.get_chunk()
-                        print ('get chunk',len(chunk))
                         total.append(chunk)
                     except StopIteration:
                         complete = True
                         break
+
+                    self.logger.debug(f'.. loading the file {output_file}')
+
                     
-                if len(total) == 0 :
-                    continue
+                if complete:
+                    break
 
                 #make a total dataframe
                 df_output = pd.concat(total,axis=1)
-                print ('total size',len(df_output))
+                    
+                #get all unique columns
+                unique_cols = df_output.columns.unique()
+                missing_cols = list(set(cdm_fields) - set(unique_cols))
+            
+                #create nan columns for unmapped (missing) fields for this cdm
+                for missing_field in missing_cols:
+                    df_output[missing_field] = np.nan
+                    
+                self.logger.debug(f"Missing columns: {missing_cols}")
 
+                #rearrange the order of the columns so they're the same as the order in the CDM
+                df_output = df_output[cdm_fields]
+
+                #define how to save the output file again
+                #- on the first loop (of chunks): write the headers and use write mode (recreate the file)
+                #- on other loops: dont write the headers but write in append mode 
+                mode = 'w'
+                header = True
+                if icounter > 0:
+                    mode = 'a'
+                    header = False
+
+
+
+                #check for duplicate columns
+                duplicate_cols = df_output.columns[df_output.columns.duplicated()].unique()
+                if len(duplicate_cols)>0:
+                    self.logger.warning("You've got duplicated columns for this cdm")
+                    self.logger.warning(f'Duplicated: {duplicate_cols}')
+
+                output_duplicates = []
+                for duplicate in duplicate_cols:
+                    print (duplicate)
+                    first = df_output[duplicate].iloc[:,0]
+                    others =  df_output[duplicate].iloc[:,1:]
+
+                    #drop columns that have been duplicated
+                    df_output = df_output.drop(duplicate,axis=1)
+                    #add back in only first one
+                    df_output[duplicate] = first
+
+                    #save the others in a seperate frame
+                    output_duplicates.append(others)
+
+                outfolder = f'{self.output_data_folder}/cdm_output'
+                if not os.path.exists(outfolder):
+                    self.logger.info(f'Creating a new folder: {outfolder}')
+                    os.makedirs(outfolder)
+
+                outname = f'{outfolder}/{destination_table}.csv'
+                df_output.to_csv(outname,index=False,mode=mode,header=header)
+                self.logger.info(f'...saved to {outname}')
                 
-            exit(0)
-            
-            #check for duplicate columns
-            duplicate_cols = df_output.columns[df_output.columns.duplicated()].tolist()
-            if len(duplicate_cols)>0:
-                self.logger.warning("You've got duplicated columns for this cdm")
-                self.logger.warning(f'Duplicated: {duplicate_cols}')
-            
-            #get all unique columns
-            unique_cols = df_output.columns.unique()
-
-            missing_cols = list(set(cdm_fields) - set(unique_cols))
-            
-            #create nan columns for unmapped (missing) fields for this cdm
-            for missing_field in missing_cols:
-                df_output[missing_field] = np.nan
-            
-            self.logger.debug(f"Missing columns: {missing_cols}")
-
-            print (df_output)
-            
-            #print (df_output.columns.tolist())
-
-            #print (cdm_fields)
-            self.logger.info('Merge Complete')
-            
-            #break
+                if len(output_duplicates)>0 and self.record_duplicates:
+                    df_duplicates = pd.concat(output_duplicates,axis=1)
+                    outname = f'{outfolder}/{destination_table}.duplicates.csv'
+                    df_duplicates.to_csv(outname,index=False,mode=mode,header=header)
+                    
+                    
+                self.logger.debug('Merge Complete')
+                icounter +=1
