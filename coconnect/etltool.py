@@ -162,6 +162,13 @@ class ETLTool:
             chunk_size (long int) : the number of rows to process 
         """
         self.chunk_size = chunk_size
+
+    def set_save_files(self,b_save):
+        self.save_files = b_save
+        
+    def set_merge_files(self,b_save):
+        self.merge_files = b_save
+        
         
     def load_cdm(self,f_cdm):
         """
@@ -336,7 +343,7 @@ class ETLTool:
         return source_tables
 
 
-    def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=True):
+    def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=False):
         df_orig = df[[source_field]]
 
         orig_type = df_orig[source_field].dtype
@@ -345,7 +352,7 @@ class ETLTool:
         #check for truncation of terms!
         is_truncation = any(df_map['source_term'].str.contains('List truncated'))
         
-
+        
         #need this step to make sure theyre the same type
         #this isnt working by default because we dumped the csvs with "blah","blah"
         if map_type != orig_type and not is_truncation:
@@ -369,13 +376,17 @@ class ETLTool:
             new_term = df_map.iloc[0]['destination_term']
             df_orig = df_orig.assign(destination_field = new_term)
             
-            
         else:
+            #pandas removes the index when using merge
+            #need to preserve it for when we're chunking data
+            #https://stackoverflow.com/questions/11976503/how-to-keep-index-when-using-pandas-merge
+            _index = df_orig.index
+            
             df_orig = df_orig.merge(df_map,
                                 left_on=source_field,
                                 right_on='source_term',
-                                how='left')
-            
+                                how='left').set_index(_index)
+
             df_orig = df_orig[['destination_term']].rename(
                 {
                     'destination_term':destination_field
@@ -383,14 +394,19 @@ class ETLTool:
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
-            self.logger.warning(f'Found bad row {df_bad}')
-            self.logger.warning(df[[source_field]][df_orig.isnull().any(axis=1)].to_dict())
-            self.logger.warning('This has no specification of how to map it')
-            self.logger.warning(f'Options are: \n {df_map}')
+            self.logger.warning(f'Found bad rows {df_bad}')
+            
+            self.logger.warning('This has no specification of how to map it or there are NaN values ')
+            
+            #n_nan = len(df_temp[df_temp.isnull() == True])
+            #self.logger.warning(f'... {n_nan} of these indicies are bad because of NaN values')
+            #n_unmapped = len(df_temp[df_temp.isnull() == False])
+            #self.logger.warning(f'... {n_unmapped} of these indicies are unmapped')
+            
             #add a switch to drop any rows that have a nan value aka the term mapping failed
             if drop_bad:
                 df_orig = df_orig.dropna()
-                
+
         return df_orig
         
     
@@ -528,6 +544,11 @@ class ETLTool:
         self.map_input_data = None
         self.df_output = None
         self.tool_initialised = False
+
+        #configure how to save files
+        self.save_files = True
+        self.merge_files = True
+        
         
         #create a logger
         self.create_logger()
@@ -561,10 +582,13 @@ class ETLTool:
         """
         self.logger.info(f'Now running on Table "{destination_table}"')
 
+        #create a list that will help track the output files we create
+        output_files = []
+        
         #load the CDM for this destination_table, e.g. patient
         partial_cdm = self.df_cdm.loc[destination_table]
         
-        self.logger.info('Loaded the CDM for {destination_table}')
+        self.logger.info(f'Loaded the CDM for {destination_table}')
         self.logger.debug(json.dumps(partial_cdm['field'].to_list(),indent=4))
         
         #get a list of all 
@@ -594,6 +618,7 @@ class ETLTool:
         
         all_source_tables = json.dumps(source_tables,indent=4)
         self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
+
         
         for source_table in source_tables:
             #structural mapping associated with the destination table and the source table
@@ -610,36 +635,36 @@ class ETLTool:
                 
                 #use lower case to be safe because of WhiteRabbit Issues...
                 df_table_data.columns = df_table_data.columns.str.lower()
-                self.logger.debug(f'Processing {icounter}')
+                nrows = len(df_table_data)
+                self.logger.info(f'Processing {icounter} with length {nrows}')
                 
-                df_table_data_blank = pd.DataFrame({'index':range(len(df_table_data))})
                 columns_output = []
                 
-                
-                #first create nan columns for unmapped fields in the CDM
-                #for destination_field in unmapped_fields:
-                #    df_table_data_blank[destination_field] = np.nan
-                #    columns_output.append(df_table_data_blank[destination_field])
-
                 mapped_fields_for_current_source_table = df_mapping.index.to_list()
                 
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
 
+                    #get all rules associated with the current field in the cdm 
                     rules = df_mapping.loc[[destination_field]]
-
+                    #loop over all rules 
                     for i in range(len(rules)):
                         rule = rules.iloc[i]
                         source_field = rule['source_field'].lower()
 
+                        #handle when no term mapping
                         if rule['term_mapping'] == 'n':
                             self.logger.debug("No mapping term defined for this rule")
+                            #map one-to-one if there isn't a rule
                             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                                 self.logger.debug("No operation set. Mapping one-to-one")
                                 columns_output.append(
                                     self.map_one_to_one(df_table_data,source_field,destination_field)
                                 )
+                            #there is an operation defined,
+                            #so look it up in the list of allowed operations
+                            #and apply it
                             else:
                                 operation = rule['operation']
                                 if operation not in self.allowed_operations.keys():
@@ -649,21 +674,28 @@ class ETLTool:
                                 columns_output.append(
                                     ret.to_frame(destination_field)
                                 )
+                        #apply term mapping
                         else:
+                            
                             rule_id = rule['rule_id']
                             self.logger.debug(f'Mapping term found. Applying..')
                             self.logger.debug(f'{rule.to_dict()}')
                             df_map = self.df_term_mapping.loc[[rule_id]]
+
+                            ret = self.map_via_rule(df_table_data,
+                                                    df_map,
+                                                    source_field,
+                                                    destination_field)
                             
                             columns_output.append(
-                                self.map_via_rule(df_table_data,df_map,source_field,destination_field)
+                                ret
                             )
-                        
+
+                #concat all columns we created
                 df_destination = pd.concat(columns_output,axis=1)
-                #self.logger.debug(f'concatenated the output columns into a new dataframe')
-                #df_destination = df_destination[destination_fields]
+                
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
-            
+
                 
                 #since we are looping over chunks
                 #- for the first chunk, save the headers and set the write mode to write
@@ -693,24 +725,102 @@ class ETLTool:
                     self.logger.info(f'Creating a new folder: {outname}')
                     os.makedirs(outname)
 
-                outname = f'{outname}/{source_table}.csv'
+                #clean up the name to save as a csv file
+                outname = f'{outname}/{source_table}'
+                if outname[-4:]!='.csv':
+                    outname += '.csv'
 
                 df_destination.to_csv(outname,index=False,mode=mode,header=header)
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
-                self.df_output = df_destination
-            
+                #only need to do this one, since for icounter>0 the file is in append mode
+                #rather than in write mode
+                if icounter == 0 :
+                    output_files.append(outname)
+
+        return output_files
 
     def run(self):
         """
         Start the program running by looping over the CDM destination tables defined by the user
         """
         self.logger.info('starting to run')
-        
+
+        #check if the tool was initialised or not
         if not self.tool_initialised:
             self.initialise()
         
         self.logger.info('Starting ETL to CDM')
+        self.map_output_files = {}
+        #loop over all CDM tables (e.g. person etc.)
         for destination_table in self.destination_tables:
-           self.process_destination_table(destination_table) 
+            #process the table
+            output_files = self.process_destination_table(destination_table)
+            self.map_output_files[destination_table] =  output_files
 
+        #merge output tables
+        #for each CDM destination table
+        #- get all new csv files we created
+        #- we'll have one per source table
+        #- merge them together
+        for destination_table,outputs in self.map_output_files.items():
+
+            self.logger.info(f'Merging {destination_table}')
+            
+            #retrieve the fields that should be associated with this CDM
+            cdm_fields = self.df_cdm.loc[destination_table]['field'].tolist()
+
+            #load all the output files, in chunk format, to not overload memory
+            #by loading all up at the same time
+            chunks_output_file_map = {
+                output_file: self.load_df_chunks(output_file)
+                for output_file in outputs
+            }
+
+            complete = False
+            while not complete:
+
+                total = []
+                for output_file,chunks in chunks_output_file_map.items():
+                    self.logger.info(f'.. working on the file {output_file}')
+                    try:
+                        total.append(chunks.get_chunk())
+                    except StopIteration:
+                        complete = True
+                        break
+                    
+                if len(total) == 0 :
+                    continue
+
+                #make a total dataframe
+                df_output = pd.concat(total,axis=1)
+                print ('total size',len(df_output))
+
+                
+            exit(0)
+            
+            #check for duplicate columns
+            duplicate_cols = df_output.columns[df_output.columns.duplicated()].tolist()
+            if len(duplicate_cols)>0:
+                self.logger.warning("You've got duplicated columns for this cdm")
+                self.logger.warning(f'Duplicated: {duplicate_cols}')
+            
+            #get all unique columns
+            unique_cols = df_output.columns.unique()
+
+            missing_cols = list(set(cdm_fields) - set(unique_cols))
+            
+            #create nan columns for unmapped (missing) fields for this cdm
+            for missing_field in missing_cols:
+                df_output[missing_field] = np.nan
+            
+            self.logger.debug(f"Missing columns: {missing_cols}")
+
+            print (df_output)
+            
+            #print (df_output.columns.tolist())
+
+            #print (cdm_fields)
+            self.logger.info('Merge Complete')
+            
+            #break
