@@ -116,7 +116,7 @@ class ETLTool:
         return self.df_term_mapping
 
     def get_input_names(self):
-        return list(self.map_input_data.keys())
+        return list(self.map_input_files.keys())
 
     def get_input_df(self,key,n=10):
         df =  pd.read_csv(self.map_input_files[key])
@@ -544,8 +544,8 @@ class ETLTool:
         self.output_data_folder = None
         self.df_term_mapping = None
         self.df_structural_mapping = None
-        self.map_input_data = None
         self.map_output_data = None
+        self.map_input_files = None
         self.tool_initialised = False
 
         #configure how to save files
