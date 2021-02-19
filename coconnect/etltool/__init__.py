@@ -430,6 +430,12 @@ class ETLTool:
         Returns:
            a new pandas dataframe where the source field has been directly mapped to the destination field
         """
+
+        if 'year' in destination_field:
+            print (df[source_field])
+
+            exit(0)
+        
         #make a series which is just the source field
         #convert it to a dataframe and change the name to be the destination field
         return df[source_field].to_frame(destination_field)
@@ -568,7 +574,7 @@ class ETLTool:
         
         #setup the working directory path so we can find the data
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        #self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
+        self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
         self.logger.debug(f'Directory path... {self.dir_path}')
 
         #hard code OMPO CDM 5.3.1 for now
@@ -586,7 +592,9 @@ class ETLTool:
             'EXTRACT_YEAR': self.get_year_from_date,
             #'extract month': self.get_month_from_date
         }
-        
+        print ('allowed operations')
+        print ( self.allowed_operations)
+        exit(0)
 
     
     def process_destination_table(self,destination_table):
