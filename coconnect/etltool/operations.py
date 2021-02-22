@@ -2,33 +2,7 @@ import pandas as pd
 from collections import OrderedDict
 
 class ETLOperations(OrderedDict):
-
-
-    
-    def get_from_date(self,series,switch):
-        """
-        Convert a dataframe containing a datatime into the day/month/year only
-        Args:
-           series (pandas.series): the series for columnn for the original source data
-           switch (str): switch between what to return 
-        Returns:
-           pandas.dataframe: with one column in datatime format only displaying the day/month/year
-        """
-
-        # - convert the series into a datetime series
-        # - get the datetime object via .dt
-        # - get only the month via the .dt object
-        # - convert the series back into a pandas dataframe
-        if switch == 'day':
-            return pd.to_datetime(series).dt.day.to_frame()
-        elif switch == 'month':
-            return pd.to_datetime(series).dt.month.to_frame()
-        elif switch == 'year':
-            return pd.to_datetime(series).dt.year.to_frame()
-        else:
-            raise ValueError(f'no switch defined for {switch}')
-
-    
+    """ETLOperations"""
     def get_year_from_date(self,df,**kwargs):
         """
         Convert a dataframe containing a datatime into the year only
@@ -43,7 +17,9 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return self.get_from_date(series,'year')
+        return pd.to_datetime(series).dt.year.fillna(0).astype(int)
+
+        
     def get_month_from_date(self,df,**kwargs):
         """
         Convert a dataframe containing a datatime into the month only
@@ -58,8 +34,8 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return self.get_from_date(series,'month')
-
+        return pd.to_datetime(series).dt.month.astype(str)
+    
     def get_day_from_date(self,df,**kwargs):
         """
         Convert a dataframe containing a datatime into the day only
@@ -74,14 +50,24 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return self.get_from_date(series,'day')
+        return pd.to_datetime(series).dt.day.astype(str)
 
+
+    def __repr__(self):
+        return "ETLOperations"
     
+        
     def __init__(self):
         super().__init__(self)
-        print ('hiya!')
 
         self['EXTRACT_YEAR'] = self.get_year_from_date
-        self['EXTRACT_MONTH'] = self.get_year_from_date
-        self['EXTRACT_DAY'] = self.get_year_from_date
-              
+        self['EXTRACT_MONTH'] = self.get_month_from_date
+        self['EXTRACT_DAY'] = self.get_day_from_date
+
+        self.auto_functions = {
+            'year_of_birth' : self['EXTRACT_YEAR'],
+            'month_of_birth' : self['EXTRACT_MONTH'],
+            'day_of_birth' : self['EXTRACT_DAY']
+        }
+
+        

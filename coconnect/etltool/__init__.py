@@ -6,29 +6,17 @@ Contact: CO-CONNECT@dundee.ac.uk
 First Created: 11/02/2021
 
 Example:
-    Examples can be given using either the ``Example`` or ``Examples``
-    sections. Sections support any reStructuredText formatting, including
-    literal blocks::
 
-        $ python example_google.py
+    Run the tool::
 
-Test
+        $ etl2cdm -v 
+       --inputs sample_input_data/patients_sample.csv\
+       --structural-mapping sample_input_data/rules1.csv\
+       --term-mapping sample_input_data/rules2.csv
 
-Attributes:
-    module_level_variable1 (int): Module level variables may be documented in
-        either the ``Attributes`` section of the module docstring, or in an
-        inline docstring immediately following the variable.
-
-        Either form is acceptable, but the two should not be mixed. Choose
-        one convention to document module level variables and be consistent
-        with it.
 
 Todo:
-    * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension
-
-.. _Google Python Style Guide:
-   http://google.github.io/styleguide/pyguide.html
+    * 
 
 
 """
@@ -140,6 +128,9 @@ class ETLTool:
 
     def set_perform_person_id_mask(self,b_value):
         self.perform_person_id_mask = b_value
+
+    def set_use_auto_functions(self,b_value):
+        self.use_auto_functions = b_value
         
     def set_verbose(self,verbose=True):
         """
@@ -409,7 +400,28 @@ class ETLTool:
                 df_orig = df_orig.dropna()
 
         return df_orig
+
+    def map_auto_extract(self,df,source_field,destination_field):
+        """
+        Perform auto one-to-one mapping
+        Args:
+           df (pandas.DataFrame): the dataframe for the original source data
+           source_field (str): the name of the field(column) in the source data 
+           destination_field (str): the name of the field(column) to be set as the new output
+        Returns:
+           a new pandas dataframe where the source field has been automatically mapped to the destination field
+           by looking up a function to apply to it.
+           E.g. if year_of_birth, it'll know to apply EXTRACT YEAR
+        """
+        if destination_field not in self.allowed_operations.auto_functions:
+            self.logger.error("Something really wrong if map_auto_extract() is called on a destination field"
+                              "that is not in allowed_operations.auto_functions")
+            raise ValueError(f'Cannot find {destination_field} in allowed_operations.auto_functions')
         
+        function = self.allowed_operations.auto_functions[destination_field]
+        ret = function(df,column=source_field)
+        return ret.to_frame(destination_field)
+                                    
     
     def map_one_to_one(self,df,source_field,destination_field):
         """
@@ -534,6 +546,8 @@ class ETLTool:
 
         #default is to mask person_ids
         self.perform_person_id_mask = True
+        #default is to automatically try and map fields e.g. year_of_birth --> extract year
+        self.use_auto_functions = True
         
         #create a logger
         self.create_logger()
@@ -636,9 +650,18 @@ class ETLTool:
                             #map one-to-one if there isn't a rule
                             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                                 self.logger.debug("No operation set. Mapping one-to-one")
-                                columns_output.append(
-                                    self.map_one_to_one(df_table_data,source_field,destination_field)
-                                )
+
+                                if self.use_auto_functions\
+                                   and destination_field in self.allowed_operations.auto_functions:
+                                    
+                                    self.logger.debug("But found an auto function to use!")
+                                    columns_output.append(
+                                        self.map_auto_extract(df_table_data,source_field,destination_field)
+                                    )
+                                else:
+                                    columns_output.append(
+                                        self.map_one_to_one(df_table_data,source_field,destination_field)
+                                    )
                             #there is an operation defined,
                             #so look it up in the list of allowed operations
                             #and apply it

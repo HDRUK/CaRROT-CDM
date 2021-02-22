@@ -17,6 +17,7 @@ parser.add_argument('--structural-mapping','-sm', required=True,
 parser.add_argument('--chunk-size', default = None, type=int,
                     help='define how to "chunk" the dataframes, this specifies how many rows in the csv files to read in at a time')
 parser.add_argument('-v','--verbose',help='set debugging level',action='store_true')
+parser.add_argument('--mask-id',type=int,choices=[0,1],help='masking of the patient id',default=True)
 
 
 def main():
@@ -30,7 +31,8 @@ def main():
     if args.output_folder != None:
         runner.set_output_folder(args.output_folder)
        
-
+    runner.set_perform_person_id_mask(args.mask_id)
+        
     runner.load_input_data(args.inputs)
     runner.load_structural_mapping(args.structural_mapping)
     if args.term_mapping != None:
