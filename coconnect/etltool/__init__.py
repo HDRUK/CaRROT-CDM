@@ -28,6 +28,7 @@ import pandas as pd
 import numpy as np
 import copy
 import json
+import re
 
 from .operations import ETLOperations
 from .exceptions import NoInputData, NoInputData, NoTermMapping, BadStructuralMapping, MadMapping
@@ -500,10 +501,26 @@ class ETLTool:
 
             diff_tables = list(set(sm_source_tables) - set(data_source_tables))
             if len(diff_tables) > 0 :
-                self.logger.error('Still some different tables, see...')
-                self.logger.error(diff_tables)
-                self.logger.error('This means you are trying to map these datasets, but dont have the as input!')
-                raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
+                self.logger.warning('Still some different tables, see...')
+                self.logger.warning(diff_tables)
+
+                self.logger.warning(data_source_tables)
+
+                self.logger.warning('Attempting now to match and rename')
+                rename = {}
+                for bad_name in diff_tables:
+                    for orig_name in data_source_tables:
+                        if bad_name in orig_name:
+                           rename[bad_name] = orig_name
+                           break
+                self.df_structural_mapping = self.df_structural_mapping.replace({'source_table':rename})
+
+                sm_source_tables = self.df_structural_mapping['source_table'].unique()
+                diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+                if len(diff_tables) > 0 :
+                    self.logger.error("Still bad!!!")
+                    self.logger.error('This means you are trying to map these datasets, but dont have the as input!')
+                    raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
             else:
                 self.logger.warning("Ok found them by using str.lower() on the table names!")
         
