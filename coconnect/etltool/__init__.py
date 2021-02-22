@@ -501,8 +501,9 @@ class ETLTool:
             diff_tables = list(set(sm_source_tables) - set(data_source_tables))
             if len(diff_tables) > 0 :
                 self.logger.error('Still some different tables, see...')
-                self.logger.info(diff_tables)
-                raise BadStructuralMapping('Your structural mapping must be misconfigured or not meant for this data')
+                self.logger.error(diff_tables)
+                selg.logger.error('This means you are trying to map these datasets, but dont have the as input!')
+                raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
             else:
                 self.logger.warning("Ok found them by using str.lower() on the table names!")
         
