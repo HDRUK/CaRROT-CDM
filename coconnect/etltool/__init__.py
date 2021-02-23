@@ -628,6 +628,26 @@ class ETLTool:
         all_source_tables = json.dumps(source_tables,indent=4)
         self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
 
+
+        
+        if len(source_tables) > 1:
+            self.logger.debug(f'OK more than two tables mapping to the CDM "{destination_table}"')
+
+            
+            
+            #df_map = {}
+            #for source_table in source_tables:
+                #'prochi'
+                #df_map[source_table] = pd.read_csv(self.map_input_files[source_table],nrows=1).columns.tolist()
+             #   df_map[source_table] = pd.read_csv(self.map_input_files[source_table])['prochi']
+                #print (set(list(df_map.values())[1]) & set(list(df_map.values())[0]))
+
+            #df_map = pd.DataFrame(df_map)
+            #for i in range(len(df_map)):
+            #    print (df_map.iloc[i])
+            
+            
+            
         
         for source_table in source_tables:
             #structural mapping associated with the destination table and the source table
