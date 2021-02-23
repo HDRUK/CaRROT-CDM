@@ -17,7 +17,7 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return pd.to_datetime(series).dt.year.fillna(0).astype(int)
+        return pd.to_datetime(series).dt.year#.fillna(0).astype(int)
 
         
     def get_month_from_date(self,df,**kwargs):
@@ -34,7 +34,7 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return pd.to_datetime(series).dt.month.fillna(0).astype(int)
+        return pd.to_datetime(series).dt.month#.fillna(0).astype(int)
     
     def get_day_from_date(self,df,**kwargs):
         """
@@ -50,7 +50,7 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
         series = df[kwargs['column']]
-        return pd.to_datetime(series).dt.day.fillna(0).astype(int)
+        return pd.to_datetime(series).dt.day#.fillna(0).astype(int)
 
 
     def __repr__(self):

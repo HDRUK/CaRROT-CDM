@@ -8,3 +8,5 @@ class BadStructuralMapping(Exception):
     pass
 class MadMapping(Exception):
     pass
+class MissingRequiredMapping(Exception):
+    pass

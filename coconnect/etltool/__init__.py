@@ -29,9 +29,12 @@ import numpy as np
 import copy
 import json
 import re
+import random
 
 from .operations import ETLOperations
-from .exceptions import NoInputData, NoInputData, NoTermMapping, BadStructuralMapping, MadMapping
+from .exceptions import NoInputData, NoInputData, \
+    NoTermMapping, BadStructuralMapping, MadMapping,\
+    MissingRequiredMapping
 
 
 class ETLTool:
@@ -150,7 +153,12 @@ class ETLTool:
             chunk_size (long int) : the number of rows to process 
         """
         self.chunk_size = chunk_size
-
+        
+    def set_max_chunks(self,n):
+       """
+       """
+       self.max_chunks = n
+       
     def set_save_files(self,b_save):
         self.save_files = b_save
         
@@ -167,6 +175,8 @@ class ETLTool:
            None
         """
         self.df_cdm = pd.read_csv(f_cdm,encoding="ISO-8859-1").set_index('table')
+        self.df_cdm['required'] = self.df_cdm['required'] == 'Yes'
+
         self.logger.debug(self.df_cdm)
 
 
@@ -550,6 +560,7 @@ class ETLTool:
         #some initial parameters
         self.verbose = False
         self.chunk_size = 10**6
+        self.max_chunks = -1 
         self.output_data_folder = None
         self.df_term_mapping = None
         self.df_structural_mapping = None
@@ -566,6 +577,8 @@ class ETLTool:
         self.perform_person_id_mask = True
         #default is to automatically try and map fields e.g. year_of_birth --> extract year
         self.use_auto_functions = True
+        # Fill in the blanks for testing some ids
+        self.hash_missing_ids = True
         
         #create a logger
         self.create_logger()
@@ -581,6 +594,14 @@ class ETLTool:
             raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {f_cdm}')
         
         self.load_cdm(f_cdm)
+        self.cdm_dtypes = {
+            'INTEGER': lambda x : x.astype('Int64'),
+            'VARCHAR': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
+            'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%y-%m-%d %H:%M:%S'),
+            'DATE': lambda x : pd.to_datetime(x).dt.date
+        }
+        
+        
 
         self.allowed_operations = ETLOperations()
 
@@ -661,6 +682,11 @@ class ETLTool:
             #start looping over the chunks of data
             #the default will be to have ~100k rows per chunk
             for icounter,df_table_data in enumerate(chunks_table_data):
+
+                if self.max_chunks > 0 :
+                    if icounter >= self.max_chunks :
+                        self.logger.info('youve had enough')
+                        break
                 
                 #use lower case to be safe because of WhiteRabbit Issues...
                 df_table_data.columns = df_table_data.columns.str.lower()
@@ -860,7 +886,36 @@ class ETLTool:
                 
             #rearrange the order of the columns so they're the same as the order in the CDM
             df_output = df_output[cdm_fields]
-            
+
+
+            cdm = self.df_cdm.loc[destination_table][['field','required','type']]
+            for i in range(len(cdm)):
+                field = cdm.iloc[i]['field']
+                required = cdm.iloc[i]['required']
+                dtype = cdm.iloc[i]['type']
+                if 'VARCHAR' in dtype:
+                    dtype = 'VARCHAR'
+
+                if required:
+                    #check if an entire row has 
+                    null_values = df_output[field].isnull().values
+                    if null_values.all():
+                        self.logger.error(f'Required field {field} has not been mapped'
+                                          ' all values are NaN')
+
+                        if self.hash_missing_ids:
+                            df_output[field] = df_output[field]\
+                                .apply(lambda x: random.randint(-1000,-900)) 
+                        else:
+                            raise MissingRequiredMapping(f'You need to map {field}')
+                    elif null_values.any():
+                        indices = df_output[null_values].index
+                        df_output = df_output.loc[~null_values]
+                        self.logger.warning(f'Required field ({field}) with bad values')
+                        self.logger.warning(f'Just had to drop {indices}')
+                        
+                df_output[field] = self.cdm_dtypes[dtype](df_output[field])
+                
             outname = f'{outfolder}/{destination_table}.csv'
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
@@ -913,4 +968,7 @@ class ETLTool:
         #- merge them together
         for destination_table,outputs in map_output_files.items():
             self.merge_destination_table(destination_table,outputs)
+
+
+
         
