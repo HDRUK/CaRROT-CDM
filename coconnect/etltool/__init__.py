@@ -880,15 +880,9 @@ class ETLTool:
                 break
 
             
-            
             #make a total dataframe
             df_output = pd.concat(total,axis=1)
-
-            for df in total:
-                print (df.columns)
-                print (df)
-            exit(0)
-            
+                        
             #get all unique columns
             unique_cols = df_output.columns.unique()
             missing_cols = list(set(cdm_fields) - set(unique_cols))
