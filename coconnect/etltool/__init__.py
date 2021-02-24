@@ -6,29 +6,17 @@ Contact: CO-CONNECT@dundee.ac.uk
 First Created: 11/02/2021
 
 Example:
-    Examples can be given using either the ``Example`` or ``Examples``
-    sections. Sections support any reStructuredText formatting, including
-    literal blocks::
 
-        $ python example_google.py
+    Run the tool::
 
-Test
+        $ etl2cdm -v 
+       --inputs sample_input_data/patients_sample.csv\
+       --structural-mapping sample_input_data/rules1.csv\
+       --term-mapping sample_input_data/rules2.csv
 
-Attributes:
-    module_level_variable1 (int): Module level variables may be documented in
-        either the ``Attributes`` section of the module docstring, or in an
-        inline docstring immediately following the variable.
-
-        Either form is acceptable, but the two should not be mixed. Choose
-        one convention to document module level variables and be consistent
-        with it.
 
 Todo:
-    * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension
-
-.. _Google Python Style Guide:
-   http://google.github.io/styleguide/pyguide.html
+    * 
 
 
 """
@@ -40,18 +28,13 @@ import pandas as pd
 import numpy as np
 import copy
 import json
+import re
+import random
 
-
-class NoInputData(Exception):
-    pass
-class NoStructuralMapping(Exception):
-    pass
-class NoTermMapping(Exception):
-    pass
-class BadStructuralMapping(Exception):
-    pass
-class MadMapping(Exception):
-    pass
+from .operations import ETLOperations
+from .exceptions import NoInputData, NoInputData, \
+    NoTermMapping, BadStructuralMapping, MadMapping,\
+    MissingRequiredMapping, BadDestinationField
 
 
 class ETLTool:
@@ -149,6 +132,9 @@ class ETLTool:
 
     def set_perform_person_id_mask(self,b_value):
         self.perform_person_id_mask = b_value
+
+    def set_use_auto_functions(self,b_value):
+        self.use_auto_functions = b_value
         
     def set_verbose(self,verbose=True):
         """
@@ -167,7 +153,12 @@ class ETLTool:
             chunk_size (long int) : the number of rows to process 
         """
         self.chunk_size = chunk_size
-
+        
+    def set_max_chunks(self,n):
+       """
+       """
+       self.max_chunks = n
+       
     def set_save_files(self,b_save):
         self.save_files = b_save
         
@@ -184,6 +175,8 @@ class ETLTool:
            None
         """
         self.df_cdm = pd.read_csv(f_cdm,encoding="ISO-8859-1").set_index('table')
+        self.df_cdm['required'] = self.df_cdm['required'] == 'Yes'
+
         self.logger.debug(self.df_cdm)
 
 
@@ -404,9 +397,9 @@ class ETLTool:
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
-            self.logger.warning(f'Found bad rows {df_bad}')
+            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows')
             
-            self.logger.warning('This has no specification of how to map it or there are NaN values ')
+            self.logger.warning('These have no specification of how to map them or there are NaN values ')
             
             #n_nan = len(df_temp[df_temp.isnull() == True])
             #self.logger.warning(f'... {n_nan} of these indicies are bad because of NaN values')
@@ -418,7 +411,28 @@ class ETLTool:
                 df_orig = df_orig.dropna()
 
         return df_orig
+
+    def map_auto_extract(self,df,source_field,destination_field):
+        """
+        Perform auto one-to-one mapping
+        Args:
+           df (pandas.DataFrame): the dataframe for the original source data
+           source_field (str): the name of the field(column) in the source data 
+           destination_field (str): the name of the field(column) to be set as the new output
+        Returns:
+           a new pandas dataframe where the source field has been automatically mapped to the destination field
+           by looking up a function to apply to it.
+           E.g. if year_of_birth, it'll know to apply EXTRACT YEAR
+        """
+        if destination_field not in self.allowed_operations.auto_functions:
+            self.logger.error("Something really wrong if map_auto_extract() is called on a destination field"
+                              "that is not in allowed_operations.auto_functions")
+            raise ValueError(f'Cannot find {destination_field} in allowed_operations.auto_functions')
         
+        function = self.allowed_operations.auto_functions[destination_field]
+        ret = function(df,column=source_field)
+        return ret.to_frame(destination_field)
+                                    
     
     def map_one_to_one(self,df,source_field,destination_field):
         """
@@ -430,6 +444,7 @@ class ETLTool:
         Returns:
            a new pandas dataframe where the source field has been directly mapped to the destination field
         """
+
         #make a series which is just the source field
         #convert it to a dataframe and change the name to be the destination field
         return df[source_field].to_frame(destination_field)
@@ -455,26 +470,6 @@ class ETLTool:
         # - convert the series back into a pandas dataframe
         return pd.to_datetime(series).dt.year
 
-    def get_month_from_date(self,df,**kwargs):
-        """
-        Convert a dataframe containing a datatime into the month only
-        Args:
-           df (pandas dataframe): the dataframe for the original source data
-           **kwargs (dict) : keyword arguments, needed as this method gets called generically via allowed_operations
-        Returns:
-           pandas dataframe: with one column in datatime format only displaying the month 
-        """
-        #raise an error if we dont have column in the kwargs
-        #column == field
-        if 'column' not in kwargs:
-            raise ValueError(f'column not found in kwargs: {kwargs}')
-        #get the pandas series of the input dataframe (get the field of the input dataset) to be modified
-        series = df[kwargs['column']]
-        # - convert the series into a datetime series
-        # - get the datetime object via .dt
-        # - get only the month via the .dt object
-        # - convert the series back into a pandas dataframe
-        return pd.to_datetime(series).dt.month.to_frame()
 
     def initialise(self):
         """
@@ -516,9 +511,26 @@ class ETLTool:
 
             diff_tables = list(set(sm_source_tables) - set(data_source_tables))
             if len(diff_tables) > 0 :
-                self.logger.error('Still some different tables, see...')
-                self.logger.info(diff_tables)
-                raise BadStructuralMapping('Your structural mapping must be misconfigured or not meant for this data')
+                self.logger.warning('Still some different tables, see...')
+                self.logger.warning(diff_tables)
+
+                self.logger.warning(data_source_tables)
+
+                self.logger.warning('Attempting now to match and rename')
+                rename = {}
+                for bad_name in diff_tables:
+                    for orig_name in data_source_tables:
+                        if bad_name in orig_name:
+                           rename[bad_name] = orig_name
+                           break
+                self.df_structural_mapping = self.df_structural_mapping.replace({'source_table':rename})
+
+                sm_source_tables = self.df_structural_mapping['source_table'].unique()
+                diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+                if len(diff_tables) > 0 :
+                    self.logger.error("Still bad!!!")
+                    self.logger.error('This means you are trying to map these datasets, but dont have the as input!')
+                    raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
             else:
                 self.logger.warning("Ok found them by using str.lower() on the table names!")
         
@@ -548,6 +560,7 @@ class ETLTool:
         #some initial parameters
         self.verbose = False
         self.chunk_size = 10**6
+        self.max_chunks = -1 
         self.output_data_folder = None
         self.df_term_mapping = None
         self.df_structural_mapping = None
@@ -558,17 +571,25 @@ class ETLTool:
         #configure how to save files
         self.save_files = True
         self.merge_files = True
-        self.record_duplicates = True
+        self.record_duplicates = False
 
         #default is to mask person_ids
         self.perform_person_id_mask = True
+        #default is to automatically try and map fields e.g. year_of_birth --> extract year
+        self.use_auto_functions = True
+        # Fill in the blanks for testing some ids
+        self.hash_missing_ids = True
+        # Overide source term mapping
+        # * if the destination field is called _source_
+        #   and term mapping is defined... skip it... 
+        self.override_source_term_mapping = True
         
         #create a logger
         self.create_logger()
         
         #setup the working directory path so we can find the data
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        #self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
+        self.dir_path = os.path.abspath(os.path.join(self.dir_path,".."))
         self.logger.debug(f'Directory path... {self.dir_path}')
 
         #hard code OMPO CDM 5.3.1 for now
@@ -577,16 +598,17 @@ class ETLTool:
             raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {f_cdm}')
         
         self.load_cdm(f_cdm)
-
-        
-
-        #hard code for now..
-        #map lookup name with a function to perform an operation on a field(s)
-        self.allowed_operations = {
-            'EXTRACT_YEAR': self.get_year_from_date,
-            #'extract month': self.get_month_from_date
+        #define some types for the cdm map, to make sure our outputs are in the correct format
+        self.cdm_dtypes = {
+            'INTEGER': lambda x : x.astype('Int64'),
+            'FLOAT' : lambda x : x.astype('Float64'),
+            'VARCHAR': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
+            'STRING(50)': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
+            'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%y-%m-%d %H:%M:%S'),
+            'DATE': lambda x : pd.to_datetime(x).dt.date
         }
         
+        self.allowed_operations = ETLOperations()
 
     
     def process_destination_table(self,destination_table):
@@ -632,6 +654,25 @@ class ETLTool:
         all_source_tables = json.dumps(source_tables,indent=4)
         self.logger.debug(f'All source tables needed to map {destination_table} \n {all_source_tables}')
 
+
+        
+        if len(source_tables) > 1:
+            self.logger.debug(f'OK more than two tables mapping to the CDM "{destination_table}"')
+
+            
+            #df_map = {}
+            #for source_table in source_tables:
+                #'prochi'
+                #df_map[source_table] = pd.read_csv(self.map_input_files[source_table],nrows=1).columns.tolist()
+             #   df_map[source_table] = pd.read_csv(self.map_input_files[source_table])['prochi']
+                #print (set(list(df_map.values())[1]) & set(list(df_map.values())[0]))
+
+            #df_map = pd.DataFrame(df_map)
+            #for i in range(len(df_map)):
+            #    print (df_map.iloc[i])
+            
+            
+            
         
         for source_table in source_tables:
             #structural mapping associated with the destination table and the source table
@@ -645,6 +686,11 @@ class ETLTool:
             #start looping over the chunks of data
             #the default will be to have ~100k rows per chunk
             for icounter,df_table_data in enumerate(chunks_table_data):
+
+                if self.max_chunks > 0 :
+                    if icounter >= self.max_chunks :
+                        self.logger.info('youve had enough')
+                        break
                 
                 #use lower case to be safe because of WhiteRabbit Issues...
                 df_table_data.columns = df_table_data.columns.str.lower()
@@ -666,15 +712,35 @@ class ETLTool:
                         rule = rules.iloc[i]
                         source_field = rule['source_field'].lower()
 
+                        if "_source_" in destination_field\
+                           and not '_source_concept_id' in destination_field:
+                            if rule['term_mapping'] == 'y':
+                                self.logger.error('You have term mapping applied for'
+                                                  f' the field {destination_field}'
+                                                  ' are you sure!?'
+                                                  ' This should be a source value!')
+
+                                if self.override_source_term_mapping:
+                                    rule['term_mapping'] = 'n'
+                        
                         #handle when no term mapping
                         if rule['term_mapping'] == 'n':
                             self.logger.debug("No mapping term defined for this rule")
                             #map one-to-one if there isn't a rule
                             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                                 self.logger.debug("No operation set. Mapping one-to-one")
-                                columns_output.append(
-                                    self.map_one_to_one(df_table_data,source_field,destination_field)
-                                )
+
+                                if self.use_auto_functions\
+                                   and destination_field in self.allowed_operations.auto_functions:
+                                    
+                                    self.logger.debug("But found an auto function to use!")
+                                    columns_output.append(
+                                        self.map_auto_extract(df_table_data,source_field,destination_field)
+                                    )
+                                else:
+                                    columns_output.append(
+                                        self.map_one_to_one(df_table_data,source_field,destination_field)
+                                    )
                             #there is an operation defined,
                             #so look it up in the list of allowed operations
                             #and apply it
@@ -817,6 +883,7 @@ class ETLTool:
                 
             output_duplicates = []
             for duplicate in duplicate_cols:
+                
                 first = df_output[duplicate].iloc[:,0]
                 others =  df_output[duplicate].iloc[:,1:]
                 
@@ -835,7 +902,52 @@ class ETLTool:
                 
             #rearrange the order of the columns so they're the same as the order in the CDM
             df_output = df_output[cdm_fields]
-            
+
+
+            cdm = self.df_cdm.loc[destination_table][['field','required','type']]
+            for i in range(len(cdm)):
+                field = cdm.iloc[i]['field']
+                required = cdm.iloc[i]['required']
+                dtype = cdm.iloc[i]['type']
+                if 'VARCHAR' in dtype:
+                    dtype = 'VARCHAR'
+
+                if required:
+                    #check if an entire row has 
+                    null_values = df_output[field].isnull().values
+                    if null_values.all():
+                        self.logger.error(f'Required field {field} has not been mapped'
+                                          ' all values are NaN')
+
+                        if self.hash_missing_ids:
+                            df_output[field] = df_output[field]\
+                                .apply(lambda x: random.randint(-1000,-900)) 
+                        else:
+                            raise MissingRequiredMapping(f'You need to map {field}')
+                    elif null_values.any():
+                        n_bad_indices = len(df_output[null_values].index)
+                        n_indices = len(df_output.index)
+                        df_output = df_output.loc[~null_values]
+                        self.logger.warning(f'Required field ({field}) has bad values!')
+                        self.logger.warning(f'Just had to drop {n_bad_indices}/{n_indices}')
+
+                try:
+                    df_output[field] = self.cdm_dtypes[dtype](df_output[field])
+                except TypeError:
+                    
+                    self.logger.error(f'Cant convert column {field} to datatype {dtype}')
+                    self.logger.error(f'\n f{df_output[field].sample(3)}')
+                       
+                    if required:
+                        self.logger.warning(f'{field} is not required though, so dropping it')
+                        df_output[field] = np.NaN
+                        df_output[field] = self.cdm_dtypes[dtype](df_output[field])
+                    else:
+                        self.logger.error(f'This is required! And not a dtype {dtype}.'
+                                          ' Please fix!')
+                        
+                        raise BadDestinationField(f'{field} is required, and needs to be {dtype}')
+                    
             outname = f'{outfolder}/{destination_table}.csv'
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
@@ -888,4 +1000,7 @@ class ETLTool:
         #- merge them together
         for destination_table,outputs in map_output_files.items():
             self.merge_destination_table(destination_table,outputs)
+
+
+
         
