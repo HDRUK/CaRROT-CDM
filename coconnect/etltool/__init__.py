@@ -720,18 +720,19 @@ class ETLTool:
                 self.logger.info(f'Processing {icounter} with length {nrows}')
 
 
-                indices = list(self.map_indexer[destination_table].values())
-                if len(indices)> 1:
-                    self.logger.error('too many indices set')
-                elif len(indices) ==1 :
-                    index = indices[0]
-                    if index in df_table_data.columns:
-                        #clone the index to be this column
-                        df_table_data.index = df_table_data[index]
-                        self.logger.info(f'Managed to set the index {index} for {source_table}')
-                    else:
-                        self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
-
+                if 'destination_table' in self.map_indexer:
+                    indices = list(self.map_indexer[destination_table].values())
+                    if len(indices)> 1:
+                        self.logger.error('too many indices set')
+                    elif len(indices) ==1 :
+                        index = indices[0]
+                        if index in df_table_data.columns:
+                            #clone the index to be this column
+                            df_table_data.index = df_table_data[index]
+                            self.logger.info(f'Managed to set the index {index} for {source_table}')
+                        else:
+                            self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
+                            
                 columns_output = []
                 
                 mapped_fields_for_current_source_table = df_mapping.index.to_list()
