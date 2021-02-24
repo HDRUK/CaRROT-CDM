@@ -31,6 +31,7 @@ import json
 import re
 import random
 
+
 from .operations import ETLOperations
 from .exceptions import NoInputData, NoInputData, \
     NoTermMapping, BadStructuralMapping, MadMapping,\
@@ -255,7 +256,7 @@ class ETLTool:
         self.logger.info(f'Loaded the term mapping with {len(self.df_term_mapping)} rules')
 
 
-    def save_lookup_table(self,df,source_table,table,source_field,mode='w',header=True):
+    def save_lookup_table(self,df,table,source_field,mode='w',header=True):
         """
         Save a dataframe series in a table to a file
         Args:
@@ -270,7 +271,7 @@ class ETLTool:
             self.logger.info(f'Creating a new folder: {outfolder}')
             os.makedirs(outfolder)
 
-        outname = f'{outfolder}/lookup_{source_table}_{table}_{source_field}.csv'
+        outname = f'{outfolder}/lookup_{table}_{source_field}.csv'
         self.logger.info(f'Writing a lookup dictionary of {source_field} to index')
         self.logger.info(f'Final being saved: {outname}')
         series.to_csv(outname,
@@ -310,6 +311,7 @@ class ETLTool:
         Returns:
            pandas.DataFrame : a new pandas dataframe with 'destination_field' as the index
         """
+                
         return self.df_structural_mapping\
                    .set_index(['destination_table','source_table'])\
                    .sort_index()\
@@ -362,13 +364,14 @@ class ETLTool:
             try:
                 df_map['source_term'] = df_map['source_term'].astype(orig_type)
             except ValueError as err:
-                self.logger.error("You're really trying some bizarre mapping here"
+                self.logger.error("You're really trying some bizarre mapping here. "
                                   "The types are completely different")
                 self.logger.error(f"Mapping source type = {map_type}")
                 self.logger.error(f"Original source type = {orig_type}")
 
                 orig_example = df_orig[source_field].iloc[0]
                 new_example = df_map['source_term'].iloc[0]
+                self.logger.error("EXAMPLE")
                 self.logger.error(f"Source : {orig_example}")
                 self.logger.error(f"Trying being mapped with: {new_example}")
                 
@@ -568,6 +571,11 @@ class ETLTool:
         self.map_input_files = None
         self.tool_initialised = False
 
+
+        #save a map for indices, this could be loaded from structural mapping
+        #or we could have this as a separate input
+        self.map_indexer = {}
+        
         #configure how to save files
         self.save_files = True
         self.merge_files = True
@@ -583,6 +591,7 @@ class ETLTool:
         # * if the destination field is called _source_
         #   and term mapping is defined... skip it... 
         self.override_source_term_mapping = True
+
         
         #create a logger
         self.create_logger()
@@ -629,6 +638,20 @@ class ETLTool:
         #get a list of all 
         destination_fields = partial_cdm['field']
         mapped_fields = self.get_mapped_fields(destination_table)
+
+        #save some information about index mapping, e.g. person_id
+        if 'source_field_indexer' in self.df_structural_mapping:
+            indices = self.df_structural_mapping['source_field_indexer'] == True
+            indexer = self.df_structural_mapping[indices]\
+                .set_index('destination_field')['source_field']\
+                .to_dict()
+            for key,val in indexer.items():
+                indexer[key] = val.lower()
+            
+            self.logger.info(f'For table "{destination_table}" you have set the index for joining tables to be...')
+            self.logger.info(indexer)
+            self.map_indexer[destination_table] = indexer
+
         
         bad = []
         for x in mapped_fields:
@@ -677,7 +700,7 @@ class ETLTool:
         for source_table in source_tables:
             #structural mapping associated with the destination table and the source table
             df_mapping = self.get_structural_mapping(destination_table,source_table)
-
+            
             #load the data we need
             #load in chunks to conserve memory when we have huge inputs
             chunks_table_data = self.load_df_chunks(self.map_input_files[source_table],
@@ -686,7 +709,6 @@ class ETLTool:
             #start looping over the chunks of data
             #the default will be to have ~100k rows per chunk
             for icounter,df_table_data in enumerate(chunks_table_data):
-
                 if self.max_chunks > 0 :
                     if icounter >= self.max_chunks :
                         self.logger.info('youve had enough')
@@ -696,7 +718,20 @@ class ETLTool:
                 df_table_data.columns = df_table_data.columns.str.lower()
                 nrows = len(df_table_data)
                 self.logger.info(f'Processing {icounter} with length {nrows}')
-                
+
+
+                indices = list(self.map_indexer[destination_table].values())
+                if len(indices)> 1:
+                    self.logger.error('too many indices set')
+                elif len(indices) ==1 :
+                    index = indices[0]
+                    if index in df_table_data.columns:
+                        #clone the index to be this column
+                        df_table_data.index = df_table_data[index]
+                        self.logger.info(f'Managed to set the index {index} for {source_table}')
+                    else:
+                        self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
+
                 columns_output = []
                 
                 mapped_fields_for_current_source_table = df_mapping.index.to_list()
@@ -773,6 +808,7 @@ class ETLTool:
                 #concat all columns we created
                 df_destination = pd.concat(columns_output,axis=1)
                 
+                
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
                 
@@ -787,15 +823,6 @@ class ETLTool:
                     
                 self.logger.debug(f'writing mode:"{mode}", save headers="{header}')
             
-                #perform masking of the person id
-                #- perfom is person_id is in the cdm and is not empty/null
-                #- save the lookup to the person id
-                #- make an arbritary index for the person id instead
-                if self.perform_person_id_mask and 'person_id' in df_destination and not df_destination['person_id'].isnull().all():
-                    self.save_lookup_table(df_destination,source_table,destination_table,'person_id')
-                    df_destination = df_destination.drop('person_id',axis=1)\
-                                                   .reset_index()\
-                                                   .rename({'index':'person_id'},axis=1)
                 
                 #save the data into new csvs
                 outname = f'{self.output_data_folder}/cdm_split/{destination_table}/'
@@ -809,7 +836,7 @@ class ETLTool:
                 if outname[-4:]!='.csv':
                     outname += '.csv'
 
-                df_destination.to_csv(outname,index=False,mode=mode,header=header)
+                df_destination.to_csv(outname,index=True,mode=mode,header=header)
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
                 #only need to do this one, since for icounter>0 the file is in append mode
@@ -851,10 +878,17 @@ class ETLTool:
             
             if complete:
                 break
+
+            
             
             #make a total dataframe
             df_output = pd.concat(total,axis=1)
-        
+
+            for df in total:
+                print (df.columns)
+                print (df)
+            exit(0)
+            
             #get all unique columns
             unique_cols = df_output.columns.unique()
             missing_cols = list(set(cdm_fields) - set(unique_cols))
@@ -904,6 +938,22 @@ class ETLTool:
             df_output = df_output[cdm_fields]
 
 
+            #perform masking of the person id
+            #- perfom is person_id is in the cdm and is not empty/null
+            #- save the lookup to the person id
+            #- make an arbritary index for the person id instead
+            if self.perform_person_id_mask \
+               and 'person_id' in df_output \
+               and not df_output['person_id'].isnull().all():
+                
+                self.save_lookup_table(df_output,destination_table,'person_id')
+                df_output = df_output.drop('person_id',axis=1)\
+                                               .reset_index()\
+                                               .rename({'index':'person_id'},axis=1)
+                
+
+
+            
             cdm = self.df_cdm.loc[destination_table][['field','required','type']]
             for i in range(len(cdm)):
                 field = cdm.iloc[i]['field']
