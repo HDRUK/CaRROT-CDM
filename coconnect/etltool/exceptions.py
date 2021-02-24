@@ -10,3 +10,5 @@ class MadMapping(Exception):
     pass
 class MissingRequiredMapping(Exception):
     pass
+class BadDestinationField(Exception):
+    pass

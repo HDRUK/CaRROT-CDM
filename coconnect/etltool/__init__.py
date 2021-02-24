@@ -34,7 +34,7 @@ import random
 from .operations import ETLOperations
 from .exceptions import NoInputData, NoInputData, \
     NoTermMapping, BadStructuralMapping, MadMapping,\
-    MissingRequiredMapping
+    MissingRequiredMapping, BadDestinationField
 
 
 class ETLTool:
@@ -397,9 +397,9 @@ class ETLTool:
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
-            self.logger.warning(f'Found bad rows {df_bad}')
+            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows')
             
-            self.logger.warning('This has no specification of how to map it or there are NaN values ')
+            self.logger.warning('These have no specification of how to map them or there are NaN values ')
             
             #n_nan = len(df_temp[df_temp.isnull() == True])
             #self.logger.warning(f'... {n_nan} of these indicies are bad because of NaN values')
@@ -571,7 +571,7 @@ class ETLTool:
         #configure how to save files
         self.save_files = True
         self.merge_files = True
-        self.record_duplicates = True
+        self.record_duplicates = False
 
         #default is to mask person_ids
         self.perform_person_id_mask = True
@@ -579,6 +579,10 @@ class ETLTool:
         self.use_auto_functions = True
         # Fill in the blanks for testing some ids
         self.hash_missing_ids = True
+        # Overide source term mapping
+        # * if the destination field is called _source_
+        #   and term mapping is defined... skip it... 
+        self.override_source_term_mapping = True
         
         #create a logger
         self.create_logger()
@@ -594,15 +598,16 @@ class ETLTool:
             raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {f_cdm}')
         
         self.load_cdm(f_cdm)
+        #define some types for the cdm map, to make sure our outputs are in the correct format
         self.cdm_dtypes = {
             'INTEGER': lambda x : x.astype('Int64'),
+            'FLOAT' : lambda x : x.astype('Float64'),
             'VARCHAR': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
+            'STRING(50)': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
             'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%y-%m-%d %H:%M:%S'),
             'DATE': lambda x : pd.to_datetime(x).dt.date
         }
         
-        
-
         self.allowed_operations = ETLOperations()
 
     
@@ -654,7 +659,6 @@ class ETLTool:
         if len(source_tables) > 1:
             self.logger.debug(f'OK more than two tables mapping to the CDM "{destination_table}"')
 
-            
             
             #df_map = {}
             #for source_table in source_tables:
@@ -708,6 +712,17 @@ class ETLTool:
                         rule = rules.iloc[i]
                         source_field = rule['source_field'].lower()
 
+                        if "_source_" in destination_field\
+                           and not '_source_concept_id' in destination_field:
+                            if rule['term_mapping'] == 'y':
+                                self.logger.error('You have term mapping applied for'
+                                                  f' the field {destination_field}'
+                                                  ' are you sure!?'
+                                                  ' This should be a source value!')
+
+                                if self.override_source_term_mapping:
+                                    rule['term_mapping'] = 'n'
+                        
                         #handle when no term mapping
                         if rule['term_mapping'] == 'n':
                             self.logger.debug("No mapping term defined for this rule")
@@ -868,6 +883,7 @@ class ETLTool:
                 
             output_duplicates = []
             for duplicate in duplicate_cols:
+                
                 first = df_output[duplicate].iloc[:,0]
                 others =  df_output[duplicate].iloc[:,1:]
                 
@@ -909,13 +925,29 @@ class ETLTool:
                         else:
                             raise MissingRequiredMapping(f'You need to map {field}')
                     elif null_values.any():
-                        indices = df_output[null_values].index
+                        n_bad_indices = len(df_output[null_values].index)
+                        n_indices = len(df_output.index)
                         df_output = df_output.loc[~null_values]
-                        self.logger.warning(f'Required field ({field}) with bad values')
-                        self.logger.warning(f'Just had to drop {indices}')
+                        self.logger.warning(f'Required field ({field}) has bad values!')
+                        self.logger.warning(f'Just had to drop {n_bad_indices}/{n_indices}')
+
+                try:
+                    df_output[field] = self.cdm_dtypes[dtype](df_output[field])
+                except TypeError:
+                    
+                    self.logger.error(f'Cant convert column {field} to datatype {dtype}')
+                    self.logger.error(f'\n f{df_output[field].sample(3)}')
+                       
+                    if required:
+                        self.logger.warning(f'{field} is not required though, so dropping it')
+                        df_output[field] = np.NaN
+                        df_output[field] = self.cdm_dtypes[dtype](df_output[field])
+                    else:
+                        self.logger.error(f'This is required! And not a dtype {dtype}.'
+                                          ' Please fix!')
                         
-                df_output[field] = self.cdm_dtypes[dtype](df_output[field])
-                
+                        raise BadDestinationField(f'{field} is required, and needs to be {dtype}')
+                    
             outname = f'{outfolder}/{destination_table}.csv'
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
