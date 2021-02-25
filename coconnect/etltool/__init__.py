@@ -134,6 +134,9 @@ class ETLTool:
     def set_perform_person_id_mask(self,b_value):
         self.perform_person_id_mask = b_value
 
+    def set_override_source_term_mapping(self,b_value):
+        self.override_source_term_mapping = b_value
+
     def set_use_auto_functions(self,b_value):
         self.use_auto_functions = b_value
         
@@ -299,7 +302,7 @@ class ETLTool:
            list: list of all destination fields defined in the rules for this cdm object
         """
         return self.df_structural_mapping.set_index('destination_table')\
-                                         .loc[table]['destination_field'].to_list()
+                                         .loc[[table]]['destination_field'].to_list()
 
     def get_structural_mapping(self,destination_table,source_table):
         """
@@ -330,7 +333,7 @@ class ETLTool:
         """
         source_tables = list(self.df_structural_mapping\
                              .set_index('destination_table')\
-                             .loc[table]['source_table'].unique())
+                             .loc[[table]]['source_table'].unique())
 
         for i,source_table in enumerate(source_tables):
             if source_table not in self.map_input_files.keys():
@@ -380,8 +383,17 @@ class ETLTool:
 
         if is_truncation:
             new_term = df_map.iloc[0]['destination_term']
-            df_orig = df_orig.assign(destination_field = new_term)
-            
+            df_orig[df_orig.notnull()] = new_term
+            df_orig = df_orig.rename({
+                source_field : destination_field
+            },axis=1)
+
+            #df_orig = df_orig.assign(temp = new_term).\
+            #    rename(
+            #        {
+            #            'temp':destination_field
+            #        },axis=1)[[destination_field]]
+
         else:
             #pandas removes the index when using merge
             #need to preserve it for when we're chunking data
@@ -400,7 +412,8 @@ class ETLTool:
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
-            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows')
+            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows.'
+                                f' For {source_field} mapped to {destination_field}')
             
             self.logger.warning('These have no specification of how to map them or there are NaN values ')
             
@@ -582,15 +595,15 @@ class ETLTool:
         self.record_duplicates = False
 
         #default is to mask person_ids
-        self.perform_person_id_mask = True
+        self.perform_person_id_mask = False
         #default is to automatically try and map fields e.g. year_of_birth --> extract year
         self.use_auto_functions = True
         # Fill in the blanks for testing some ids
-        self.hash_missing_ids = True
+        self.patch_missing_ids = True
         # Overide source term mapping
         # * if the destination field is called _source_
         #   and term mapping is defined... skip it... 
-        self.override_source_term_mapping = True
+        self.override_source_term_mapping = False
 
         
         #create a logger
@@ -613,7 +626,7 @@ class ETLTool:
             'FLOAT' : lambda x : x.astype('Float64'),
             'VARCHAR': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
             'STRING(50)': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
-            'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%y-%m-%d %H:%M:%S'),
+            'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%Y-%m-%d %H:%M:%S'),
             'DATE': lambda x : pd.to_datetime(x).dt.date
         }
         
@@ -681,20 +694,6 @@ class ETLTool:
         
         if len(source_tables) > 1:
             self.logger.debug(f'OK more than two tables mapping to the CDM "{destination_table}"')
-
-            
-            #df_map = {}
-            #for source_table in source_tables:
-                #'prochi'
-                #df_map[source_table] = pd.read_csv(self.map_input_files[source_table],nrows=1).columns.tolist()
-             #   df_map[source_table] = pd.read_csv(self.map_input_files[source_table])['prochi']
-                #print (set(list(df_map.values())[1]) & set(list(df_map.values())[0]))
-
-            #df_map = pd.DataFrame(df_map)
-            #for i in range(len(df_map)):
-            #    print (df_map.iloc[i])
-            
-            
             
         
         for source_table in source_tables:
@@ -733,35 +732,40 @@ class ETLTool:
                         else:
                             self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
                             
-                columns_output = []
+                columns_output = {}
                 
-                mapped_fields_for_current_source_table = df_mapping.index.to_list()
+                mapped_fields_for_current_source_table = df_mapping.index.unique().to_list()
                 
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
 
+                    
                     #get all rules associated with the current field in the cdm 
                     rules = df_mapping.loc[[destination_field]]
-                    #loop over all rules 
-                    for i in range(len(rules)):
-                        rule = rules.iloc[i]
+                    #loop over all rules
+                    for irule in range(len(rules)):
+                        rule = rules.iloc[irule]
                         source_field = rule['source_field'].lower()
 
-                        if "_source_" in destination_field\
+                        ret = None
+                        
+                        #perform a check to see if a source value is being mapped still
+                        if "_source_value" in destination_field\
                            and not '_source_concept_id' in destination_field:
+
                             if rule['term_mapping'] == 'y':
                                 self.logger.error('You have term mapping applied for'
                                                   f' the field {destination_field}'
                                                   ' are you sure!?'
                                                   ' This should be a source value!')
-
                                 if self.override_source_term_mapping:
                                     rule['term_mapping'] = 'n'
                         
                         #handle when no term mapping
                         if rule['term_mapping'] == 'n':
                             self.logger.debug("No mapping term defined for this rule")
+                            self.logger.debug(rule)
                             #map one-to-one if there isn't a rule
                             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                                 self.logger.debug("No operation set. Mapping one-to-one")
@@ -770,13 +774,13 @@ class ETLTool:
                                    and destination_field in self.allowed_operations.auto_functions:
                                     
                                     self.logger.debug("But found an auto function to use!")
-                                    columns_output.append(
-                                        self.map_auto_extract(df_table_data,source_field,destination_field)
-                                    )
+                                    ret = self.map_auto_extract(df_table_data,
+                                                                source_field,
+                                                                destination_field)
                                 else:
-                                    columns_output.append(
-                                        self.map_one_to_one(df_table_data,source_field,destination_field)
-                                    )
+                                    ret = self.map_one_to_one(df_table_data,
+                                                              source_field,
+                                                              destination_field)
                             #there is an operation defined,
                             #so look it up in the list of allowed operations
                             #and apply it
@@ -785,31 +789,59 @@ class ETLTool:
                                 if operation not in self.allowed_operations.keys():
                                     raise ValueError(f'Unknown Operation {operation}')
                                 self.logger.debug(f'Applying {operation}')
-                                ret = self.allowed_operations[operation](df_table_data,column=source_field)
-                                columns_output.append(
-                                    ret.to_frame(destination_field)
-                                )
+                                ret = self.allowed_operations[operation](df_table_data,
+                                                                         column=source_field)
+                                ret = ret.to_frame(destination_field)
                         #apply term mapping
                         else:
-                            
                             rule_id = rule['rule_id']
                             self.logger.debug(f'Mapping term found. Applying..')
                             self.logger.debug(f'{rule.to_dict()}')
                             df_map = self.df_term_mapping.loc[[rule_id]]
-
                             ret = self.map_via_rule(df_table_data,
                                                     df_map,
                                                     source_field,
                                                     destination_field)
-                            
-                            columns_output.append(
-                                ret
-                            )
+
+                        ret['irule'] = irule
+                        ret=ret.reset_index()
+                        
+                        if irule < 1:
+                            columns_output[destination_field] = ret
+                        else:
+                            try:
+
+                                temp = columns_output[destination_field]\
+                                    .merge(ret.set_index('index'),how='outer')
+                                
+                                if (temp.index.isnull().any()):
+                                    raise BadJoin('There are indices with NaN so the join must have gone bad!')
+                                columns_output[destination_field] = temp
+
+                            except ValueError as err:
+                                self.logger.error(f'Bad Merge for {destination_field}')
+                                self.logger.error('The most likely reason is that '
+                                                  'you have missed a term mapping for'
+                                                  f' this likely source: "{source_field}"'
+                                                  '. Its inconsistent with other dtypes mapped')
+                                self.logger.error(err)
+
 
                 #concat all columns we created
-                df_destination = pd.concat(columns_output,axis=1)
-                
-                
+                self.logger.info('Now setting up the inputs to merge')
+                cols = [x.drop(['irule'],axis=1) for x in columns_output.values()]
+                self.logger.info('Performing concat of columns...')
+                nrows = len(cols[0])
+                if len(cols) > 5 and nrows > 1000:
+                    self.logger.info(f'... there are {len(cols)} cols with {nrows} rows'
+                                     ', so this could take some time..')
+                df_destination = cols[0]
+                for i in range(1,len(cols)):
+                    self.logger.debug(f'merging {i} with {len(cols[i])} rows')
+                    self.logger.debug(cols[i].sample(5))
+                    df_destination = pd.concat([df_destination,cols[i]],axis=1)#.drop('index',axis=1)
+                    self.logger.info(f'..done {i}/{len(cols)}')
+                    
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
                 
@@ -836,8 +868,9 @@ class ETLTool:
                 outname = f'{outname}/{source_table}'
                 if outname[-4:]!='.csv':
                     outname += '.csv'
-
-                df_destination.to_csv(outname,index=True,mode=mode,header=header)
+                df_destination.to_csv(outname,index=True,\
+                                      mode=mode,header=header)#,\
+                                      #date_format='%Y-%m-%d %H:%M:%S')
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
                 #only need to do this one, since for icounter>0 the file is in append mode
@@ -869,8 +902,9 @@ class ETLTool:
             total = []
             for output_file,chunks in chunks_output_file_map.items():
                 try:
-                    chunk = chunks.get_chunk()
-                    total.append(chunk)
+                    df_chunk = chunks.get_chunk()
+                    df_chunk.columns = df_chunk.columns.str.replace("(\.\d+)$", "")
+                    total.append(df_chunk)
                 except StopIteration:
                     complete = True
                     break
@@ -882,8 +916,9 @@ class ETLTool:
 
             
             #make a total dataframe
+
             df_output = pd.concat(total,axis=1)
-                        
+
             #get all unique columns
             unique_cols = df_output.columns.unique()
             missing_cols = list(set(cdm_fields) - set(unique_cols))
@@ -906,6 +941,7 @@ class ETLTool:
                 
             #check for duplicate columns
             duplicate_cols = df_output.columns[df_output.columns.duplicated()].unique()
+
             if len(duplicate_cols)>0:
                 self.logger.warning("You've got duplicated columns for this cdm")
                 self.logger.warning(f'Duplicated: {duplicate_cols}')
@@ -928,10 +964,9 @@ class ETLTool:
             if not os.path.exists(outfolder):
                 self.logger.info(f'Creating a new folder: {outfolder}')
                 os.makedirs(outfolder)
-                
+
             #rearrange the order of the columns so they're the same as the order in the CDM
             df_output = df_output[cdm_fields]
-
 
             #perform masking of the person id
             #- perfom is person_id is in the cdm and is not empty/null
@@ -940,20 +975,20 @@ class ETLTool:
             if self.perform_person_id_mask \
                and 'person_id' in df_output \
                and not df_output['person_id'].isnull().all():
-                
+
+                raise NotImplementedError('need to fix masking of person_id still!')
                 self.save_lookup_table(df_output,destination_table,'person_id')
-                df_output = df_output.drop('person_id',axis=1)\
-                                               .reset_index()\
-                                               .rename({'index':'person_id'},axis=1)
+                #df_output = df_output.drop('person_id',axis=1)\
+                #                               .reset_index()\
+                #                               .rename({'index':'person_id'},axis=1)
                 
-
-
-            
+           
             cdm = self.df_cdm.loc[destination_table][['field','required','type']]
             for i in range(len(cdm)):
                 field = cdm.iloc[i]['field']
                 required = cdm.iloc[i]['required']
                 dtype = cdm.iloc[i]['type']
+
                 if 'VARCHAR' in dtype:
                     dtype = 'VARCHAR'
 
@@ -964,9 +999,13 @@ class ETLTool:
                         self.logger.error(f'Required field {field} has not been mapped'
                                           ' all values are NaN')
 
-                        if self.hash_missing_ids:
-                            df_output[field] = df_output[field]\
-                                .apply(lambda x: random.randint(-1000,-900)) 
+                        if self.patch_missing_ids:
+                            if i == 0:
+                                #if it's a primary key, increment index
+                                df_output[field] = df_output[field].reset_index().index
+                            else:
+                                #if else, fill 0 
+                                df_output[field] = 0
                         else:
                             raise MissingRequiredMapping(f'You need to map {field}')
                     elif null_values.any():
@@ -981,8 +1020,8 @@ class ETLTool:
                 except TypeError:
                     
                     self.logger.error(f'Cant convert column {field} to datatype {dtype}')
-                    self.logger.error(f'\n f{df_output[field].sample(3)}')
-                       
+                    self.logger.error(f'\n f{df_output[[field]]}')
+                    
                     if required:
                         self.logger.warning(f'{field} is not required though, so dropping it')
                         df_output[field] = np.NaN
@@ -992,8 +1031,11 @@ class ETLTool:
                                           ' Please fix!')
                         
                         raise BadDestinationField(f'{field} is required, and needs to be {dtype}')
-                    
+
+
             outname = f'{outfolder}/{destination_table}.csv'
+            df_output = df_output.sort_values(df_output.columns[0])
+            
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
                 self.logger.info(f'...saved to {outname}')

@@ -12,3 +12,5 @@ class MissingRequiredMapping(Exception):
     pass
 class BadDestinationField(Exception):
     pass
+class BadJoin(Exception):
+    pass

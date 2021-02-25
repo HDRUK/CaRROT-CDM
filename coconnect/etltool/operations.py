@@ -1,4 +1,5 @@
 import pandas as pd
+import datetime
 from collections import OrderedDict
 
 class ETLOperations(OrderedDict):
@@ -52,6 +53,24 @@ class ETLOperations(OrderedDict):
         series = df[kwargs['column']]
         return pd.to_datetime(series).dt.day#.fillna(0).astype(int)
 
+    def age_to_datetime(self,df,**kwargs):
+        if 'column' not in kwargs:
+            raise ValueError(f'column not found in kwargs: {kwargs}')
+        series = df[kwargs['column']]
+
+        #set normalisation to middle of 2020
+        norm = datetime.datetime(2020, 7, 1)
+
+        series = series.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*x))
+
+        return series
+    
+    def to_datetime(self,df,**kwargs):
+        if 'column' not in kwargs:
+            raise ValueError(f'column not found in kwargs: {kwargs}')
+        series = df[kwargs['column']]
+        series = pd.to_datetime(series)
+        return series
 
     def __repr__(self):
         return "ETLOperations"
@@ -63,11 +82,15 @@ class ETLOperations(OrderedDict):
         self['EXTRACT_YEAR'] = self.get_year_from_date
         self['EXTRACT_MONTH'] = self.get_month_from_date
         self['EXTRACT_DAY'] = self.get_day_from_date
-
+        self['AGE_TO_DT'] = self.age_to_datetime
+        self['TO_DT'] = self.to_datetime
+        
+        
         self.auto_functions = {
             'year_of_birth' : self['EXTRACT_YEAR'],
             'month_of_birth' : self['EXTRACT_MONTH'],
-            'day_of_birth' : self['EXTRACT_DAY']
+            'day_of_birth' : self['EXTRACT_DAY'],
+            'birth_datetime': self['TO_DT']
         }
 
         
