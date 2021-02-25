@@ -804,7 +804,7 @@ class ETLTool:
                                                     destination_field)
 
                         ret['irule'] = irule
-                        ret=ret.reset_index()
+                        #ret=ret.reset_index()
                         
                         if irule < 1:
                             columns_output[destination_field] = ret
@@ -812,7 +812,7 @@ class ETLTool:
                             try:
 
                                 temp = columns_output[destination_field]\
-                                    .merge(ret.set_index('index'),how='outer')
+                                    .merge(ret,how='outer')
                                 
                                 if (temp.index.isnull().any()):
                                     raise BadJoin('There are indices with NaN so the join must have gone bad!')
@@ -836,6 +836,7 @@ class ETLTool:
                     self.logger.info(f'... there are {len(cols)} cols with {nrows} rows'
                                      ', so this could take some time..')
                 df_destination = cols[0]
+
                 for i in range(1,len(cols)):
                     self.logger.debug(f'merging {i} with {len(cols[i])} rows')
                     self.logger.debug(cols[i].sample(5))
@@ -868,7 +869,7 @@ class ETLTool:
                 outname = f'{outname}/{source_table}'
                 if outname[-4:]!='.csv':
                     outname += '.csv'
-                df_destination.to_csv(outname,index=True,\
+                df_destination.to_csv(outname,index=False,\
                                       mode=mode,header=header)#,\
                                       #date_format='%Y-%m-%d %H:%M:%S')
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
@@ -916,9 +917,9 @@ class ETLTool:
 
             
             #make a total dataframe
-
             df_output = pd.concat(total,axis=1)
 
+            
             #get all unique columns
             unique_cols = df_output.columns.unique()
             missing_cols = list(set(cdm_fields) - set(unique_cols))
@@ -968,6 +969,7 @@ class ETLTool:
             #rearrange the order of the columns so they're the same as the order in the CDM
             df_output = df_output[cdm_fields]
 
+            
             #perform masking of the person id
             #- perfom is person_id is in the cdm and is not empty/null
             #- save the lookup to the person id
@@ -976,12 +978,14 @@ class ETLTool:
                and 'person_id' in df_output \
                and not df_output['person_id'].isnull().all():
 
-                raise NotImplementedError('need to fix masking of person_id still!')
+                #raise NotImplementedError('need to fix masking of person_id still!')
                 self.save_lookup_table(df_output,destination_table,'person_id')
-                #df_output = df_output.drop('person_id',axis=1)\
-                #                               .reset_index()\
-                #                               .rename({'index':'person_id'},axis=1)
+                temp = df_output[['person_id']]\
+                    .reset_index()\
+                    .drop('person_id',axis=1)
                 
+                df_output['person_id'] = temp['index']
+                                
            
             cdm = self.df_cdm.loc[destination_table][['field','required','type']]
             for i in range(len(cdm)):
@@ -1003,9 +1007,9 @@ class ETLTool:
                             if i == 0:
                                 #if it's a primary key, increment index
                                 df_output[field] = df_output[field].reset_index().index
-                            else:
-                                #if else, fill 0 
-                                df_output[field] = 0
+                            #else:
+                            #    #if else, fill 0 
+                            #    df_output[field] = 0
                         else:
                             raise MissingRequiredMapping(f'You need to map {field}')
                     elif null_values.any():
@@ -1034,14 +1038,16 @@ class ETLTool:
 
 
             outname = f'{outfolder}/{destination_table}.csv'
-            df_output = df_output.sort_values(df_output.columns[0])
+            #df_output = df_output.sort_values(df_output.columns[0])
+
             
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
                 self.logger.info(f'...saved to {outname}')
             else:
                 self.logger.info(f'...appended to {outname}')
-                
+
+            self.logger.info(df_output.sample(10))
         
             #record where the output is
             if self.map_output_data is None:

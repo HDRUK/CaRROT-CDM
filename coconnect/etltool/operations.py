@@ -72,6 +72,13 @@ class ETLOperations(OrderedDict):
         series = pd.to_datetime(series)
         return series
 
+    def get_field_name(self,df,**kwargs):
+        if 'column' not in kwargs:
+            raise ValueError(f'column not found in kwargs: {kwargs}')
+
+        df[kwargs['column']] = df[kwargs['column']].name
+        return df[kwargs['column']]
+
     def __repr__(self):
         return "ETLOperations"
     
@@ -84,6 +91,7 @@ class ETLOperations(OrderedDict):
         self['EXTRACT_DAY'] = self.get_day_from_date
         self['AGE_TO_DT'] = self.age_to_datetime
         self['TO_DT'] = self.to_datetime
+        self['EXTRACT_FIELD_NAME'] = self.get_field_name
         
         
         self.auto_functions = {
