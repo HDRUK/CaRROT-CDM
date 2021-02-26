@@ -76,8 +76,14 @@ class ETLOperations(OrderedDict):
         if 'column' not in kwargs:
             raise ValueError(f'column not found in kwargs: {kwargs}')
 
-        df[kwargs['column']] = df[kwargs['column']].name
-        return df[kwargs['column']]
+        col = kwargs['column']
+        series = df[col]
+        df.loc[series.notnull(),col] = kwargs['orig_column']
+
+        series = df[col]
+
+        
+        return series
 
     def __repr__(self):
         return "ETLOperations"

@@ -14,3 +14,7 @@ class BadDestinationField(Exception):
     pass
 class BadJoin(Exception):
     pass
+class NoPrimaryKeyDefined(Exception):
+    pass
+class BadPrimaryKeyDefined(Exception):
+    pass

@@ -718,23 +718,37 @@ class ETLTool:
                 nrows = len(df_table_data)
                 self.logger.info(f'Processing {icounter} with length {nrows}')
 
-
-                if 'destination_table' in self.map_indexer:
+                primary_key = None
+                if destination_table in self.map_indexer:
                     indices = list(self.map_indexer[destination_table].values())
                     if len(indices)> 1:
                         self.logger.error('too many indices set')
+                        raise BadPrimaryKeyDefined('Youve set multiple primary keys.'
+                                                   ' Not allowed yet!')
                     elif len(indices) ==1 :
-                        index = indices[0]
-                        if index in df_table_data.columns:
+                        primary_key = indices[0]
+                        if primary_key in df_table_data.columns:
                             #clone the index to be this column
-                            df_table_data.index = df_table_data[index]
-                            self.logger.info(f'Managed to set the index {index} for {source_table}')
+                            df_table_data.index = df_table_data[primary_key]
+                            self.logger.info(f'Managed to set the index {primary_key} for {source_table}')
                         else:
-                            self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
+                            self.logger.error(f'Attempting to set {primary_key}, which is not in {df_table_data.columns}')
+                            raise BadPrimaryKeyDefined(f'Not able to find primary key in the table')
+                else:
+                    raise NoPrimaryKeyDefined(f"No primary key defined for {destination_table} "
+                                              f"in {source_table}")
                             
                 columns_output = {}
+                columns_index = None
                 
                 mapped_fields_for_current_source_table = df_mapping.index.unique().to_list()
+
+                primary_key_destination = list(self.map_indexer[destination_table].keys())[0]
+                if primary_key_destination not in mapped_fields_for_current_source_table:
+                    raise ValueError('Something horribly wrong with primary_key')
+
+                #mapped_fields_for_current_source_table.remove(primary_key_destination)
+
                 
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields_for_current_source_table:
@@ -786,11 +800,14 @@ class ETLTool:
                             #and apply it
                             else:
                                 operation = rule['operation']
+                            
                                 if operation not in self.allowed_operations.keys():
                                     raise ValueError(f'Unknown Operation {operation}')
                                 self.logger.debug(f'Applying {operation}')
                                 ret = self.allowed_operations[operation](df_table_data,
-                                                                         column=source_field)
+                                                                         column=source_field,
+                                                                         orig_column=source_field)
+
                                 ret = ret.to_frame(destination_field)
                         #apply term mapping
                         else:
@@ -803,46 +820,54 @@ class ETLTool:
                                                     source_field,
                                                     destination_field)
 
-                        ret['irule'] = irule
-                        #ret=ret.reset_index()
-                        
-                        if irule < 1:
-                            columns_output[destination_field] = ret
-                        else:
-                            try:
+                            operation = rule['operation']
+                            if operation in  self.allowed_operations:
+                                ret = self.allowed_operations[operation](ret,
+                                                                         column=destination_field,
+                                                                         orig_column=source_field)
+                                ret = ret.to_frame(destination_field)
 
-                                temp = columns_output[destination_field]\
-                                    .merge(ret,how='outer')
                                 
-                                if (temp.index.isnull().any()):
-                                    raise BadJoin('There are indices with NaN so the join must have gone bad!')
-                                columns_output[destination_field] = temp
-
-                            except ValueError as err:
-                                self.logger.error(f'Bad Merge for {destination_field}')
-                                self.logger.error('The most likely reason is that '
-                                                  'you have missed a term mapping for'
-                                                  f' this likely source: "{source_field}"'
-                                                  '. Its inconsistent with other dtypes mapped')
-                                self.logger.error(err)
+                        ret = ret.sort_index()
+                        if primary_key == source_field:
+                            columns_index = ret
+                        else:
+                            ret['irule'] = irule
+                            if irule < 1:
+                                columns_output[destination_field] = ret
+                            else:
+                                columns_output[destination_field] = pd.concat(
+                                    [columns_output[destination_field],ret])\
+                                                                      .dropna()
+                                              
+                            # except ValueError as err:
+                            #     self.logger.error(f'Bad Merge for {destination_field}')
+                            #     self.logger.error('The most likely reason is that '
+                            #                       'you have missed a term mapping for'
+                            #                       f' this likely source: "{source_field}"'
+                            #                       '. Its inconsistent with other dtypes mapped')
+                            #     self.logger.error(err)
 
 
                 #concat all columns we created
                 self.logger.info('Now setting up the inputs to merge')
-                cols = [x.drop(['irule'],axis=1) for x in columns_output.values()]
-                self.logger.info('Performing concat of columns...')
-                nrows = len(cols[0])
-                if len(cols) > 5 and nrows > 1000:
-                    self.logger.info(f'... there are {len(cols)} cols with {nrows} rows'
-                                     ', so this could take some time..')
-                df_destination = cols[0]
 
-                for i in range(1,len(cols)):
-                    self.logger.debug(f'merging {i} with {len(cols[i])} rows')
-                    self.logger.debug(cols[i].sample(5))
-                    df_destination = pd.concat([df_destination,cols[i]],axis=1)#.drop('index',axis=1)
-                    self.logger.info(f'..done {i}/{len(cols)}')
-                    
+                cols = [
+                    x.reset_index().set_index([x.index.name,'irule'])
+                    for x in columns_output.values()
+                ]
+
+                if len(cols) > 0 :
+                    print (pd.concat(cols[0:6],axis=1).sort_index())
+                    df_destination = pd.concat(cols,axis=1)\
+                                       .sort_index()
+                    exit(0)
+                    df_destination = df_destination.reset_index(level=1, drop=True)
+                    df_destination = df_destination.rename_axis(primary_key_destination)
+                else:
+                    df_destination = columns_index
+
+                                    
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
                 
@@ -869,7 +894,7 @@ class ETLTool:
                 outname = f'{outname}/{source_table}'
                 if outname[-4:]!='.csv':
                     outname += '.csv'
-                df_destination.to_csv(outname,index=False,\
+                df_destination.to_csv(outname,index=True,\
                                       mode=mode,header=header)#,\
                                       #date_format='%Y-%m-%d %H:%M:%S')
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
@@ -1047,7 +1072,7 @@ class ETLTool:
             else:
                 self.logger.info(f'...appended to {outname}')
 
-            self.logger.info(df_output.sample(10))
+            self.logger.debug(df_output.sample(10))
         
             #record where the output is
             if self.map_output_data is None:
