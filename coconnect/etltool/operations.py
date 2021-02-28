@@ -81,7 +81,6 @@ class ETLOperations(OrderedDict):
         df.loc[series.notnull(),col] = kwargs['orig_column']
 
         series = df[col]
-
         
         return series
 
