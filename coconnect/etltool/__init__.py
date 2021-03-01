@@ -36,7 +36,7 @@ from .operations import ETLOperations
 from .exceptions import NoInputData, NoInputData, \
     NoTermMapping, BadStructuralMapping, MadMapping,\
     MissingRequiredMapping, BadDestinationField,\
-    BadJoin
+    BadJoin, BadPrimaryKeyDefined
 
 
 class ETLTool:
@@ -757,6 +757,7 @@ class ETLTool:
                             self.logger.info(f'Managed to set the index {primary_key} for {source_table}')
                         else:
                             self.logger.error(f'Attempting to set {primary_key}, which is not in {df_table_data.columns}')
+                            self.logger.error(self.map_indexer)
                             self.logger.error(f'Currently working on {self.map_input_files[source_table]}')
                             raise BadPrimaryKeyDefined(f'Not able to find primary key in the table')
                 else:
