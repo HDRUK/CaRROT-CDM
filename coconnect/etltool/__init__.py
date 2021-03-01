@@ -35,7 +35,8 @@ import random
 from .operations import ETLOperations
 from .exceptions import NoInputData, NoInputData, \
     NoTermMapping, BadStructuralMapping, MadMapping,\
-    MissingRequiredMapping, BadDestinationField
+    MissingRequiredMapping, BadDestinationField,\
+    BadJoin, BadPrimaryKeyDefined
 
 
 class ETLTool:
@@ -133,6 +134,9 @@ class ETLTool:
 
     def set_perform_person_id_mask(self,b_value):
         self.perform_person_id_mask = b_value
+
+    def set_override_source_term_mapping(self,b_value):
+        self.override_source_term_mapping = b_value
 
     def set_use_auto_functions(self,b_value):
         self.use_auto_functions = b_value
@@ -256,7 +260,7 @@ class ETLTool:
         self.logger.info(f'Loaded the term mapping with {len(self.df_term_mapping)} rules')
 
 
-    def save_lookup_table(self,df,table,source_field,mode='w',header=True):
+    def save_lookup_table(self,masker,destination_table,source_field,mode='w',header=True):
         """
         Save a dataframe series in a table to a file
         Args:
@@ -265,17 +269,17 @@ class ETLTool:
            None
         """
 
-        series = df[source_field].rename(f'source_{source_field}')
         outfolder = f'{self.output_data_folder}/masks'
         if not os.path.exists(outfolder):
             self.logger.info(f'Creating a new folder: {outfolder}')
             os.makedirs(outfolder)
 
-        outname = f'{outfolder}/lookup_{table}_{source_field}.csv'
+        outname = f'{outfolder}/lookup_{destination_table}_{source_field}.csv'
         self.logger.info(f'Writing a lookup dictionary of {source_field} to index')
         self.logger.info(f'Final being saved: {outname}')
+        series = pd.DataFrame.from_dict(masker,orient='index',columns=[f'{source_field}'])
         series.to_csv(outname,
-                      index_label=f'destination_{source_field}',
+                      index_label=f'original_{source_field}',
                       mode=mode,
                       header=header)
 
@@ -299,7 +303,7 @@ class ETLTool:
            list: list of all destination fields defined in the rules for this cdm object
         """
         return self.df_structural_mapping.set_index('destination_table')\
-                                         .loc[table]['destination_field'].to_list()
+                                         .loc[[table]]['destination_field'].to_list()
 
     def get_structural_mapping(self,destination_table,source_table):
         """
@@ -330,7 +334,7 @@ class ETLTool:
         """
         source_tables = list(self.df_structural_mapping\
                              .set_index('destination_table')\
-                             .loc[table]['source_table'].unique())
+                             .loc[[table]]['source_table'].unique())
 
         for i,source_table in enumerate(source_tables):
             if source_table not in self.map_input_files.keys():
@@ -348,7 +352,7 @@ class ETLTool:
         return source_tables
 
 
-    def map_via_rule(self,df,df_map,source_field,destination_field,drop_bad=False):
+    def map_via_rule(self,df,df_map,source_field,destination_field):
         df_orig = df[[source_field]]
 
         orig_type = df_orig[source_field].dtype
@@ -364,24 +368,37 @@ class ETLTool:
             try:
                 df_map['source_term'] = df_map['source_term'].astype(orig_type)
             except ValueError as err:
-                self.logger.error("You're really trying some bizarre mapping here. "
-                                  "The types are completely different")
-                self.logger.error(f"Mapping source type = {map_type}")
-                self.logger.error(f"Original source type = {orig_type}")
+                orig = df_orig[source_field]
 
-                orig_example = df_orig[source_field].iloc[0]
-                new_example = df_map['source_term'].iloc[0]
-                self.logger.error("EXAMPLE")
-                self.logger.error(f"Source : {orig_example}")
-                self.logger.error(f"Trying being mapped with: {new_example}")
+                if len(orig.dropna()) == 0:
+                       self.logger.warning('This mapping wont work as the source field ({source_field}) '
+                                           'is completely null. '
+                                           "I'm giving up on mapping it.")
+                       return df_orig
+                else:
+                       self.logger.error("You're really trying some bizarre mapping here. "
+                                         "The types are completely different")
+                       self.logger.error(f"Mapping source type = {map_type}")
+                       self.logger.error(f"Original source type = {orig_type}")
+                       
+                       new = df_map['source_term']
+                       self.logger.error("EXAMPLEs")
+                       self.logger.error(f"Source : {orig}")
+                       self.logger.error(f"Trying being mapped with: {new}")
+                       
+                       raise MadMapping(err)
                 
-                raise MadMapping(err)
-                
-
+        #this is a temp hack, we should remove this!!!
         if is_truncation:
             new_term = df_map.iloc[0]['destination_term']
-            df_orig = df_orig.assign(destination_field = new_term)
-            
+            df_orig[df_orig.notnull()] = new_term
+            df_orig = df_orig.rename({
+                source_field : destination_field
+            },axis=1)
+            self.logger.warning('Found a truncation, this should be made decrepit soon. '
+                                'You would have received a pandas warning about slice copying. '
+                                'CBA to fix this as this will be removed')
+
         else:
             #pandas removes the index when using merge
             #need to preserve it for when we're chunking data
@@ -400,7 +417,8 @@ class ETLTool:
 
         df_bad = df_orig.index[df_orig.isnull().any(axis=1)]
         if len(df_bad) > 0 :
-            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows')
+            self.logger.warning(f'Found {len(df_bad)}/{len(df_orig)} bad rows.'
+                                f' For {source_field} mapped to {destination_field}')
             
             self.logger.warning('These have no specification of how to map them or there are NaN values ')
             
@@ -410,7 +428,7 @@ class ETLTool:
             #self.logger.warning(f'... {n_unmapped} of these indicies are unmapped')
             
             #add a switch to drop any rows that have a nan value aka the term mapping failed
-            if drop_bad:
+            if self.aggressive_drop:
                 df_orig = df_orig.dropna()
 
         return df_orig
@@ -511,29 +529,47 @@ class ETLTool:
             
             self.df_structural_mapping['source_table'] = self.df_structural_mapping['source_table'].str.lower()
             sm_source_tables = self.df_structural_mapping['source_table'].unique()
-
             diff_tables = list(set(sm_source_tables) - set(data_source_tables))
-            if len(diff_tables) > 0 :
+
+            if len(diff_tables) > 0:
+                #try with .csv on the end
                 self.logger.warning('Still some different tables, see...')
                 self.logger.warning(diff_tables)
-
                 self.logger.warning(data_source_tables)
-
-                self.logger.warning('Attempting now to match and rename')
-                rename = {}
-                for bad_name in diff_tables:
-                    for orig_name in data_source_tables:
-                        if bad_name in orig_name:
-                           rename[bad_name] = orig_name
-                           break
-                self.df_structural_mapping = self.df_structural_mapping.replace({'source_table':rename})
-
+                self.logger.warning('Attempting looking with .csv in the name')
+                
+                self.df_structural_mapping['source_table'] = self.df_structural_mapping['source_table']\
+                                                                 .apply(lambda x: f'{x}.csv')
+                
                 sm_source_tables = self.df_structural_mapping['source_table'].unique()
                 diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+
                 if len(diff_tables) > 0 :
-                    self.logger.error("Still bad!!!")
-                    self.logger.error('This means you are trying to map these datasets, but dont have the as input!')
-                    raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
+                    self.logger.warning('Still some different tables, see...')
+                    self.logger.warning(diff_tables)
+                    self.logger.warning(data_source_tables)
+                    
+                    self.logger.warning('Attempting now to match and rename')
+                    
+                    rename = {}
+                    for bad_name in diff_tables:
+                        for orig_name in data_source_tables:
+                            if bad_name in orig_name:
+                                rename[bad_name] = orig_name
+                                break
+
+                    self.df_structural_mapping = self.df_structural_mapping.replace({'source_table':rename})
+
+                    sm_source_tables = self.df_structural_mapping['source_table'].unique()
+                    diff_tables = list(set(sm_source_tables) - set(data_source_tables))
+                    if len(diff_tables) > 0 :
+                        self.logger.error("Still bad!!!")
+                        self.logger.error('This means you are trying to map these datasets, but dont have the as input!')
+                        raise BadStructuralMapping('Missing inputs OR .. your structural mapping must be misconfigured / not meant for this data')
+                    else:
+                        self.logger.warning("This could be bad! Only found by trying to match string names")
+                else:
+                    self.logger.warning("Found the names by appending .csv to the name")
             else:
                 self.logger.warning("Ok found them by using str.lower() on the table names!")
         
@@ -582,16 +618,17 @@ class ETLTool:
         self.record_duplicates = False
 
         #default is to mask person_ids
-        self.perform_person_id_mask = True
+        self.perform_person_id_mask = False
         #default is to automatically try and map fields e.g. year_of_birth --> extract year
         self.use_auto_functions = True
         # Fill in the blanks for testing some ids
-        self.hash_missing_ids = True
+        self.patch_missing_ids = True
         # Overide source term mapping
         # * if the destination field is called _source_
         #   and term mapping is defined... skip it... 
-        self.override_source_term_mapping = True
-
+        self.override_source_term_mapping = False
+        # more aggressively drop nan columns or not
+        self.aggressive_drop = False
         
         #create a logger
         self.create_logger()
@@ -613,8 +650,8 @@ class ETLTool:
             'FLOAT' : lambda x : x.astype('Float64'),
             'VARCHAR': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
             'STRING(50)': lambda x : x.fillna('').astype(str).apply(lambda x: x[:50]),
-            'DATETIME': lambda x : pd.to_datetime(x).dt.strftime('%y-%m-%d %H:%M:%S'),
-            'DATE': lambda x : pd.to_datetime(x).dt.date
+            'DATETIME': lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'DATE': lambda x : pd.to_datetime(x,errors='coerce').dt.date
         }
         
         self.allowed_operations = ETLOperations()
@@ -681,20 +718,6 @@ class ETLTool:
         
         if len(source_tables) > 1:
             self.logger.debug(f'OK more than two tables mapping to the CDM "{destination_table}"')
-
-            
-            #df_map = {}
-            #for source_table in source_tables:
-                #'prochi'
-                #df_map[source_table] = pd.read_csv(self.map_input_files[source_table],nrows=1).columns.tolist()
-             #   df_map[source_table] = pd.read_csv(self.map_input_files[source_table])['prochi']
-                #print (set(list(df_map.values())[1]) & set(list(df_map.values())[0]))
-
-            #df_map = pd.DataFrame(df_map)
-            #for i in range(len(df_map)):
-            #    print (df_map.iloc[i])
-            
-            
             
         
         for source_table in source_tables:
@@ -719,49 +742,62 @@ class ETLTool:
                 nrows = len(df_table_data)
                 self.logger.info(f'Processing {icounter} with length {nrows}')
 
-
-                if 'destination_table' in self.map_indexer:
+                primary_key = None
+                if destination_table in self.map_indexer:
                     indices = list(self.map_indexer[destination_table].values())
                     if len(indices)> 1:
                         self.logger.error('too many indices set')
+                        raise BadPrimaryKeyDefined('Youve set multiple primary keys.'
+                                                   ' Not allowed yet!')
                     elif len(indices) ==1 :
-                        index = indices[0]
-                        if index in df_table_data.columns:
+                        primary_key = indices[0]
+                        if primary_key in df_table_data.columns:
                             #clone the index to be this column
-                            df_table_data.index = df_table_data[index]
-                            self.logger.info(f'Managed to set the index {index} for {source_table}')
+                            df_table_data.index = df_table_data[primary_key]
+                            self.logger.info(f'Managed to set the index {primary_key} for {source_table}')
                         else:
-                            self.logger.error(f'Attempting to set {index}, which is not in {df_table_data.columns}')
+                            self.logger.error(f'Attempting to set {primary_key}, which is not in {df_table_data.columns}')
+                            self.logger.error(self.map_indexer)
+                            self.logger.error(f'Currently working on {self.map_input_files[source_table]}')
+                            raise BadPrimaryKeyDefined(f'Not able to find primary key in the table')
+                else:
+                    raise NoPrimaryKeyDefined(f"No primary key defined for {destination_table} "
+                                              f"in {source_table}")
                             
-                columns_output = []
+                columns_output = {}
                 
-                mapped_fields_for_current_source_table = df_mapping.index.to_list()
-                
+                mapped_fields_for_current_source_table = df_mapping.index.unique().to_list()
+
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
 
+                    
                     #get all rules associated with the current field in the cdm 
                     rules = df_mapping.loc[[destination_field]]
-                    #loop over all rules 
-                    for i in range(len(rules)):
-                        rule = rules.iloc[i]
+                    #loop over all rules
+                    for irule in range(len(rules)):
+                        rule = rules.iloc[irule]
                         source_field = rule['source_field'].lower()
 
-                        if "_source_" in destination_field\
+                        ret = None
+                        
+                        #perform a check to see if a source value is being mapped still
+                        if "_source_value" in destination_field\
                            and not '_source_concept_id' in destination_field:
+
                             if rule['term_mapping'] == 'y':
                                 self.logger.error('You have term mapping applied for'
                                                   f' the field {destination_field}'
                                                   ' are you sure!?'
                                                   ' This should be a source value!')
-
                                 if self.override_source_term_mapping:
                                     rule['term_mapping'] = 'n'
                         
                         #handle when no term mapping
                         if rule['term_mapping'] == 'n':
                             self.logger.debug("No mapping term defined for this rule")
+                            self.logger.debug(rule)
                             #map one-to-one if there isn't a rule
                             if rule['operation'] == 'n' or rule['operation'] == 'NONE' :
                                 self.logger.debug("No operation set. Mapping one-to-one")
@@ -770,46 +806,105 @@ class ETLTool:
                                    and destination_field in self.allowed_operations.auto_functions:
                                     
                                     self.logger.debug("But found an auto function to use!")
-                                    columns_output.append(
-                                        self.map_auto_extract(df_table_data,source_field,destination_field)
-                                    )
+                                    ret = self.map_auto_extract(df_table_data,
+                                                                source_field,
+                                                                destination_field)
                                 else:
-                                    columns_output.append(
-                                        self.map_one_to_one(df_table_data,source_field,destination_field)
-                                    )
+                                    ret = self.map_one_to_one(df_table_data,
+                                                              source_field,
+                                                              destination_field)
                             #there is an operation defined,
                             #so look it up in the list of allowed operations
                             #and apply it
                             else:
                                 operation = rule['operation']
+                            
                                 if operation not in self.allowed_operations.keys():
                                     raise ValueError(f'Unknown Operation {operation}')
                                 self.logger.debug(f'Applying {operation}')
-                                ret = self.allowed_operations[operation](df_table_data,column=source_field)
-                                columns_output.append(
-                                    ret.to_frame(destination_field)
-                                )
+                                ret = self.allowed_operations[operation](df_table_data,
+                                                                         column=source_field,
+                                                                         orig_column=source_field)
+
+                                ret = ret.to_frame(destination_field)
                         #apply term mapping
                         else:
-                            
                             rule_id = rule['rule_id']
                             self.logger.debug(f'Mapping term found. Applying..')
                             self.logger.debug(f'{rule.to_dict()}')
                             df_map = self.df_term_mapping.loc[[rule_id]]
-
                             ret = self.map_via_rule(df_table_data,
                                                     df_map,
                                                     source_field,
                                                     destination_field)
+
+                            operation = rule['operation']
+                            if operation in  self.allowed_operations:
+                                ret = self.allowed_operations[operation](ret,
+                                                                         column=destination_field,
+                                                                         orig_column=source_field)
+                                ret = ret.to_frame(destination_field)
+
+                                
+
+                        ret = ret.sort_index()
+                        ret['irule'] = irule
+                        
+                        self.logger.debug(ret)
+
+                        
+                    
+                        if irule < 1:
+                            columns_output[destination_field] = ret
+                        else:
+                            columns_output[destination_field] = pd.concat(
+                                [columns_output[destination_field],ret])
+                                                        
                             
-                            columns_output.append(
-                                ret
-                            )
 
                 #concat all columns we created
-                df_destination = pd.concat(columns_output,axis=1)
-                
-                
+                self.logger.info('Now setting up the inputs to merge')
+
+
+                shapes = list(set([x.shape[0] for x in columns_output.values()]))
+                min_shape = min(shapes)
+
+                concat_list = [x for x in columns_output.values() if x.shape[0] == min_shape]
+                                
+                df_destination = pd.concat(concat_list,axis=1).drop('irule',axis=1)
+
+                join_list = [
+                    x.reset_index().set_index([x.index.name,'irule'])
+                    for x in columns_output.values()
+                    if x.shape[0] > min_shape
+                ]
+
+                if len(join_list)>0:
+                    try:
+                        df = pd.concat(join_list,axis=1)
+                    except ValueError as err:
+                        self.logger.error(err)
+                        names = [x.columns[0] for x in join_list]
+                        self.logger.error(f'Bad Merge for {names}')
+                        self.logger.error('The most likely reason is that '
+                                          'you have missed or duplicated a structural mapping'
+                        )
+                        self.logger.error('One or more of the following have a different number of rules set')
+                        for x in join_list:
+                            name = x.columns[0]
+                            nunique = len(x.reset_index()['irule'].unique())
+                            self.logger.error(f'col "{name}" has {nunique} unique rules')
+                        raise BadJoin('Bad join of multiple mapping rules')
+                    
+                    
+                    df.index = df.index.droplevel(1)
+                    df = df.sort_index().dropna()
+
+                    df_destination = df_destination.join(df)
+
+                df_destination = df_destination.dropna(thresh=2).sort_index()
+                self.logger.debug(df_destination)
+
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
 
                 
@@ -836,8 +931,9 @@ class ETLTool:
                 outname = f'{outname}/{source_table}'
                 if outname[-4:]!='.csv':
                     outname += '.csv'
+                df_destination.to_csv(outname,index=False,\
+                                      mode=mode,header=header)
 
-                df_destination.to_csv(outname,index=True,mode=mode,header=header)
                 self.logger.info(f'Saved final csv with data mapped to CDM5.3.1 here: {outname}')
 
                 #only need to do this one, since for icounter>0 the file is in append mode
@@ -869,8 +965,9 @@ class ETLTool:
             total = []
             for output_file,chunks in chunks_output_file_map.items():
                 try:
-                    chunk = chunks.get_chunk()
-                    total.append(chunk)
+                    df_chunk = chunks.get_chunk()
+                    df_chunk.columns = df_chunk.columns.str.replace("(\.\d+)$", "")
+                    total.append(df_chunk)
                 except StopIteration:
                     complete = True
                     break
@@ -883,7 +980,8 @@ class ETLTool:
             
             #make a total dataframe
             df_output = pd.concat(total,axis=1)
-                        
+
+            
             #get all unique columns
             unique_cols = df_output.columns.unique()
             missing_cols = list(set(cdm_fields) - set(unique_cols))
@@ -906,6 +1004,7 @@ class ETLTool:
                 
             #check for duplicate columns
             duplicate_cols = df_output.columns[df_output.columns.duplicated()].unique()
+
             if len(duplicate_cols)>0:
                 self.logger.warning("You've got duplicated columns for this cdm")
                 self.logger.warning(f'Duplicated: {duplicate_cols}')
@@ -928,11 +1027,11 @@ class ETLTool:
             if not os.path.exists(outfolder):
                 self.logger.info(f'Creating a new folder: {outfolder}')
                 os.makedirs(outfolder)
-                
+
             #rearrange the order of the columns so they're the same as the order in the CDM
             df_output = df_output[cdm_fields]
 
-
+            
             #perform masking of the person id
             #- perfom is person_id is in the cdm and is not empty/null
             #- save the lookup to the person id
@@ -940,20 +1039,23 @@ class ETLTool:
             if self.perform_person_id_mask \
                and 'person_id' in df_output \
                and not df_output['person_id'].isnull().all():
-                
-                self.save_lookup_table(df_output,destination_table,'person_id')
-                df_output = df_output.drop('person_id',axis=1)\
-                                               .reset_index()\
-                                               .rename({'index':'person_id'},axis=1)
-                
 
+                #raise NotImplementedError('need to fix masking of person_id still!')
+                masker = {
+                    x:i
+                    for i,x in enumerate(sorted(df_output['person_id'].unique()))
+                }
+                self.save_lookup_table(masker,destination_table,'person_id')
 
-            
+                df_output['person_id'] = df_output['person_id'].replace(masker)
+
+           
             cdm = self.df_cdm.loc[destination_table][['field','required','type']]
             for i in range(len(cdm)):
                 field = cdm.iloc[i]['field']
                 required = cdm.iloc[i]['required']
                 dtype = cdm.iloc[i]['type']
+
                 if 'VARCHAR' in dtype:
                     dtype = 'VARCHAR'
 
@@ -964,12 +1066,17 @@ class ETLTool:
                         self.logger.error(f'Required field {field} has not been mapped'
                                           ' all values are NaN')
 
-                        if self.hash_missing_ids:
-                            df_output[field] = df_output[field]\
-                                .apply(lambda x: random.randint(-1000,-900)) 
+                        if self.patch_missing_ids:
+                            if i == 0:
+                                #if it's a primary key, increment index
+                                df_output[field] = df_output[field].reset_index().index
+                            else:
+                                #if else, fill 0 
+                                df_output[field] = 0
                         else:
                             raise MissingRequiredMapping(f'You need to map {field}')
-                    elif null_values.any():
+                        
+                    elif null_values.any() and self.aggressive_drop:
                         n_bad_indices = len(df_output[null_values].index)
                         n_indices = len(df_output.index)
                         df_output = df_output.loc[~null_values]
@@ -981,8 +1088,8 @@ class ETLTool:
                 except TypeError:
                     
                     self.logger.error(f'Cant convert column {field} to datatype {dtype}')
-                    self.logger.error(f'\n f{df_output[field].sample(3)}')
-                       
+                    self.logger.error(f'\n f{df_output[[field]]}')
+                    
                     if required:
                         self.logger.warning(f'{field} is not required though, so dropping it')
                         df_output[field] = np.NaN
@@ -992,14 +1099,21 @@ class ETLTool:
                                           ' Please fix!')
                         
                         raise BadDestinationField(f'{field} is required, and needs to be {dtype}')
-                    
+
+
             outname = f'{outfolder}/{destination_table}.csv'
+            
             df_output.to_csv(outname,index=False,mode=mode,header=header)
             if mode == 'w':
                 self.logger.info(f'...saved to {outname}')
             else:
                 self.logger.info(f'...appended to {outname}')
-                
+
+
+            if len(df_output) < 10:
+                self.logger.debug(df_output)
+            else:
+                self.logger.debug(df_output.sample(10))
         
             #record where the output is
             if self.map_output_data is None:

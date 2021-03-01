@@ -5,7 +5,7 @@
 "4","condition_start_date","Yes","DATE","The date when the instance of the Condition is recorded.","condition_occurrence","cdm"
 "5","condition_start_datetime","No","DATETIME","The date and time when the instance of the Condition is recorded.","condition_occurrence","cdm"
 "6","condition_end_date","No","DATE","The date when the instance of the Condition is considered to have ended.","condition_occurrence","cdm"
-"7","condition_end_datetime","No","DATE","The date when the instance of the Condition is considered to have ended.","condition_occurrence","cdm"
+"7","condition_end_datetime","No","DATETIME","The date when the instance of the Condition is considered to have ended.","condition_occurrence","cdm"
 "8","condition_type_concept_id","Yes","INTEGER","A foreign key to the predefined Concept identifier in the Standardized Vocabularies reflecting the source data from which the condition was recorded, the level of standardization, and the type of occurrence.","condition_occurrence","cdm"
 "9","stop_reason","No","VARCHAR(20)","The reason that the condition was no longer present, as indicated in the source data.","condition_occurrence","cdm"
 "10","provider_id","No","INTEGER","A foreign key to the Provider in the PROVIDER table who was responsible for capturing (diagnosing) the Condition.","condition_occurrence","cdm"
