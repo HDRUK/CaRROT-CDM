@@ -19,6 +19,7 @@ parser.add_argument('--chunk-size', default = None, type=int,
 parser.add_argument('--max-chunks', default = None, type=int,
                     help='define the maximum nchunks of data to process')
 parser.add_argument('-v','--verbose',help='set debugging level',action='store_true')
+parser.add_argument('--skip',type=str,nargs='+',help='pass a list of cdm destination fields to skip',default=None)
 parser.add_argument('--mask-id',type=int,choices=[0,1],help='masking of the patient id',default=1)
 parser.add_argument('--auto-map',type=int,choices=[0,1],help='allow automatically mapping unmapped fields',default=1)
 parser.add_argument('--force-source-value-mapping',help='force all source values to be source values',action='store_true')
@@ -36,6 +37,8 @@ def main():
         runner.set_max_chunks(args.max_chunks)
     if args.output_folder != None:
         runner.set_output_folder(args.output_folder)
+    if args.skip != None:
+        runner.set_skip_fields(args.skip)
 
     runner.set_override_source_term_mapping(args.force_source_value_mapping)
     runner.set_perform_person_id_mask(args.mask_id)

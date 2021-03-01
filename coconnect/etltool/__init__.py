@@ -140,6 +140,9 @@ class ETLTool:
 
     def set_use_auto_functions(self,b_value):
         self.use_auto_functions = b_value
+
+    def set_skip_fields(self,_list):
+        self.skip_fields = _list
         
     def set_verbose(self,verbose=True):
         """
@@ -371,7 +374,7 @@ class ETLTool:
                 orig = df_orig[source_field]
 
                 if len(orig.dropna()) == 0:
-                       self.logger.warning('This mapping wont work as the source field ({source_field}) '
+                       self.logger.warning(f'This mapping wont work as the source field ({source_field}) '
                                            'is completely null. '
                                            "I'm giving up on mapping it.")
                        return df_orig
@@ -606,7 +609,7 @@ class ETLTool:
         self.map_output_data = None
         self.map_input_files = None
         self.tool_initialised = False
-
+        self.skip_fields = None
 
         #save a map for indices, this could be loaded from structural mapping
         #or we could have this as a separate input
@@ -675,6 +678,7 @@ class ETLTool:
         #get a list of all 
         destination_fields = partial_cdm['field']
         mapped_fields = self.get_mapped_fields(destination_table)
+
 
         #save some information about index mapping, e.g. person_id
         if 'source_field_indexer' in self.df_structural_mapping:
@@ -767,7 +771,15 @@ class ETLTool:
                 columns_output = {}
                 
                 mapped_fields_for_current_source_table = df_mapping.index.unique().to_list()
+                if self.skip_fields:
+                     mapped_fields_for_current_source_table = [
+                         field
+                         for field in mapped_fields_for_current_source_table
+                         if field not in self.skip_fields
+                     ]
+                     self.logger.info(f'Removed {self.skip_fields} ')
 
+                
                 #now start the real work of making new columns based on the mapping rules
                 for destination_field in mapped_fields_for_current_source_table:
                     self.logger.info(f'Working on {destination_field}')
@@ -822,6 +834,8 @@ class ETLTool:
                                 if operation not in self.allowed_operations.keys():
                                     raise ValueError(f'Unknown Operation {operation}')
                                 self.logger.debug(f'Applying {operation}')
+                                self.logger.debug(self.allowed_operations[operation])
+                                self.logger.debug(df_table_data[source_field])
                                 ret = self.allowed_operations[operation](df_table_data,
                                                                          column=source_field,
                                                                          orig_column=source_field)
@@ -839,7 +853,7 @@ class ETLTool:
                                                     destination_field)
 
                             operation = rule['operation']
-                            if operation in  self.allowed_operations:
+                            if operation in  self.allowed_operations and len(ret.dropna())>0:
                                 ret = self.allowed_operations[operation](ret,
                                                                          column=destination_field,
                                                                          orig_column=source_field)
@@ -879,6 +893,8 @@ class ETLTool:
                     if x.shape[0] > min_shape
                 ]
 
+                #print (join_list)
+            
                 if len(join_list)>0:
                     try:
                         df = pd.concat(join_list,axis=1)
@@ -1070,9 +1086,9 @@ class ETLTool:
                             if i == 0:
                                 #if it's a primary key, increment index
                                 df_output[field] = df_output[field].reset_index().index
-                            else:
-                                #if else, fill 0 
-                                df_output[field] = 0
+                            #else:
+                            #    #if else, fill 0 
+                            #    df_output[field] = 0
                         else:
                             raise MissingRequiredMapping(f'You need to map {field}')
                         
