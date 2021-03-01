@@ -1,4 +1,4 @@
-﻿rule_id,destination_table,destination_field,source_table,source_field,term_mapping,coding_system,operation
-0,person,person_id,patients_sample.csv,id,n,user defined,n
-1,person,year_of_birth,patients_sample.csv,birthdate,n,user defined,EXTRACT_YEAR
-2,person,gender_concept_id,patients_sample.csv,gender,y,user defined,n
+﻿rule_id,destination_table,destination_field,source_table,source_field,source_field_indexer,term_mapping,coding_system,operation
+0,person,person_id,patients_sample.csv,id,True,n,user defined,n
+1,person,year_of_birth,patients_sample.csv,birthdate,False,n,user defined,EXTRACT_YEAR
+2,person,gender_concept_id,patients_sample.csv,gender,False,y,user defined,n
