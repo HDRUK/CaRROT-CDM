@@ -760,13 +760,15 @@ class ETLTool:
                             df_table_data.index = df_table_data[primary_key]
                             self.logger.info(f'Managed to set the index {primary_key} for {source_table}')
                         else:
-                            self.logger.error(f'Attempting to set {primary_key}, which is not in {df_table_data.columns}')
-                            self.logger.error(self.map_indexer)
-                            self.logger.error(f'Currently working on {self.map_input_files[source_table]}')
-                            raise BadPrimaryKeyDefined(f'Not able to find primary key in the table')
+                            self.logger.warning(f'Attempting to set {primary_key}, which is not in {df_table_data.columns}')
+                            self.logger.warning(self.map_indexer)
+                            self.logger.warning(f'Currently working on {self.map_input_files[source_table]}')
+                            self.logger.warning(f"No primary key defined for {destination_table} "
+                                                f"in {source_table}")
+                            #raise BadPrimaryKeyDefined(f'Not able to find primary key in the table')
                 else:
                     raise NoPrimaryKeyDefined(f"No primary key defined for {destination_table} "
-                                              f"in {source_table}")
+                                             f"in {source_table}")
                             
                 columns_output = {}
                 
@@ -893,8 +895,6 @@ class ETLTool:
                     if x.shape[0] > min_shape
                 ]
 
-                #print (join_list)
-            
                 if len(join_list)>0:
                     try:
                         df = pd.concat(join_list,axis=1)
@@ -917,8 +917,9 @@ class ETLTool:
                     df = df.sort_index().dropna()
 
                     df_destination = df_destination.join(df)
+                    df_destination = df_destination.dropna(thresh=2)
+                df_destination = df_destination.sort_index()
 
-                df_destination = df_destination.dropna(thresh=2).sort_index()
                 self.logger.debug(df_destination)
 
                 self.logger.info(f'chunk[{icounter}] completed: Final dataframe with {len(df_destination)} rows and {len(df_destination.columns)} columns created')
