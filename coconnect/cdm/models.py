@@ -13,7 +13,7 @@ class CommonDataModel:
         if _start_on_init:
             self.tools = OperationTools()
             self.__dict__.update(self.__class__.__dict__)
-            self.run()
+            self.finalise()
             
     @classmethod
     def from_mapping_pipeline(self,inputs,f_structural_mapping,is_synthetic=False):

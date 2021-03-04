@@ -1,16 +1,6 @@
 import pandas as pd
 from types import SimpleNamespace 
-from .models import CommonDataModel, Person, ConditionOccurrence
-
-def person(func):
-    p = Person()
-    p.define = func
-    return p
-
-def condition_occurrence(func):
-    c = ConditionOccurrence()
-    c.define = func
-    return c
+from .decorators import define_person,define_condition_occurrence
 
 
 def load_csv(_map,nrows=None,load_path=""):
