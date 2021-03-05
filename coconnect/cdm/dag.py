@@ -3,7 +3,7 @@ import json
 
 def make_dag(data):
     dot = Digraph(strict=True,format='svg')
-    dot.attr(rankdir='LR', size='8,5')
+    dot.attr(rankdir='RL', size='8,5')
     dot.node('person',shape='box')
 
     for table_name,source in data.items():
