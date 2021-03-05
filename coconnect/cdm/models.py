@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import json
+import copy
 import collections
 
 from .operations import OperationTools
@@ -27,20 +28,52 @@ class CommonDataModel:
         
         self.df_structural_mapping.set_index('destination_table',inplace=True)
         destination_tables = self.df_structural_mapping.index.unique()
+
+        _map = {}
         
         for destination_table in destination_tables:
             cls = self.get_cdm_class(self,destination_table)
-            rules = self.df_structural_mapping.loc[destination_table]
-                     
-            for irule in range(len(rules)):
-                rule = rules.iloc[irule].to_dict()
+            if cls is None:
+                continue
+
+            _map[destination_table] = {}
+
+            rules = self.df_structural_mapping.loc[destination_table]#.set_index(['destination_field','rule_id'])
+            values = rules['destination_field'].value_counts()
+            unique_values = sorted(values.unique())
+            if len(unique_values) > 2:
+                print (values)
+                print ("something really wrong")
+                exit(0)
+
+            rules.set_index('destination_field',inplace=True)
+            initial = values[values==1].index
+            for destination_field in initial:
+                rule = rules.loc[destination_field]
                 source_table = rule['source_table']
                 source_field = rule['source_field']
-                destination_field = rule['destination_field']
-                setattr(cls,destination_field,inputs[source_table][source_field])
+                obj = {'source_table':source_table,
+                       'source_field':source_field}
+                _map[destination_table][destination_field] = obj
 
-            setattr(self,destination_table,cls)
-            break
+            if len(unique_values) == 2:
+                duplicates = values[values==unique_values[1]].index
+                for i,destination_field in enumerate(duplicates):
+                    rule = rules.loc[destination_field]
+                    source_tables = rule['source_table']
+                    source_fields = rule['source_field']
+
+                    
+                    for j,(source_table,source_field) in enumerate(zip(source_tables,source_fields)):
+                        obj = {'source_table':source_table,
+                               'source_field':source_field}
+
+                        if i == 0:
+                            _map[f"{destination_table}_{j}"] = copy.copy(_map[destination_table])
+                        _map[f"{destination_table}_{j}"][destination_field] = obj
+
+        print (json.dumps(_map,indent=4))
+        exit(0)
         return self(False)
 
     def apply_term_map(self,f_term_mapping):
@@ -71,7 +104,8 @@ class CommonDataModel:
         
 
     def get_cdm_class(self,class_type):
-        return _classes[class_type]()
+        if class_type in _classes:
+            return _classes[class_type]()
 
     
     def get_objs(self,class_type):
