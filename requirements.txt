@@ -1,4 +1,4 @@
 numpy
 pandas
 coloredlogs
-jinja2
+Jinja2
