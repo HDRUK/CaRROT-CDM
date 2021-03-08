@@ -642,7 +642,7 @@ class ETLTool:
         self.logger.debug(f'Directory path... {self.dir_path}')
 
         #hard code OMPO CDM 5.3.1 for now
-        f_cdm = f'{self.dir_path}/cdm/OMOP_CDM_v5_3_1.csv'
+        f_cdm = f'{self.dir_path}/data/cdm/OMOP_CDM_v5_3_1.csv'
         if not os.path.isfile(f_cdm):
             raise FileNotFoundError(f'Cannot find the OMOP CDM v5.3.1 lookup file, looking here...  {f_cdm}')
         
