@@ -1,4 +1,4 @@
-from .models import Person, ConditionOccurrence
+from .objects import Person, ConditionOccurrence
 
 def define_person(defs):
     p = Person()

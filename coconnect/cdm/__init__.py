@@ -2,7 +2,8 @@ import pandas as pd
 import copy
 import json
 from types import SimpleNamespace 
-from .models import CommonDataModel, Person, ConditionOccurrence
+from .model import CommonDataModel
+from .objects import Person, ConditionOccurrence
 from .decorators import define_person, define_condition_occurrence
 
 

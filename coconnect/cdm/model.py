@@ -6,6 +6,14 @@ import copy
 import collections
 
 from .operations import OperationTools
+from .objects import Person, ConditionOccurrence
+
+
+
+_classes = {
+    'person' : Person,
+    'condition_occurrence' : ConditionOccurrence
+}
 
 
 class CommonDataModel:
@@ -155,98 +163,3 @@ class CommonDataModel:
             print (df.dropna(axis=1,how='all'))
         
 
-
-class Base(object):
-    def __init__(self,_type):
-        self.name = _type
-        self.tools = OperationTools()
-        #load the cdm
-        #get the field name, if it's required and the data type
-        self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.cdm = pd.read_csv(f'{self.dir_path}/../data/cdm/OMOP_CDM_v5_3_1.csv',encoding="ISO-8859-1")\
-                     .set_index('table')\
-                     .loc[_type].set_index('field')[['required', 'type']]
-        
-        #save the field names
-        self.fields = self.cdm.index.values
-
-        #create new attributes for all the fields in the CDM
-        for field in self.fields:
-            setattr(self,field,None)
-
-    #default finalise does nothing
-    def finalise(self,df):
-        return df
-            
-    def define(self,_):
-        return self
-            
-    def get_destination_fields(self):
-        return list(self.fields)
-
-    def execute(self,this):
-        self.__dict__.update(this.__dict__)
-        self = self.define(self)
-
-    def get_df(self):
-        dfs = {
-            key: getattr(self,key).rename(key)
-            for key in self.fields
-            if getattr(self,key) is not None
-        }
-        if len(dfs) == 0:
-            return None
-        
-        
-        df = pd.concat(dfs.values(),axis=1)
-
-        missing_fields = set(self.fields) - set(df.columns)
-        for field in missing_fields:
-            df[field] = np.NaN
-
-        df = df[self.fields]
-        
-        
-        return df
-
-            
-            
-class Person(Base):
-    name = 'person'
-    def __init__(self):
-        super().__init__(self.name)
-                
-    def get_df(self):
-        df = super().get_df()
-        #convert these key fields
-        df['year_of_birth'] = self.tools.get_year(df['year_of_birth'])
-        df['month_of_birth'] = self.tools.get_month(df['month_of_birth'])
-        df['day_of_birth'] = self.tools.get_day(df['day_of_birth'])
-        df['birth_datetime'] = self.tools.get_datetime(df['birth_datetime'])
-        return df
-
-
-class ConditionOccurrence(Base):
-    name = 'condition_occurrence'
-    def __init__(self):
-        super().__init__(self.name)
-        
-
-    def finalise(self,df):
-        df = df.sort_values('person_id')
-        if df['condition_occurrence_id'].isnull().any():
-            df['condition_occurrence_id'] = df.reset_index(drop=True).reset_index()['index']
-                        
-        return df
-        
-    def get_df(self):
-        df = super().get_df()
-        #require the condition_concept_id to be filled
-        df = df[df['condition_concept_id'].notnull()]
-
-        return df
-
-_classes = {
-    'person' : Person,
-    'condition_occurrence' : ConditionOccurrence
-}
