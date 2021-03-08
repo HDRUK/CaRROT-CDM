@@ -14,6 +14,6 @@ def load_csv(_map,nrows=None,load_path=""):
         _map[key] = df 
     return _map
 
-def to_name_space(__map):
+def to_name_space(_map):
     return SimpleNamespace(**_map)
 
