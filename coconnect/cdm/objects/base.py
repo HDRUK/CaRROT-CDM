@@ -1,14 +1,19 @@
+
 import os
 import json
 import pandas as pd
 import numpy as np
 from coconnect.cdm.operations import OperationTools
+from coconnect.tools.logger import Logger
 
 
 class Base(object):
     def __init__(self,_type):
         self.name = _type
         self.tools = OperationTools()
+        self.logger = Logger(self.name)
+        self.logger.info("Initialised Class")
+        
         #load the cdm
         #get the field name, if it's required and the data type
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -24,7 +29,7 @@ class Base(object):
             setattr(self,field,None)
 
         #print a check to see what cdm objects have been initialised
-        print (self.get_destination_fields())
+        self.logger.debug(self.get_destination_fields())
 
     #default finalise does nothing
     def finalise(self,df):
