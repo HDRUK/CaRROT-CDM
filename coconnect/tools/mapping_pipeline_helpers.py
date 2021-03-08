@@ -6,7 +6,6 @@ class MissConfiguredStructuralMapping(Exception):
     pass
 
 class StructuralMapping:
-
     @classmethod
     def to_json(self,f_structural_mapping,destination_tables=None,for_synthetic=False,save=None):
         self.df_structural_mapping = pd.read_csv(f_structural_mapping)
