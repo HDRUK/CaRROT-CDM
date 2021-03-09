@@ -14,16 +14,24 @@ _classes = {
     'condition_occurrence' : ConditionOccurrence
 }
 
+class NoInputFiles(Exception):
+    pass
 
 class CommonDataModel:
 
-    def __init__(self,_start_on_init=True):
+    def __init__(self,inputs=None,_start_on_init=True):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
+
+        self.inputs = inputs
         
         if _start_on_init:
             self.tools = OperationTools()
             self.__dict__.update(self.__class__.__dict__)
+
+            if self.inputs == None:
+                raise NoInputFiles('You need to set or specify the input files.') 
+
             self.finalise()
             
     def apply_term_map(self,f_term_mapping):

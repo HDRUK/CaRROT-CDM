@@ -7,10 +7,6 @@ import json
 
 class {{ name }}(CommonDataModel):
 
-    inputs = load_csv(
-                     {{ inputs }}
-                     )
-
     {% for object in objects -%}
     {{ object }}
     {%- endfor %}
