@@ -7,7 +7,7 @@ import glob
 
 def make_class(name,
                structural_mapping,
-               f_inputs='PANTHER/synthetic_data/*.csv'):
+               f_inputs=None):
                
 
     #inputs = "test"#json.dumps({x.split("/")[-1]: x for x in sorted(glob.glob(f_inputs))},indent=6)
@@ -40,7 +40,6 @@ def make_class(name,
 
     #source_code = templates.cls.render(name='Panther', inputs=inputs, objects=objects)
     source_code = templates.cls.render(name=name, objects=objects)
-    print (source_code)
 
     with open(f'{name.lower()}_dynamic.py','w') as f:
         f.write(source_code)

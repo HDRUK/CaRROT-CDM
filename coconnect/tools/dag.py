@@ -28,7 +28,7 @@ def make_dag(data,render=False):
                 dot.node(source_table,shape='box')
                 dot.edge(source_field,source_table,dir='back')
 
-                
+
     if render:
         dot.render('person.gv', view=True)  
         return
