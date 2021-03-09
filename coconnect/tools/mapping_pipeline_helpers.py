@@ -19,6 +19,7 @@ class StructuralMapping:
         if destination_tables == None:
             destination_tables = self.df_structural_mapping.index.unique()
 
+        self.df_term_mapping = None
         if f_term_mapping is not None:
             self.df_term_mapping = pd.read_csv(f_term_mapping)
             self.df_term_mapping = self.df_term_mapping\
@@ -30,7 +31,7 @@ class StructuralMapping:
                                               })\
                                        .reset_index()\
                                        .set_index('rule_id')
-            self.df_term_mapping.columns = ['term_map']
+            self.df_term_mapping.columns = ['term_mapping']
 
             
         _map = {}
@@ -47,11 +48,14 @@ class StructuralMapping:
                 raise MissConfiguredStructuralMapping("something really wrong")
 
             rules.set_index('destination_field',inplace=True)
-            
-            rules = rules.reset_index().set_index('rule_id')\
-                                       .join(self.df_term_mapping)\
-                                       .set_index('destination_field')\
-                                       .replace({np.NaN:None})
+
+            rules['term_mapping'] = rules['term_mapping'].map({'y':True,'n':None})
+            if not self.df_term_mapping is None:
+                rules = rules.drop('term_mapping',axis=1)
+                rules = rules.reset_index().set_index('rule_id')\
+                                           .join(self.df_term_mapping)\
+                                           .set_index('destination_field')\
+                                           .replace({np.NaN:None})
     
 
             initial = values[values==1].index
@@ -61,7 +65,7 @@ class StructuralMapping:
                 rule = rules.loc[destination_field]
                 source_table = rule['source_table'].lower()
                 source_field = rule['source_field'].lower()
-                term_mapping = rule['term_map']
+                term_mapping = rule['term_mapping']
                 
                 obj = {
                     'source_table':source_table,
@@ -79,7 +83,7 @@ class StructuralMapping:
                     rule = rules.loc[destination_field]
                     source_tables = rule['source_table'].str.lower()
                     source_fields = rule['source_field'].str.lower()
-                    term_mappings = rule['term_map']
+                    term_mappings = rule['term_mapping']
 
                     
                     for j,(source_table,source_field,term_mapping)\

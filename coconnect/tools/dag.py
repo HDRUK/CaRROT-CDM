@@ -15,7 +15,7 @@ def make_dag(data,render=False):
 
         destination_table = destination_tables[0]
 
-        for destination_table in destination_tables[:3]:
+        for destination_table in destination_tables:
             for table_name,source in destination_table.items():
                 dot.node(table_name,style='filled', fillcolor='yellow',shape='box')
                 dot.edge(destination_table_name,table_name,dir='back')
