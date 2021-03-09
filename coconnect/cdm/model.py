@@ -17,18 +17,33 @@ _classes = {
 class NoInputFiles(Exception):
     pass
 
+
+class CommonDataModelTypes(collections.OrderedDict):
+    def __init__(self):
+        super().__init__()
+        self['INTEGER'] = lambda x : x.astype('Int64')
+        self['FLOAT'] = lambda x : x.astype('Float64')
+        self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
+        self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+        self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
+    
+
 class CommonDataModel:
 
     def __init__(self,inputs=None,_start_on_init=True):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
+        self.dtypes = CommonDataModelTypes()
         self.inputs = inputs
         
         if _start_on_init:
             self.tools = OperationTools()
             self.__dict__.update(self.__class__.__dict__)
-
+            
             if self.inputs == None:
                 raise NoInputFiles('You need to set or specify the input files.') 
 
@@ -57,8 +72,7 @@ class CommonDataModel:
                 print (maps.loc[p.name,destination_field])
                 mapped_field = getattr(p,destination_field).map(term_mapper)
                 setattr(p,destination_field,mapped_field)
-                
-            exit(0)
+               
         
 
     def get_cdm_class(self,class_type):
@@ -91,6 +105,11 @@ class CommonDataModel:
             df = obj.get_df()
             if len(df) == 0:
                 continue
+            
+            df = obj.format(df)
+            if df is None:
+                self.logger.warning('failed to format {obj.name}')
+                continue
             dfs.append(df)
 
         #merge together
@@ -103,8 +122,9 @@ class CommonDataModel:
     def finalise(self,f_out='output_data/'):
         self.df_map = {}
         self.df_map[Person.name] = self.run_cdm(Person)
+        self.logger.info(f'finalised {Person.name}')
         self.df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
-
+        self.logger.info(f'finalised {ConditionOccurrence.name}')
         self.save_to_file(self.df_map,f_out)
         
     def save_to_file(self,df_map,f_out):
