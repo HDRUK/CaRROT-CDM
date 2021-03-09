@@ -3,3 +3,4 @@ pandas
 coloredlogs
 Jinja2
 graphviz
+click

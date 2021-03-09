@@ -1,4 +1,4 @@
-from subcommands.map import map
+from .subcommands.map import map
 
 import click
 import json
