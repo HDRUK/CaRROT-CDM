@@ -25,6 +25,9 @@ class Base(object):
         self.cdm = pd.read_csv(f'{self.dir_path}/../../data/cdm/OMOP_CDM_{_version}.csv',encoding="ISO-8859-1")\
                      .set_index('table')\
                      .loc[_type].set_index('field')[['required', 'type']]
+
+
+        self.cdm['is_source'] = self.cdm.index.str.endswith("_source_value")
         
         #save the field names
         self.fields = self.cdm.index.values
@@ -93,17 +96,20 @@ class Base(object):
             for key in self.fields
             if getattr(self,key) is not None
         }
+
+        for key,df in dfs:
+            print (key,df,self.cdm.loc[field])
+        exit(0)
         
         if len(dfs) == 0:
             return None
 
         df = pd.concat(dfs.values(),axis=1)
-
         missing_fields = set(self.fields) - set(df.columns)
-
         for field in missing_fields:
             df[field] = np.NaN
 
         df = df[self.fields]
 
+        
         return df

@@ -41,5 +41,5 @@ def make_class(name,
     #source_code = templates.cls.render(name='Panther', inputs=inputs, objects=objects)
     source_code = templates.cls.render(name=name, objects=objects)
 
-    with open(f'{name.lower()}_dynamic.py','w') as f:
+    with open(f'{name}.py','w') as f:
         f.write(source_code)
