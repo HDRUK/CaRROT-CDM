@@ -1,3 +1,6 @@
+raise DeprecationWarning("The ETLTool is now decrepit dont use it m8")
+
+
 """ETLTool
 
 A program for mapping ETL to CDM based on input datasets, structual mapping and term mapping csv files
