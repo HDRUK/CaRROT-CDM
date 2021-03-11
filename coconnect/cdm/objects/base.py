@@ -13,28 +13,44 @@ class FailedRequiredCheck(Exception):
     pass
 
 class Base(object):
+    """
+    Common object that all CDM objects inherit from
+    """
     def __init__(self,_type,_version='v5_3_1'):
+        """
+        Initialise the CDM Base Object class
+        Args:
+           _type (str): the name of the object being initialsed, e.g. "person"
+           _version (str): the CDM version, see https://github.com/OHDSI/CommonDataModel/tags
+        Returns: 
+           None
+        """
         self.name = _type
         self.tools = OperationTools()
         self.logger = Logger(self.name)
-        self.logger.info("Initialised Class")
+        self.logger.debug("Initialised Class")
         
-        #load the cdm
-        #get the field name, if it's required and the data type
-        self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.cdm = pd.read_csv(f'{self.dir_path}/../../data/cdm/OMOP_CDM_{_version}.csv',encoding="ISO-8859-1")\
+        #load the dir path of where this file is
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        #load the details of this cdm objects from the data files taken from OHDSI GitHub
+        # - set the table (e.g. person, condition_occurrence,...)  as the index
+        #   so that all values associated with the object (name) can be retrieved
+        # - then set the field (e.g. person_id, birth_datetime,,) to help with future lookups
+        # - just keep information on if the field is required (Yes/No) and what the datatype is (INTEGER,..)
+        self.cdm = pd.read_csv(f'{dir_path}/../../data/cdm/OMOP_CDM_{_version}.csv',encoding="ISO-8859-1")\
                      .set_index('table')\
-                     .loc[_type].set_index('field')[['required', 'type']]
-
+                     .loc[self.name].set_index('field')[['required', 'type']]
 
         self.cdm['is_source'] = self.cdm.index.str.endswith("_source_value")
         
-        #save the field names
+        #extract all the fields (destination_fields) associated with this cdm object
         self.fields = self.cdm.index.values
-
+        
         #create new attributes for all the fields in the CDM
         for field in self.fields:
+            #extract the datatype
             _type = self.cdm.loc[field]['type']
+            #extract if it is required to be filled or not
             _required = self.cdm.loc[field]['required']
             self.logger.debug(f'setting up the field {field} -- {_type} -- Required: {_required}')
             #initialise the field with value None
@@ -43,24 +59,55 @@ class Base(object):
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
 
-    #default finalise does nothing
     def finalise(self,df):
+        """
+        Finalise function, expected to be overloaded by children classes
+        """
         return df
 
-    #default define does nothing
+
     def define(self,_):
+        """
+        define function, expected to be overloaded by the user defining the object
+        """
         return self
 
-    #get a list of all the destination fields loaded in this cdm
     def get_destination_fields(self):
+        """
+        Get a list of all the destination fields that have been 
+        loaded and associated to this cdm object
+
+        
+        Returns: 
+           list: a list of all the destination fields that have been defined
+        """
         return list(self.fields)
 
-    def execute(self,this):
-        objs = {k:v for k,v in this.__dict__.items() if k!='logger' }
+    def execute(self,that):
+        """
+        execute the creation of the cdm object by passing
+
+        Args:
+           that: input object class where input objects can be loaded 
+                 and the define/finalise functions can be overloaded
+        """
+        #extract all objects from the passed object
+        objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
+        #add objects to this class
         self.__dict__.update(objs)
+        #execute the define function that is likely to define the cdm fields based on inputs
         self = self.define(self)
 
     def check_required(self,df):
+        """
+        Check if the columns in the input dataframe are required or not
+        If one is a required field, and all the values are NaN, raised an Exception
+
+        Args:
+           df (pandas.Dataframe): pandas dataframe to check
+
+        """
+
         for col in df.columns:
             _required = self.cdm.loc[col]['required']
             self.logger.debug(f'checking if {col} is required')
@@ -72,44 +119,71 @@ class Base(object):
                     raise FailedRequiredCheck(f"{col} has all NaN values, but it is a required field in the cdm") 
         
         
-    def format(self,df):
+    def format(self,df,raise_error=True):
+        """
+        Format the dataframe into the right output format i.e. int/str/datetime...
+
+        Args:
+           df (pandas.Dataframe): input dataframe
+           raise_error (bool): decide whether to raise an error or just null df
+        Return:
+           pandas.Dataframe: formatted pandas dataframe
+
+        """
+        #if the datatypes for this object haven't be defined, then cant do any formatting
         if not self.dtypes:
             return df
 
+        #loop over all columns (series) in the dataframe
         for col in df.columns:
+            #extract the datatype associated to this colun
             _type = self.cdm.loc[col]['type']
             self.logger.debug(f'applying formatting to {_type} for field {col}')
 
+            #pull the function of how to convert the column and convert it
             try:
-                df[col] = self.dtypes[_type](df[col])
+                convert_function = self.dtypes[_type]
+                df[col] = convert_function(df[col])
             except:
                 self.logger.error(df[col])
-                self.logger.error(f'failed to convert {col} to {_type}')      
-                return None
-                #raise ConvertDataType(f'failed to convert {col} to {_type}')
+                self.logger.error(f'failed to convert {col} to {_type}')
+                if raise_error:
+                    raise ConvertDataType(f'failed to convert {col} to {_type}')
+                else:
+                    return None
             
         return df
         
     def get_df(self):
+        """
+        Retrieve a dataframe from the current object
+
+        Returns:
+           pandas.Dataframe: extracted dataframe of the cdm object
+        """
+
+        #get a dict of all series
+        #each object is a pandas series
         dfs = {
             key: getattr(self,key).rename(key)
             for key in self.fields
             if getattr(self,key) is not None
         }
 
-        for key,df in dfs:
-            print (key,df,self.cdm.loc[field])
-        exit(0)
-        
+        #if there's none defined, dont do anything
         if len(dfs) == 0:
             return None
 
+        #create a dataframe from all the series objects
         df = pd.concat(dfs.values(),axis=1)
+
+        #find which fields in the cdm havent been defined
         missing_fields = set(self.fields) - set(df.columns)
+        #set these to a nan/null series
         for field in missing_fields:
             df[field] = np.NaN
 
+        #simply order the columns 
         df = df[self.fields]
-
         
         return df

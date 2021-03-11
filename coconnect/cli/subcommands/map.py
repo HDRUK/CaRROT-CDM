@@ -1,3 +1,4 @@
+import os
 import inspect
 import click
 import json
@@ -28,6 +29,24 @@ def make_class(name,rules):
     data = json.load(open(rules))
     tools.extract.make_class(name,data)
 
+@click.command(help="List all the python classes there are available to run")
+def list_classes():
+    from coconnect.cdm import classes
+    _dir = os.path.dirname(classes.__file__)
+    files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
+    for fname in files:
+        mname = fname.split(".")[0]
+        mname = '.'.join([classes.__name__, mname])
+        module = __import__(mname,fromlist=[fname])
+        defined_classes = {
+            m[0]:m[1].__module__
+            for m in inspect.getmembers(module, inspect.isclass)
+            if m[1].__module__ == module.__name__
+        }
+        print (json.dumps(defined_classes,indent=6))
+        
+        
+
 @click.command(help="Perform OMOP Mapping")
 @click.argument("inputs",
                 nargs=-1)
@@ -56,4 +75,5 @@ def run(inputs,file):
 map.add_command(show,"show")
 map.add_command(display,"display")
 map.add_command(make_class,"make")
+map.add_command(list_classes,"list")
 map.add_command(run,"run")

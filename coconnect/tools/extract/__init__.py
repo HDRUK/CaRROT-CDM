@@ -1,9 +1,9 @@
 import json
 import pandas as pd
-
+import os
 from . import templates
-
 import glob
+from coconnect.cdm import classes
 
 def make_class(name,
                structural_mapping,
@@ -41,5 +41,12 @@ def make_class(name,
     #source_code = templates.cls.render(name='Panther', inputs=inputs, objects=objects)
     source_code = templates.cls.render(name=name, objects=objects)
 
-    with open(f'{name}.py','w') as f:
+    save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    fname = f'{save_dir}/{name}.py'
+    if os.path.isfile(fname):
+        print (f"Recreating file {fname}")
+    else:
+        print (f"Making new file {fname}")
+        
+    with open(fname,'w') as f:
         f.write(source_code)
