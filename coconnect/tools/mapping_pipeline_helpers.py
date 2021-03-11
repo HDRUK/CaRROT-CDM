@@ -8,7 +8,14 @@ class MissConfiguredStructuralMapping(Exception):
 
 class StructuralMapping:
     @classmethod
-    def to_json(self,f_structural_mapping,f_term_mapping=None,destination_tables=None,for_synthetic=False,save=None):
+    def to_json(self,
+                f_structural_mapping,
+                f_term_mapping=None,
+                destination_tables=None,
+                for_synthetic=False,
+                strict=True,
+                save=None):
+        
         self.df_structural_mapping = pd.read_csv(f_structural_mapping)
 
         if for_synthetic:
@@ -50,13 +57,31 @@ class StructuralMapping:
             rules.set_index('destination_field',inplace=True)
 
             rules['term_mapping'] = rules['term_mapping'].map({'y':True,'n':None})
+
+            #if destination_field.endswith("_source_value") and term_mapping:
+            #    logger.warning(f"why are you trying to map a source value for {destination_field}?")
+            #    logger.warning(f"{source['source_field']}")
+            #    logger.warning(f"{term_mapping}")
+            #    logger.warning(f"Removing! \n")
+            #    continue
+            rules_for_source_value = rules.index.str.endswith("_source_value") \
+                & rules['term_mapping'] == True
+            if rules_for_source_value.any() and strict:
+                print ("Argh you have rules for source values! Auto fixing these...")
+                rules.loc[rules_for_source_value,'term_mapping'] = None
+
+                
+            
             if not self.df_term_mapping is None:
-                rules = rules.drop('term_mapping',axis=1)
-                rules = rules.reset_index().set_index('rule_id')\
-                                           .join(self.df_term_mapping)\
-                                           .set_index('destination_field')\
-                                           .replace({np.NaN:None})
-    
+                rules.loc[rules['term_mapping']==True,:] = rules[rules['term_mapping']==True]\
+                     .reset_index()\
+                     .set_index('rule_id')\
+                     .drop('term_mapping',axis=1)\
+                     .join(self.df_term_mapping)\
+                     .set_index('destination_field')\
+                     .replace({np.NaN:None})
+                
+
 
             initial = values[values==1].index
 

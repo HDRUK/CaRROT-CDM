@@ -7,7 +7,11 @@ class Person(Base):
     name = 'person'
     def __init__(self):
         super().__init__(self.name)
-                
+
+    def finalise(self,df):
+        super().finalise(self,df)
+        return df
+        
     def get_df(self):
         """
         Overload/append the creation of the dataframe, specifically for the person objects

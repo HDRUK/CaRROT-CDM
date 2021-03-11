@@ -100,21 +100,26 @@ class CommonDataModel:
         
         #execute them all
         dfs = []
-        for obj in objects:
+        self.logger.info(f"working on {class_type}")
+        for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df()
+            self.logger.info(f".. {i}/{len(objects)} of length {len(df)}") 
             if len(df) == 0:
                 continue
-            
-            df = obj.format(df)
+
+            df = obj.format(df,raise_error=False)
             if df is None:
-                self.logger.warning('failed to format {obj.name}')
+                self.logger.warning(f'failed to format {obj.name}')
                 continue
+
             dfs.append(df)
 
         #merge together
         df_destination = pd.concat(dfs,ignore_index=True)
         df_destination = class_type.finalise(class_type,df_destination)
+
+
         
         return df_destination
 
@@ -132,6 +137,9 @@ class CommonDataModel:
             if df is None:
                 continue
             fname = f'{f_out}/{name}.csv'
+            if not os.path.exists(f'{f_out}'):
+                self.logger.info(f'making output folder {f_out}')
+                os.mkdir(f'{f_out}')
             self.logger.info(f'saving {name} to {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,index=True)

@@ -25,15 +25,19 @@ def display(rules):
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.argument("name")
 @click.argument("rules")
+#@click.option("--",
+#              is_flag=True,
+#              help="")
 def make_class(name,rules):
     data = json.load(open(rules))
     tools.extract.make_class(name,data)
 
-@click.command(help="List all the python classes there are available to run")
-def list_classes():
+    
+def get_classes():
     from coconnect.cdm import classes
     _dir = os.path.dirname(classes.__file__)
     files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
+    retval = {}
     for fname in files:
         mname = fname.split(".")[0]
         mname = '.'.join([classes.__name__, mname])
@@ -43,31 +47,39 @@ def list_classes():
             for m in inspect.getmembers(module, inspect.isclass)
             if m[1].__module__ == module.__name__
         }
-        print (json.dumps(defined_classes,indent=6))
+        retval.update(defined_classes)
+    return retval
         
+    
+@click.command(help="List all the python classes there are available to run")
+def list_classes():
+    print (json.dumps(get_classes(),indent=6))
         
 
 @click.command(help="Perform OMOP Mapping")
+@click.argument("dataset")
 @click.argument("inputs",
                 nargs=-1)
-@click.option("--file",
-              required=True,
-              help="pass the mapping .py file")
-def run(inputs,file):
+def run(dataset,inputs):
 
     inputs = load_csv(
         {
             x.split("/")[-1]:x
             for x in inputs
         })
-    
-    fname = file.split(".")[0]
-    module = __import__(fname)
+
+    available_classes = get_classes()
+    if dataset not in available_classes:
+        print (available_classes)
+        raise KeyError(f"cannot find config for {dataset}")
+
+    module = __import__(available_classes[dataset],fromlist=[dataset])
     defined_classes = [
         m[0]
         for m in inspect.getmembers(module, inspect.isclass)
         if m[1].__module__ == module.__name__
     ]
+
     for defined_class in defined_classes:
         cls = getattr(module,defined_class)
         cls(inputs=inputs)

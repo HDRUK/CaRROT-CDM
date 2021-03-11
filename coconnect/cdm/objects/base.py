@@ -12,6 +12,9 @@ class ConvertDataType(Exception):
 class FailedRequiredCheck(Exception):
     pass
 
+class BadInputs(Exception):
+    pass
+
 class Base(object):
     """
     Common object that all CDM objects inherit from
@@ -63,6 +66,9 @@ class Base(object):
         """
         Finalise function, expected to be overloaded by children classes
         """
+        if 'person_id' in df.columns:
+            df['person_id'] = df.index + 1
+
         return df
 
 
@@ -97,6 +103,7 @@ class Base(object):
         self.__dict__.update(objs)
         #execute the define function that is likely to define the cdm fields based on inputs
         self = self.define(self)
+
 
     def check_required(self,df):
         """
@@ -147,6 +154,11 @@ class Base(object):
             except:
                 self.logger.error(df[col])
                 self.logger.error(f'failed to convert {col} to {_type}')
+                self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
+                self.logger.error('this has the following unique values...')
+                self.logger.error(df[col].unique())
+
+                
                 if raise_error:
                     raise ConvertDataType(f'failed to convert {col} to {_type}')
                 else:
@@ -164,12 +176,30 @@ class Base(object):
 
         #get a dict of all series
         #each object is a pandas series
-        dfs = {
-            key: getattr(self,key).rename(key)
-            for key in self.fields
-            if getattr(self,key) is not None
-        }
+        dfs = {}
+        for key in self.fields:
+            series = getattr(self,key)
+            if series is None:
+                continue
+            series = series.rename(key) 
+            dfs[key] = series
 
+        # non_series = [k for k,v in dfs.items() if isinstance(v,str) ]
+        # if len(non_series) == len(dfs.keys()):
+        #     self.logger.error("All series are strings! They should be pandas series or dataframes!")
+        #     raise BadInputs("Can't find any pandas dataframes")
+
+        # elif len(non_series)>0:
+        #     good_series = list(set(dfs.keys()) - set(non_series))[0]
+        #     for key in non_series:
+        #         self.logger.warning(f'attempting to set the field "{key}" to a string'
+        #                             f'"{series}"), will turn this into a series')
+
+        #         dfs[key] = pd.Series([dfs[key] for _ in range(len(good_series)) ])
+
+        # for key,series in dfs.items():
+        #     dfs[key] = series.rename(key)
+            
         #if there's none defined, dont do anything
         if len(dfs) == 0:
             return None

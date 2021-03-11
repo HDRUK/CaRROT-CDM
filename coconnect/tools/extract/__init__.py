@@ -5,6 +5,9 @@ from . import templates
 import glob
 from coconnect.cdm import classes
 
+from coconnect.tools.logger import Logger
+logger = Logger("extract")
+
 def make_class(name,
                structural_mapping,
                f_inputs=None):
@@ -29,9 +32,18 @@ def make_class(name,
             #find term mapping
             for destination_field,source in sorted(obj.items()):
                 term_mapping = source['term_mapping']
+                    
                 if term_mapping:
-                    map_rules.append(f'self.{destination_field} = self.{destination_field}.map({term_mapping})')
-                
+                    nindent=4
+                    term_mapping = json.dumps(term_mapping,indent=nindent).splitlines()
+                    temp = f'self.{destination_field} = self.{destination_field}.map('
+                    map_rules.append(temp)
+                    for line in term_mapping:
+                        map_rules.append(f'{" "*nindent}{line}')
+                    map_rules.append(f')')
+
+
+            
             function_name = f"{destination_table}_{i}"
             objects.append(templates.obj.render(
                 function_name=function_name,
