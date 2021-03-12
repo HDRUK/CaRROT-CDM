@@ -5,3 +5,4 @@ data
 dist
 .DS_store
 build
+coconnect/cdm/classes/

@@ -1,0 +1,657 @@
+{
+      "person": [
+            {
+                  "birth_datetime": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "anon_date_of_birth",
+                        "term_mapping": null
+                  },
+                  "day_of_birth": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "anon_date_of_birth",
+                        "term_mapping": null
+                  },
+                  "gender_concept_id": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "sex",
+                        "term_mapping": {
+                              "M": 8507,
+                              "F": 8532
+                        }
+                  },
+                  "gender_source_concept_id": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "sex",
+                        "term_mapping": {
+                              "M": 8507,
+                              "F": 8532
+                        }
+                  },
+                  "gender_source_value": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "sex",
+                        "term_mapping": null
+                  },
+                  "month_of_birth": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "anon_date_of_birth",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "race_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "ethnicity",
+                        "term_mapping": null
+                  },
+                  "race_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "ethnicity",
+                        "term_mapping": null
+                  },
+                  "race_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "ethnicity",
+                        "term_mapping": null
+                  },
+                  "year_of_birth": {
+                        "source_table": "dbo.demography_current",
+                        "source_field": "anon_date_of_birth",
+                        "term_mapping": null
+                  }
+            }
+      ],
+      "condition_occurrence": [
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "cough",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "cough",
+                        "term_mapping": {
+                              "1": 254761
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "cough",
+                        "term_mapping": {
+                              "1": 254761
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fever",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fever",
+                        "term_mapping": {
+                              "1": 437663
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fever",
+                        "term_mapping": {
+                              "1": 437663
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "headache",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "headache",
+                        "term_mapping": {
+                              "1": 378253
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "headache",
+                        "term_mapping": {
+                              "1": 378253
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "diarrhoea",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "diarrhoea",
+                        "term_mapping": {
+                              "1": 196523
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "diarrhoea",
+                        "term_mapping": {
+                              "1": 196523
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "throat",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "throat",
+                        "term_mapping": {
+                              "1": 4147326
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "throat",
+                        "term_mapping": {
+                              "1": 4147326
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "runny_nose",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "runny_nose",
+                        "term_mapping": {
+                              "1": 4276172
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "runny_nose",
+                        "term_mapping": {
+                              "1": 4276172
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fatigue",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fatigue",
+                        "term_mapping": {
+                              "1": 4223659
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "fatigue",
+                        "term_mapping": {
+                              "1": 4223659
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "anosmia",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "anosmia",
+                        "term_mapping": {
+                              "1": 43530714
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "anosmia",
+                        "term_mapping": {
+                              "1": 43530714
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "dyspnoea",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "dyspnoea",
+                        "term_mapping": {
+                              "1": 312437
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "dyspnoea",
+                        "term_mapping": {
+                              "1": 312437
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom1",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom1",
+                        "term_mapping": {
+                              "NaN": 4175297,
+                              "CHEST TIGHTNESS": 27674,
+                              "LOSS OF APPETITE": 4223938,
+                              "CHEST PAIN": 4275273,
+                              "ABDO PAIN": 77670,
+                              "SORE EYES": 200219,
+                              "WHEEZE": 379031,
+                              "PALPITATIONS": 314754,
+                              "EARACHE": 315078,
+                              "TIGHT CHEST": 4196986,
+                              "HEAVY CHEST": 4034235,
+                              "Conjunctivitis": 379019,
+                              "JOINT PAIN": 77074,
+                              "Wheeze": 314754,
+                              "CONJUNCTIVITIS": 379019,
+                              "HOARSE VOICE": 4223938,
+                              "Dizzy": 27674,
+                              "Nausea": 37110753,
+                              "EYE INFECTION": 437664,
+                              "DEHYDRATED AND CONCENTRATED URINE": 77670,
+                              "Loss of voice": 254761,
+                              "CHEST PAIN ON INSPIRATION": 4177176,
+                              "COUGH WAS MORE LIKE TICKLY THROAT": 4147326,
+                              "FEELING OF FLUID ON CHEST": 434490,
+                              "FLU LIKE": 27674,
+                              "RESPIRATORY RATTLE": 379031,
+                              "SPOTS": 4060217,
+                              "Thrombophlebitis": 37110753,
+                              "Heavy chest feeling": 4196986,
+                              "USING INHALER MORE FREQUENTLY": 27674,
+                              "INCREASED BLOOD SUGAR (T1DM)": 43530714,
+                              "ABDO CRAMPS": 37110753,
+                              "ASYMPTOMATIC": 37110753,
+                              "RESTLESSNESS": 4223938,
+                              "RASH CHEEKS/FACE/EARS": 43530714,
+                              "Photophobia": 4147326,
+                              "SMELL OF WOOD BURNING": 4223938,
+                              "Sticky eyes, loss of apetitie": 4275273,
+                              "Dizzyness": 43530714,
+                              "ALTERED TASTE SENSATION": 379031,
+                              "post fatigue": 314754,
+                              "BLOCKED NOSE": 77670,
+                              "ACHEY EYES": 4034235,
+                              "UPSET STOMACH": 37110753,
+                              "SORE RIBS": 77670,
+                              "WHEEZY": 437664,
+                              "NASAL DRIP": 27674,
+                              "LOSS OF APETITE": 4060217,
+                              "Rash": 27674,
+                              "BURNING IN CHEST AND UP NOSE": 4060217,
+                              "THICK PHLEGM": 37110753,
+                              "NASAL CONGESTION": 37110753,
+                              "Vomiting": 27674,
+                              "BACK ACHE": 27674,
+                              "Heavy heart": 4275273,
+                              "STOMACH CHURNING": 27674,
+                              "URTICARIAL RASH": 437664,
+                              "rash": 43530714,
+                              "CHIVERY": 379019,
+                              "RIGORS": 43530714,
+                              "HARD PHLEM": 4059010,
+                              "NAUSEA + VOMITTING": 4060217,
+                              "NO APPETITE": 4060217,
+                              "Lung pain": 37110753,
+                              "DRY, IRRITABLE SKIN BREAKS TO FOOT": 254761,
+                              "SINUSITIS": 4034235,
+                              "VOMITING": 4060217,
+                              "DIZZY": 4177176,
+                              "LOST VOICE": 379019,
+                              "HEARTBURN": 37110753,
+                              "ALTERED SENSE OFTASTE": 27674,
+                              "CONJUNCTIVITIS AND PRESSURE ON EYES": 4060217,
+                              "FUSTY/STALE TASTE": 27674,
+                              "LOSS OF APPETITIE": 37110753,
+                              "LEGS FELT HEAVY": 4059010,
+                              "CHEST HEAVINESS": 4060217,
+                              "Heavy weight on chest": 4060217,
+                              "RASH ON STOMACH- STILL PRESENT": 4223938,
+                              "HEAVINESS ON CHEST": 4060217,
+                              "CONTINUING TICKLY THROAT": 77670,
+                              "DEAFNESS": 77670,
+                              "HOT CHEST": 4034235,
+                              "NIGHT SWEATS": 379031,
+                              "CHEST TIGHNESS": 314754,
+                              "CRAVING FOR GARLIC, STRONG FLAVOURS": 4060217
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom1",
+                        "term_mapping": {
+                              "NaN": 4175297,
+                              "CHEST TIGHTNESS": 27674,
+                              "LOSS OF APPETITE": 4223938,
+                              "CHEST PAIN": 4275273,
+                              "ABDO PAIN": 77670,
+                              "SORE EYES": 200219,
+                              "WHEEZE": 379031,
+                              "PALPITATIONS": 314754,
+                              "EARACHE": 315078,
+                              "TIGHT CHEST": 4196986,
+                              "HEAVY CHEST": 4034235,
+                              "Conjunctivitis": 379019,
+                              "JOINT PAIN": 77074,
+                              "Wheeze": 314754,
+                              "CONJUNCTIVITIS": 379019,
+                              "HOARSE VOICE": 4223938,
+                              "Dizzy": 27674,
+                              "Nausea": 37110753,
+                              "EYE INFECTION": 437664,
+                              "DEHYDRATED AND CONCENTRATED URINE": 77670,
+                              "Loss of voice": 254761,
+                              "CHEST PAIN ON INSPIRATION": 4177176,
+                              "COUGH WAS MORE LIKE TICKLY THROAT": 4147326,
+                              "FEELING OF FLUID ON CHEST": 434490,
+                              "FLU LIKE": 27674,
+                              "RESPIRATORY RATTLE": 379031,
+                              "SPOTS": 4060217,
+                              "Thrombophlebitis": 37110753,
+                              "Heavy chest feeling": 4196986,
+                              "USING INHALER MORE FREQUENTLY": 27674,
+                              "INCREASED BLOOD SUGAR (T1DM)": 43530714,
+                              "ABDO CRAMPS": 37110753,
+                              "ASYMPTOMATIC": 37110753,
+                              "RESTLESSNESS": 4223938,
+                              "RASH CHEEKS/FACE/EARS": 43530714,
+                              "Photophobia": 4147326,
+                              "SMELL OF WOOD BURNING": 4223938,
+                              "Sticky eyes, loss of apetitie": 4275273,
+                              "Dizzyness": 43530714,
+                              "ALTERED TASTE SENSATION": 379031,
+                              "post fatigue": 314754,
+                              "BLOCKED NOSE": 77670,
+                              "ACHEY EYES": 4034235,
+                              "UPSET STOMACH": 37110753,
+                              "SORE RIBS": 77670,
+                              "WHEEZY": 437664,
+                              "NASAL DRIP": 27674,
+                              "LOSS OF APETITE": 4060217,
+                              "Rash": 27674,
+                              "BURNING IN CHEST AND UP NOSE": 4060217,
+                              "THICK PHLEGM": 37110753,
+                              "NASAL CONGESTION": 37110753,
+                              "Vomiting": 27674,
+                              "BACK ACHE": 27674,
+                              "Heavy heart": 4275273,
+                              "STOMACH CHURNING": 27674,
+                              "URTICARIAL RASH": 437664,
+                              "rash": 43530714,
+                              "CHIVERY": 379019,
+                              "RIGORS": 43530714,
+                              "HARD PHLEM": 4059010,
+                              "NAUSEA + VOMITTING": 4060217,
+                              "NO APPETITE": 4060217,
+                              "Lung pain": 37110753,
+                              "DRY, IRRITABLE SKIN BREAKS TO FOOT": 254761,
+                              "SINUSITIS": 4034235,
+                              "VOMITING": 4060217,
+                              "DIZZY": 4177176,
+                              "LOST VOICE": 379019,
+                              "HEARTBURN": 37110753,
+                              "ALTERED SENSE OFTASTE": 27674,
+                              "CONJUNCTIVITIS AND PRESSURE ON EYES": 4060217,
+                              "FUSTY/STALE TASTE": 27674,
+                              "LOSS OF APPETITIE": 37110753,
+                              "LEGS FELT HEAVY": 4059010,
+                              "CHEST HEAVINESS": 4060217,
+                              "Heavy weight on chest": 4060217,
+                              "RASH ON STOMACH- STILL PRESENT": 4223938,
+                              "HEAVINESS ON CHEST": 4060217,
+                              "CONTINUING TICKLY THROAT": 77670,
+                              "DEAFNESS": 77670,
+                              "HOT CHEST": 4034235,
+                              "NIGHT SWEATS": 379031,
+                              "CHEST TIGHNESS": 314754,
+                              "CRAVING FOR GARLIC, STRONG FLAVOURS": 4060217
+                        }
+                  }
+            },
+            {
+                  "condition_end_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "condition_start_date": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "date",
+                        "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "prochi",
+                        "term_mapping": null
+                  },
+                  "condition_source_value": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom2",
+                        "term_mapping": null
+                  },
+                  "condition_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom2",
+                        "term_mapping": {
+                              "CHEST TIGHTNESS": 2000,
+                              "Chest tightness": 6000,
+                              "DIZZINESS": 5000,
+                              "LOSS OF APPETITE": 6000,
+                              "RASH": 7000,
+                              "NAUSEA/VOMITING": 3000,
+                              "VOMITTED ONCE": 9000,
+                              "LIGHTHEADED": 10000,
+                              "Cellulitis": 90000,
+                              "PALPITATIONS": 12000,
+                              "TINGLING IN FINGERS": 13000,
+                              "NEW SENSITIVITY TO HAIR DYE": 14000,
+                              "SHARP PAIN IN BRAIN": 15000
+                        }
+                  },
+                  "condition_source_concept_id": {
+                        "source_table": "dbo.alldata_hic",
+                        "source_field": "other_symptom2",
+                        "term_mapping": {
+                              "CHEST TIGHTNESS": 2000,
+                              "Chest tightness": 6000,
+                              "DIZZINESS": 5000,
+                              "LOSS OF APPETITE": 6000,
+                              "RASH": 7000,
+                              "NAUSEA/VOMITING": 3000,
+                              "VOMITTED ONCE": 9000,
+                              "LIGHTHEADED": 10000,
+                              "Cellulitis": 90000,
+                              "PALPITATIONS": 12000,
+                              "TINGLING IN FINGERS": 13000,
+                              "NEW SENSITIVITY TO HAIR DYE": 14000,
+                              "SHARP PAIN IN BRAIN": 15000
+                        }
+                  }
+            }
+      ]
+}
