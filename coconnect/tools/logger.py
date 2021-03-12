@@ -1,4 +1,4 @@
-import coconnect.tools as tools
+#import coconnect.tools as tools
 import logging
 import coloredlogs
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
