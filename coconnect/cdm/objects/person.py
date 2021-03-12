@@ -9,8 +9,8 @@ class Person(Base):
         super().__init__(self.name)
 
     def finalise(self,df):
-        super().finalise(self,df)
-        return df
+        df = super().finalise(df)
+        return df.sort_values('person_id')
         
     def get_df(self):
         """
@@ -25,9 +25,12 @@ class Person(Base):
            pandas.Dataframe: output dataframe
         """
         df = super().get_df()
+
         #convert these key fields
         df['year_of_birth'] = self.tools.get_year(df['year_of_birth'])
         df['month_of_birth'] = self.tools.get_month(df['month_of_birth'])
         df['day_of_birth'] = self.tools.get_day(df['day_of_birth'])
         df['birth_datetime'] = self.tools.get_datetime(df['birth_datetime'])
+
+        
         return df

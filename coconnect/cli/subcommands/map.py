@@ -86,9 +86,21 @@ def list_classes():
               default='csv',
               type=click.Choice(['csv']),
               help="specify the type of inputs, the default is .csv inputs")
+@click.option("--strip-name",
+              default=None,
+              type=int,
+              help="limit the number of chars in the key name for inputs {key:file}\
+              , useful with WhiteRabbit synthetic data, which is often limited to 31 characters")
+@click.option("--strip-name",
+              default=None,
+              type=int,
+              help="handy tool to strip the name of the input to match with whiterabbit")
+@click.option("--drop-csv-from-name",
+              is_flag=True,
+              help="handy tool to drop .csv. from the key name, may be needed with whiterabbit")
 @click.argument("inputs",
                 nargs=-1)
-def run(name,inputs,type):
+def run(name,inputs,strip_name,drop_csv_from_name,type):
 
     #check if exists
     if any('*' in x for x in inputs):
@@ -102,13 +114,20 @@ def run(name,inputs,type):
             else:
                 new_inputs.append(x)
         inputs = new_inputs
-                
+
+
+            
     inputs = {
-        x.split("/")[-1]:x
+        (
+            x.split("/")[-1][:strip_name]
+            if drop_csv_from_name is False
+            else
+            x.split("/")[-1][:strip_name].replace('.csv','')
+        ):x
         for x in inputs
     }
 
-
+    
     if type == 'csv':
         inputs = load_csv(inputs)
     else:

@@ -67,7 +67,13 @@ class Base(object):
         Finalise function, expected to be overloaded by children classes
         """
         if 'person_id' in df.columns:
-            df['person_id'] = df.index + 1
+            masker = {
+                x:i+1
+                for i,x in enumerate(sorted(df['person_id'].unique()))
+            }
+            
+            df['person_id'] = df['person_id'].map(masker)
+            self.logger.info(f"Just masked person_id")# \n {df['person_id']}")
 
         return df
 
@@ -162,7 +168,7 @@ class Base(object):
                 if raise_error:
                     raise ConvertDataType(f'failed to convert {col} to {_type}')
                 else:
-                    return None
+                    df[col] = np.NaN
             
         return df
         

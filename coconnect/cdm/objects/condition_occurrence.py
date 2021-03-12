@@ -18,14 +18,13 @@ class ConditionOccurrence(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-        #super().finalise(self,df)
+
+        df = super().finalise(df)
         
         df = df.sort_values('person_id')
         if df['condition_occurrence_id'].isnull().any():
             df['condition_occurrence_id'] = df.reset_index().index + 1
 
-        #print (df['condition_source_value'])
-        #exit(0)
             
         return df
         

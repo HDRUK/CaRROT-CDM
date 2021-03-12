@@ -1,6 +1,11 @@
 {
       "person": [
             {
+                  "birth_datetime": {
+                        "source_table": "tracker.csv",
+                        "source_field": "dob",
+                        "term_mapping": null
+                  },
                   "day_of_birth": {
                         "source_table": "tracker.csv",
                         "source_field": "dob",
@@ -116,11 +121,6 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "headache",
-                        "term_mapping": null
-                  },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "headache",
@@ -128,6 +128,11 @@
                               "Y": 378253,
                               "Yes": 378253
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "headache",
+                        "term_mapping": null
                   }
             },
             {
@@ -154,11 +159,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "muscle pain",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -168,6 +168,11 @@
                               "Y": 442752,
                               "Yes": 442752
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "muscle pain",
+                        "term_mapping": null
                   }
             },
             {
@@ -194,11 +199,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "breathing difficulty",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -207,6 +207,11 @@
                         "term_mapping": {
                               "Y": 4041664
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "breathing difficulty",
+                        "term_mapping": null
                   }
             },
             {
@@ -233,11 +238,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fever",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -246,6 +246,11 @@
                         "term_mapping": {
                               "Y": 437663
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "fever",
+                        "term_mapping": null
                   }
             },
             {
@@ -272,11 +277,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "sore throat",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -286,6 +286,11 @@
                               "Y": 4147326,
                               "Yes": 4147326
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "sore throat",
+                        "term_mapping": null
                   }
             },
             {
@@ -312,11 +317,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "dry cough",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -326,6 +326,11 @@
                               "Yes": 4038519,
                               "Y": 4038519
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "dry cough",
+                        "term_mapping": null
                   }
             },
             {
@@ -352,11 +357,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "wet cough",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -366,6 +366,11 @@
                               "Yes": 4102774,
                               "Y": 4102774
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "wet cough",
+                        "term_mapping": null
                   }
             },
             {
@@ -392,11 +397,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fatigue",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -406,6 +406,11 @@
                               "Y": 4223659,
                               "Yes": 4223659
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "fatigue",
+                        "term_mapping": null
                   }
             },
             {
@@ -432,11 +437,6 @@
                   "person_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "loss of smell taste",
                         "term_mapping": null
                   },
                   "condition_concept_id": {
@@ -445,6 +445,11 @@
                         "term_mapping": {
                               "Y": 4289517
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "loss of smell taste",
+                        "term_mapping": null
                   }
             },
             {
@@ -473,12 +478,12 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_source_value": {
+                  "condition_concept_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "other",
                         "term_mapping": null
                   },
-                  "condition_concept_id": {
+                  "condition_source_value": {
                         "source_table": "questionnaire.csv",
                         "source_field": "other",
                         "term_mapping": null

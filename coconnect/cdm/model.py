@@ -108,17 +108,20 @@ class CommonDataModel:
             if len(df) == 0:
                 continue
 
-            df = obj.format(df,raise_error=False)
-            if df is None:
-                self.logger.warning(f'failed to format {obj.name}')
-                continue
+            #df = obj.format(df,raise_error=False)
+            #if df is None:
+            #    self.logger.warning(f'failed to format {obj.name}')
+            #    continue
 
             dfs.append(df)
 
         #merge together
+        self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
-        df_destination = class_type.finalise(class_type,df_destination)
-
+        self.logger.info(f'Finalising {class_type}')
+        df_destination = objects[0].finalise(df_destination)
+        self.logger.info(f'Formating the output for {class_type}')
+        df_destination = objects[0].format(df_destination,raise_error=False)
 
         
         return df_destination
