@@ -407,38 +407,6 @@
                   },
                   "condition_source_value": {
                         "source_table": "dbo.alldata_hic",
-                        "source_field": "aches",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "dbo.alldata_hic",
-                        "source_field": "aches",
-                        "term_mapping": null
-                  },
-                  "condition_source_concept_id": {
-                        "source_table": "dbo.alldata_hic",
-                        "source_field": "aches",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "dbo.alldata_hic",
-                        "source_field": "date",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "dbo.alldata_hic",
-                        "source_field": "date",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "dbo.alldata_hic",
-                        "source_field": "prochi",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "dbo.alldata_hic",
                         "source_field": "other_symptom1",
                         "term_mapping": null
                   },
