@@ -15,6 +15,7 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
+      - run: coconnect --help
       - run: coconnect map list
       - run: coconnect map show example/sample_config/panther_structural_mapping.json
       - run: coconnect map make --name Panther  example/sample_config/panther_structural_mapping.json
