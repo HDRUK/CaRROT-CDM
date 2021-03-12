@@ -1,7 +1,7 @@
 {
       "person": [
             {
-                  "gender_concept_id": {
+                  "gender_source_concept_id": {
                         "source_table": "demographic.csv",
                         "source_field": "gender",
                         "term_mapping": {
@@ -13,6 +13,40 @@
                         "source_table": "tracker.csv",
                         "source_field": "dob",
                         "term_mapping": null
+                  },
+                  "person_id": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "id",
+                        "term_mapping": null
+                  },
+                  "day_of_birth": {
+                        "source_table": "tracker.csv",
+                        "source_field": "dob",
+                        "term_mapping": null
+                  },
+                  "gender_concept_id": {
+                        "source_table": "demographic.csv",
+                        "source_field": "gender",
+                        "term_mapping": {
+                              "M": 8507,
+                              "F": 8532
+                        }
+                  },
+                  "month_of_birth": {
+                        "source_table": "tracker.csv",
+                        "source_field": "dob",
+                        "term_mapping": null
+                  },
+                  "race_concept_id": {
+                        "source_table": "demographic.csv",
+                        "source_field": "ethnicity",
+                        "term_mapping": {
+                              "WHITE BRITISH": 4196428,
+                              "ASIAN OTHER": 4087922,
+                              "BLACK CARIBBEAN": 4087917,
+                              "INDIAN": 4185920,
+                              "BLACK AFRICAN": 4057568
+                        }
                   },
                   "location_id": {
                         "source_table": "demographic.csv",
@@ -32,46 +66,6 @@
                               "Nottingham": 4021920
                         }
                   },
-                  "race_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "ethnicity",
-                        "term_mapping": {
-                              "WHITE BRITISH": 4196428,
-                              "ASIAN OTHER": 4087922,
-                              "BLACK CARIBBEAN": 4087917,
-                              "INDIAN": 4185920,
-                              "BLACK AFRICAN": 4057568
-                        }
-                  },
-                  "day_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
-                  "race_source_value": {
-                        "source_table": "demographic.csv",
-                        "source_field": "ethnicity",
-                        "term_mapping": {
-                              "WHITE BRITISH": 4196428,
-                              "ASIAN OTHER": 4087922,
-                              "BLACK CARIBBEAN": 4087917,
-                              "INDIAN": 4185920,
-                              "BLACK AFRICAN": 4057568
-                        }
-                  },
-                  "gender_source_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "gender",
-                        "term_mapping": {
-                              "M": 8507,
-                              "F": 8532
-                        }
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
                   "race_source_concept_id": {
                         "source_table": "demographic.csv",
                         "source_field": "ethnicity",
@@ -83,23 +77,25 @@
                               "BLACK AFRICAN": 4057568
                         }
                   },
-                  "month_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
                   "gender_source_value": {
                         "source_table": "demographic.csv",
                         "source_field": "gender",
-                        "term_mapping": {
-                              "M": 8507,
-                              "F": 8532
-                        }
+                        "term_mapping": null
+                  },
+                  "race_source_value": {
+                        "source_table": "demographic.csv",
+                        "source_field": "ethnicity",
+                        "term_mapping": null
                   }
             }
       ],
       "condition_occurrence": [
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -110,7 +106,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -119,19 +115,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "headache",
-                        "term_mapping": {
-                              "Y": "headache",
-                              "Yes": "headache"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -140,9 +123,19 @@
                               "Y": 378253,
                               "Yes": 378253
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "headache",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -153,7 +146,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -162,19 +155,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "muscle pain",
-                        "term_mapping": {
-                              "Y": "muscle pain",
-                              "Yes": "muscle pain"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -183,9 +163,19 @@
                               "Y": 442752,
                               "Yes": 442752
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "muscle pain",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -196,7 +186,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -205,18 +195,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "breathing difficulty",
-                        "term_mapping": {
-                              "Y": "breathing difficulty"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -224,9 +202,19 @@
                         "term_mapping": {
                               "Y": 4041664
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "breathing difficulty",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -237,7 +225,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -246,18 +234,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fever",
-                        "term_mapping": {
-                              "Y": "fever"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -265,9 +241,19 @@
                         "term_mapping": {
                               "Y": 437663
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "fever",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -278,7 +264,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -287,19 +273,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "sore throat",
-                        "term_mapping": {
-                              "Y": "sore throat",
-                              "Yes": "sore throat"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -308,9 +281,19 @@
                               "Y": 4147326,
                               "Yes": 4147326
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "sore throat",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -321,7 +304,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -330,19 +313,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "dry cough",
-                        "term_mapping": {
-                              "Yes": "dry cough",
-                              "Y": "dry cough"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -351,9 +321,19 @@
                               "Yes": 4038519,
                               "Y": 4038519
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "dry cough",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -364,7 +344,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -373,19 +353,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "wet cough",
-                        "term_mapping": {
-                              "Yes": "wet cough",
-                              "Y": "wet cough"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -394,9 +361,19 @@
                               "Yes": 4102774,
                               "Y": 4102774
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "wet cough",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -407,7 +384,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -416,19 +393,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fatigue",
-                        "term_mapping": {
-                              "Y": "fatigue",
-                              "Yes": "fatigue"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -437,9 +401,19 @@
                               "Y": 4223659,
                               "Yes": 4223659
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "fatigue",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -450,7 +424,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -459,18 +433,6 @@
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "loss of smell taste",
-                        "term_mapping": {
-                              "Y": "loss of smell taste"
-                        }
                   },
                   "condition_concept_id": {
                         "source_table": "questionnaire.csv",
@@ -478,9 +440,19 @@
                         "term_mapping": {
                               "Y": 4289517
                         }
+                  },
+                  "condition_source_value": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "loss of smell taste",
+                        "term_mapping": null
                   }
             },
             {
+                  "condition_end_date": {
+                        "source_table": "questionnaire.csv",
+                        "source_field": "date of visit",
+                        "term_mapping": null
+                  },
                   "condition_end_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
@@ -491,7 +463,7 @@
                         "source_field": "id",
                         "term_mapping": null
                   },
-                  "condition_end_date": {
+                  "condition_start_datetime": {
                         "source_table": "questionnaire.csv",
                         "source_field": "date of visit",
                         "term_mapping": null
@@ -501,17 +473,12 @@
                         "source_field": "date of visit",
                         "term_mapping": null
                   },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
+                  "condition_concept_id": {
                         "source_table": "questionnaire.csv",
                         "source_field": "other",
                         "term_mapping": null
                   },
-                  "condition_concept_id": {
+                  "condition_source_value": {
                         "source_table": "questionnaire.csv",
                         "source_field": "other",
                         "term_mapping": null
