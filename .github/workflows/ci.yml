@@ -15,11 +15,13 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - name: 
-        run: |
-          etl2cdm  --inputs sample_input_data/patients_sample.csv --structural-mapping sample_input_data/rules1.csv --term-mapping sample_input_data/rules2.csv -v
+      - run: coconnect map list
+      - run: coconnect map show example/sample_config/panther_structural_mapping.json
+      - run: coconnect map make --name Panther  example/sample_config/panther_structural_mapping.json
+      - run: coconnect map list
+      - run: coconnect map run --name Panther example/sample_input_data/*.csv
       - uses: actions/upload-artifact@v2
         with:
           name: outputs
-          path: data
+          path: output_data
           retention-days: 1
