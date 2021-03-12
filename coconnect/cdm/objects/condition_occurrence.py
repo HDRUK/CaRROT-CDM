@@ -20,7 +20,6 @@ class ConditionOccurrence(Base):
         """
 
         df = super().finalise(df)
-        
         df = df.sort_values('person_id')
         if df['condition_occurrence_id'].isnull().any():
             df['condition_occurrence_id'] = df.reset_index().index + 1
@@ -42,5 +41,5 @@ class ConditionOccurrence(Base):
         df = super().get_df()
         #require the condition_concept_id to be filled
         df = df[df['condition_concept_id'].notnull()]
-
+        
         return df

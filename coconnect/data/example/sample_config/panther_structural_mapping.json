@@ -451,43 +451,6 @@
                         "source_field": "loss of smell taste",
                         "term_mapping": null
                   }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "other",
-                        "term_mapping": null
-                  },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "other",
-                        "term_mapping": null
-                  }
             }
       ]
 }
