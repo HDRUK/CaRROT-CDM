@@ -48,11 +48,19 @@ class StructuralMapping:
             _map[destination_table] = []
 
             rules = self.df_structural_mapping.loc[destination_table]
+            if isinstance(rules,pd.core.series.Series):
+                rules = rules.to_frame().T
+
+
             values = rules['destination_field'].value_counts()
             unique_values = sorted(values.unique())
             if len(unique_values) > 2:
                 print (values)
-                raise MissConfiguredStructuralMapping("something really wrong")
+                print ('having to skip',destination_table)
+                if strict:
+                    raise MissConfiguredStructuralMapping("something really wrong")
+                else:
+                    continue
 
             rules.set_index('destination_field',inplace=True)
 
@@ -66,7 +74,7 @@ class StructuralMapping:
             #    continue
             rules_for_source_value = rules.index.str.endswith("_source_value") \
                 & rules['term_mapping'] == True
-            if rules_for_source_value.any() and strict:
+            if rules_for_source_value.any():# and strict:
                 print ("Argh you have rules for source values! Auto fixing these...")
                 rules.loc[rules_for_source_value,'term_mapping'] = None
 
