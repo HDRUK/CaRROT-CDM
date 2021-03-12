@@ -113,6 +113,8 @@ $ coconnect map make --name Panther  example/sample_config/panther_structural_ma
 Making new file /Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Panther.py
 
 Looking at the file that has been created, you can see the `.py` configuration file has been made:
+```
+
 ```python
 from coconnect.cdm import define_person, define_condition_occurrence, load_csv
 from coconnect.cdm import CommonDataModel
