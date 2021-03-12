@@ -78,16 +78,87 @@ Commands:
   show     Show the OMOP mapping json
 ```  
 
-#### Display
+#### Example
+This quick example shows how you can run OMOP mapping based on a sample json file
 
-This is display
+Firstly run `show` to display the input `json` structure
+```
+$ coconnect map show example/sample_config/panther_structural_mapping.json 
+{
+      "person": [
+            {
+                  "day_of_birth": {
+                        "source_table": "tracker.csv",
+                        "source_field": "dob",
+                        "term_mapping": null
+                  },
+		  ...
+```
 
+To display this `json` as a `dag` you can run:
+```
+$ coconnect map show example/sample_config/panther_structural_mapping.json 
+```
 
+The next step is to create a `.py` configuration file from this input `json`. The tool automatically registers these files, to see registred files, you can run:
+```
+$ coconnect map list
+{}
+```
+Showing that no files have been created and registered.
+
+To create your first configuration file, run `make` specifying the name of the output file/class:
+```
+$ coconnect map make --name Panther  example/sample_config/panther_structural_mapping.json 
+Making new file /Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Panther.py
+
+Looking at the file that has been created, you can see the `.py` configuration file has been made:
+```python
+from coconnect.cdm import define_person, define_condition_occurrence, load_csv
+from coconnect.cdm import CommonDataModel
+import json
+
+class Panther(CommonDataModel):
+
+    
+    @define_person
+    def person_0(self):
+        self.day_of_birth = self.inputs["tracker.csv"]["dob"]
+        self.gender_concept_id = self.inputs["demographic.csv"]["gender"]
+        self.gender_source_concept_id = self.inputs["demographic.csv"]["gender"]
+        self.gender_source_value = self.inputs["demographic.csv"]["gender"]
+	...
+```
+
+Now the `list` command shows that the file has been registered with the tool:
+```
+$ coconnect map list
+{
+      "Panther": {
+            "module": "coconnect.cdm.classes.Panther",
+            "path": "/Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Panther.py",
+            "last-modified": "2021-03-12 10:34:43"
+      }
+}
+```
+
+Now we're able to run:
+```
+$coconnect map run --name Panther example/sample_input_data/*.csv
+...
+2021-03-12 10:37:30 - Panther - INFO - saving person to output_data//person.csv
+2021-03-12 10:37:30 - Panther - INFO -            gender_concept_id  year_of_birth  ...  race_source_concept_id  ethnicity_source_value
+person_id                                    ...                                                
+1                       8532           1962  ...                 4196428                        
+2                       8532           1992  ...                 4196428                        
+```
+
+Outputs are saved in the folder `output_data`
 
 
 ______
 
-## *DECREPIT* ETLTool
+## **DECREPIT** ETLTool
 
 A tool for converting a ETL to a CDM, as used by the UK [CO-CONNECT](https://co-connect.ac.uk) project.
 ```
