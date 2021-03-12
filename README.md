@@ -97,7 +97,7 @@ $ coconnect map show example/sample_config/panther_structural_mapping.json
 
 To display this `json` as a `dag` you can run:
 ```
-$ coconnect map show example/sample_config/panther_structural_mapping.json 
+$ coconnect map display example/sample_config/panther_structural_mapping.json 
 ```
 
 The next step is to create a `.py` configuration file from this input `json`. The tool automatically registers these files, to see registred files, you can run:
