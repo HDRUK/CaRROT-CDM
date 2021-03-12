@@ -117,8 +117,8 @@ class CommonDataModel:
         
         self.logger.info(f'Finalising {class_type}')
         df_destination = objects[0].finalise(df_destination)
-        #self.logger.info(f'Formating the output for {class_type}')
-        #df_destination = objects[0].format(df_destination,raise_error=False)
+        self.logger.info(f'Formating the output for {class_type}')
+        df_destination = objects[0].format(df_destination,raise_error=False)
 
         
         return df_destination
