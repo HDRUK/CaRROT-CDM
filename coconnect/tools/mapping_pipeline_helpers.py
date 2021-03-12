@@ -83,7 +83,7 @@ class StructuralMapping:
                 
 
 
-            initial = values[values==1].index
+            initial = sorted(values[values==1].index)
 
             _dmap = {}
             for destination_field in initial:
@@ -125,6 +125,7 @@ class StructuralMapping:
                             _map[destination_table].append(_dmap)
                         else:
                             _map[destination_table][j][destination_field] = obj
+
 
         if not save is None:
             json.dump(_map,open(save,'w'),indent=6)
