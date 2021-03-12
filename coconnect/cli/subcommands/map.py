@@ -2,10 +2,25 @@ import os
 import inspect
 import click
 import json
+import glob
+import coconnect
 import coconnect.tools as tools
 from coconnect.cdm import load_csv
-    
 
+def get_file(f_in):
+    try:
+        data = json.load(open(f_in))
+    except FileNotFoundError as err:
+        try:
+            data_dir = os.path.dirname(coconnect.__file__)
+            data_dir = f'{data_dir}/data/'
+            data =  json.load(open(f'{data_dir}{f_in}'))
+        except FileNotFoundError:
+            raise FileNotFoundError(err)
+
+    return data
+
+    
 @click.group()
 def map():
     pass
@@ -13,27 +28,30 @@ def map():
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
 def show(rules):
-    data = json.load(open(rules))
+    data = get_file(rules)
     print (json.dumps(data,indent=6))
 
 @click.command(help="Display the OMOP mapping json as a DAG")
 @click.argument("rules")
 def display(rules):
-    data = json.load(open(rules))
+    data = get_file(rules)
     tools.make_dag(data,render=True) 
 
 @click.command(help="Generate a python class from the OMOP mapping json")
-@click.argument("name")
+@click.option("--name",
+              required=True,
+              help="give the name of the dataset, this will be the name of the .py class file created")
 @click.argument("rules")
 #@click.option("--",
 #              is_flag=True,
 #              help="")
 def make_class(name,rules):
-    data = json.load(open(rules))
+    data = get_file(rules)
     tools.extract.make_class(name,data)
 
     
 def get_classes():
+    import time
     from coconnect.cdm import classes
     _dir = os.path.dirname(classes.__file__)
     files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
@@ -43,7 +61,11 @@ def get_classes():
         mname = '.'.join([classes.__name__, mname])
         module = __import__(mname,fromlist=[fname])
         defined_classes = {
-            m[0]:m[1].__module__
+            m[0]: {
+                'module':m[1].__module__,
+                'path': os.path.join(_dir,fname),
+                'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(_dir,fname))))
+            }
             for m in inspect.getmembers(module, inspect.isclass)
             if m[1].__module__ == module.__name__
         }
@@ -57,23 +79,47 @@ def list_classes():
         
 
 @click.command(help="Perform OMOP Mapping")
-@click.argument("dataset")
+@click.option("--name",
+              required=True,
+              help="give the name of the dataset, use 'coconnect map list' to see what classes have been registered")
+@click.option("--type",
+              default='csv',
+              type=click.Choice(['csv']),
+              help="specify the type of inputs, the default is .csv inputs")
 @click.argument("inputs",
                 nargs=-1)
-def run(dataset,inputs):
+def run(name,inputs,type):
 
-    inputs = load_csv(
-        {
-            x.split("/")[-1]:x
-            for x in inputs
-        })
+    #check if exists
+    if any('*' in x for x in inputs):
+        data_dir = os.path.dirname(coconnect.__file__)
+        data_dir = f'{data_dir}/data/'
 
+        new_inputs = []
+        for i,x in enumerate(inputs):
+            if not os.path.exists(x):
+                new_inputs.extend(glob.glob(f"{data_dir}/{x}"))
+            else:
+                new_inputs.append(x)
+        inputs = new_inputs
+                
+    inputs = {
+        x.split("/")[-1]:x
+        for x in inputs
+    }
+
+
+    if type == 'csv':
+        inputs = load_csv(inputs)
+    else:
+        raise NotImplementedError("Can only handle inputs that are .csv so far")
+        
     available_classes = get_classes()
-    if dataset not in available_classes:
+    if name not in available_classes:
         print (available_classes)
-        raise KeyError(f"cannot find config for {dataset}")
+        raise KeyError(f"cannot find config for {name}")
 
-    module = __import__(available_classes[dataset],fromlist=[dataset])
+    module = __import__(available_classes[name]['module'],fromlist=[name])
     defined_classes = [
         m[0]
         for m in inspect.getmembers(module, inspect.isclass)
