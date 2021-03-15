@@ -3,6 +3,9 @@ import json
 import pandas as pd
 import numpy as np
 
+class MultiplePersonDefined(Exception):
+    pass
+
 class MissConfiguredStructuralMapping(Exception):
     pass
 
@@ -135,6 +138,11 @@ class StructuralMapping:
                             _map[destination_table][j][destination_field] = obj
 
 
+        if len(_map['person']) > 1:
+            print (json.dumps(_map['person'],indent=6))
+            raise MultiplePersonDefined("Something wrong, more than one person object is being defined"
+                                        "Likely because a mapping has been defined twice")
+                            
         if not save is None:
             json.dump(_map,open(save,'w'),indent=6)
         return _map
