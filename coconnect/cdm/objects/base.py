@@ -68,7 +68,7 @@ class Base(object):
         """
         if 'person_id' in df.columns:
             masker = {
-                x:i+1
+                x:i+1 #start from 1
                 for i,x in enumerate(sorted(df['person_id'].unique()))
             }
             
@@ -78,6 +78,10 @@ class Base(object):
         return df
 
 
+    def set_name(self,name):
+        self.name = name
+        self.logger.name = self.name
+    
     def define(self,_):
         """
         define function, expected to be overloaded by the user defining the object

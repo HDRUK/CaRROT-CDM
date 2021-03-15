@@ -104,22 +104,21 @@ class CommonDataModel:
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df()
-            self.logger.info(f".. {i}/{len(objects)} of length {len(df)}") 
+            self.logger.info(f"finished {obj.name} "
+                             f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:
+                self.logger.warning(f".. {i}/{len(objects)}  no outputs were found ")
                 continue
          
             dfs.append(df)
 
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
-        df_destination = pd.concat(dfs,ignore_index=True) 
-            
-        
+        df_destination = pd.concat(dfs,ignore_index=True)
         self.logger.info(f'Finalising {class_type}')
         df_destination = objects[0].finalise(df_destination)
         self.logger.info(f'Formating the output for {class_type}')
         df_destination = objects[0].format(df_destination,raise_error=False)
-
         
         return df_destination
 

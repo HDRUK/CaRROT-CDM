@@ -1,3 +1,4 @@
+import pandas as pd
 from .base import Base
 
 class ConditionOccurrence(Base):
@@ -39,7 +40,17 @@ class ConditionOccurrence(Base):
         """
 
         df = super().get_df()
+
+        #make sure the concept_ids are numeric, otherwise set them to null
+        df['condition_concept_id'] = pd.to_numeric(df['condition_concept_id'],errors='coerce')
+
         #require the condition_concept_id to be filled
-        df = df[df['condition_concept_id'].notnull()]
+        nulls = df['condition_concept_id'].isnull()
+        if nulls.all():
+            self.logger.error("the condition_concept_id for this instance is all null")
+            self.logger.error("most likely because there is no term mapping applied")
+            self.logger.error("automatic conversion to a numeric has failed")
+            
+        df = df[~nulls]
         
         return df
