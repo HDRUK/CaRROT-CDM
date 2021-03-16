@@ -1,4 +1,4 @@
-from .objects import Person, ConditionOccurrence
+from .objects import Person, ConditionOccurrence,Measurement
 
 def define_person(defs):
     p = Person()
@@ -8,6 +8,12 @@ def define_person(defs):
 
 def define_condition_occurrence(defs):
     c = ConditionOccurrence()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c
+
+def define_measurement(defs):
+    c = Measurement()
     c.define = defs
     c.set_name(defs.__name__)
     return c

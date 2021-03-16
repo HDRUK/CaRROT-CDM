@@ -4,11 +4,11 @@ from coconnect.tools import mapping_pipeline_helpers
 
 structural_mapping = mapping_pipeline_helpers\
     .StructuralMapping\
-    .to_json('University of Nottingham_PANTHER ds_structural_mapping.csv',
-             'University of Nottingham_PANTHER ds_term_mapping.csv',
+    .to_json('University of Nottingham_PANTHER ds_structural_mapping-3.csv',
+             'University of Nottingham_PANTHER ds_term_mapping-2.csv',
              save = 'panther_structural_mapping.json',
              strict = False,
-             destination_tables = ['person','condition_occurrence']
+             destination_tables = ['person','condition_occurrence','measurement']
     )
 
 
