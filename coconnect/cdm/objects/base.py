@@ -107,10 +107,13 @@ class Base(object):
            that: input object class where input objects can be loaded 
                  and the define/finalise functions can be overloaded
         """
+
         #extract all objects from the passed object
         objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
         #add objects to this class
         self.__dict__.update(objs)
+
+        
         #execute the define function that is likely to define the cdm fields based on inputs
         self = self.define(self)
 

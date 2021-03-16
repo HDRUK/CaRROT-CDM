@@ -1,4 +1,4 @@
-from .objects import Person, ConditionOccurrence
+from .objects import Person, ConditionOccurrence, VisitOccurrence
 
 def define_person(defs):
     p = Person()
@@ -11,3 +11,11 @@ def define_condition_occurrence(defs):
     c.define = defs
     c.set_name(defs.__name__)
     return c
+
+def define_visit_occurrence(defs):
+    c = VisitOccurrence()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c
+
+

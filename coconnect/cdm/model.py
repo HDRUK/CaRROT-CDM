@@ -7,11 +7,12 @@ import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Person, ConditionOccurrence
+from .objects import Person, ConditionOccurrence, VisitOccurrence
 
 _classes = {
     'person' : Person,
-    'condition_occurrence' : ConditionOccurrence
+    'condition_occurrence' : ConditionOccurrence,
+    'visit_occurrence': VisitOccurrence
 }
 
 class NoInputFiles(Exception):
@@ -109,7 +110,7 @@ class CommonDataModel:
             if len(df) == 0:
                 self.logger.warning(f".. {i}/{len(objects)}  no outputs were found ")
                 continue
-         
+
             dfs.append(df)
 
         #merge together
@@ -129,6 +130,8 @@ class CommonDataModel:
         self.logger.info(f'finalised {Person.name}')
         self.df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
         self.logger.info(f'finalised {ConditionOccurrence.name}')
+        self.df_map[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
+        self.logger.info(f'finalised {VisitOccurrence.name}')
         self.save_to_file(self.df_map,f_out)
         
     def save_to_file(self,df_map,f_out):
