@@ -20,12 +20,6 @@ con_str =f'postgresql://{db_user}%40{db_host}:{db_password}@{db_host}:{db_port}/
 ngin = sql.create_engine(con_str)
 inspector = sql.inspect(ngin)
 
-#schema = 'information_schema'
-#info_tables = [
-#    table
-#    for table in inspector.get_table_names(schema=schema)
-#]
-
 schema = 'public'
 omop_tables = [
     table
@@ -35,14 +29,39 @@ omop_tables.sort()
 
 print (json.dumps(omop_tables,indent=6))
 
-def get_df(table,schema=schema):
+ 
+selection = r'''
+SELECT *
+FROM public.concept
+WHERE (concept_id=8507 OR concept_id=8532)
+'''#8532
+df = pd.read_sql(selection,ngin).drop(['valid_start_date','valid_end_date','invalid_reason'],axis=1)
+print (df)
+
+for table in filter(lambda tab: 'concept' in tab, omop_tables):
+    selection = r'''
+    SELECT *
+    FROM public.%s
+    LIMIT 10;
+    '''%(table)
+    print (table)
+    df = pd.read_sql(selection,ngin)
+    print (df.columns)
+    print (df)
+    print ()
+
+exit(0)
+
+def get_full_df(table,schema=schema):
     selection = r'''
     SELECT *
     FROM %s.%s
     '''%(schema,table)
     return pd.read_sql(selection,ngin)
 
-print (get_df('person').columns.values)
+print (get_full_df('person').columns.values)
+
+
 
 #omop_fields = {
 #    table: get_df(table).columns
