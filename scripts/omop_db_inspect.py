@@ -38,7 +38,7 @@ class OMOPDetails():
         self.get_target_concept_id_and_table(source_concept_id)
 
     def get_target_concept_id_and_table(self,source_concept_id):
-        #use omop db to get target concept ID and its table
+        #From OMOP db get concept relationship
         select_from_concept = r'''
         SELECT *
         FROM public.concept
@@ -51,11 +51,9 @@ class OMOPDetails():
         '''
         df_concept = pd.read_sql(select_from_concept%(source_concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
         df_relationship = pd.read_sql(select_from_concept_relationship%(source_concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
-        print ()
-        print (df_concept.T)
-        print ()
-        print (df_relationship.T)
         relationships=df_relationship['relationship_id'].tolist()
+        #1)Check if source_concept_id is Standard or Non-standard
+        #2)Get the relevant target table for the source_concept_id
         for relationship in relationships:
             if relationship=="Mapped from":
                 self.is_standard="Standard"
