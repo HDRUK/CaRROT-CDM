@@ -31,19 +31,50 @@ omop_tables.sort()
 print (json.dumps(omop_tables,indent=6))
 
 
-for _id in ['8507','8532','4057304','36716287','37398192','378253']:
-    selection = r'''
-    SELECT *
-    FROM public.concept
-    WHERE concept_id=%s
+# for _id in ['8507','8532','4057304','36716287','37398192','378253','40305063']:
+#     selection = r'''
+#     SELECT *
+#     FROM public.concept
+#     WHERE concept_id=%s
+#     '''
+#     df = pd.read_sql(selection%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+#     print ()
+#     print (df.T)
+#     class_id = df['concept_class_id'].iloc[0]
+#     domain_id = df['domain_id'].iloc[0]
+#     #print (class_id)
+#     #print (domain_id)
+# exit(0)
+for _id in ['8507','378253','40305063']:
+    selection1 = r'''
+     SELECT *
+     FROM public.concept
+     WHERE concept_id=%s
     '''
-    df = pd.read_sql(selection%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+    selection2 = r'''
+    SELECT *
+    FROM public.concept_relationship
+    WHERE concept_id_1=%s
+    '''
+    df = pd.read_sql(selection1%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+    df2 = pd.read_sql(selection2%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
     print ()
     print (df.T)
-    class_id = df['concept_class_id'].iloc[0]
-    domain_id = df['domain_id'].iloc[0]
+    print ()
+    print (df2.T)
+    is_standard = df['standard_concept'].iloc[0]
+    if is_standard=='S':
+        print("Standard")
+        domain_id = df['domain_id'].iloc[0]
+        print (domain_id)
+    elif is_standard is None:
+        print('Non-standard')
+        standard_concept_id=df2['concept_id_2'].iloc[0]
+        print(standard_concept_id)
+
+
     #print (class_id)
-    #print (domain_id)
+    
 exit(0)
 
 selection = r'''
