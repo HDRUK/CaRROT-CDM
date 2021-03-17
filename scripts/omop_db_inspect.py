@@ -30,42 +30,94 @@ omop_tables.sort()
 
 print (json.dumps(omop_tables,indent=6))
 
-for _id in ['8507','378253','40305063','4060225']:
-    select_from_concept = r'''
-     SELECT *
-     FROM public.concept
-     WHERE concept_id=%s
-    '''
-    select_from_concept_relationship = r'''
-    SELECT *
-    FROM public.concept_relationship
-    WHERE concept_id_1=%s
-    '''
-    df_concept = pd.read_sql(select_from_concept%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
-    df_relationship = pd.read_sql(select_from_concept_relationship%(_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
-    print ()
-    print (df_concept.T)
-    print ()
-    print (df_relationship.T)
-    relationships=df_relationship['relationship_id'].tolist()
-    for relationship in relationships:
-        if relationship=="Mapped from":
-            is_standard="Standard"
-            concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
-            source_concept_id=concept_id
-            destination_table = df_concept['domain_id'].iloc[relationships.index(relationship)]
-        elif relationship=="Concept same_as to":
-            is_standard="Non-Standard"
-            source_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
-            concept_id=df_relationship['concept_id_2'].iloc[relationships.index(relationship)]
-            
-            destination_table = df_concept['domain_id'].iloc[0]
-    print()
-    print("Mapping is: ",is_standard)
-    print("concept_id is: ",concept_id)
-    print("source_concept_id is",source_concept_id)
-    print ("Destination Table is:",destination_table)
-exit(0)
+
+class OMOPDetails():
+    source_concept_id= ""
+    target_concept_id= ""
+    target_table = ""
+
+    def __init__(self, source_concept_id):
+        self.source_concept_id= source_concept_id
+        self.get_target_concept_id_and_table(source_concept_id)
+
+    def get_target_concept_id_and_table(self,source_concept_id):
+        #use omop db to get target concept ID and its table
+        select_from_concept = r'''
+        SELECT *
+        FROM public.concept
+        WHERE concept_id=%s
+        '''
+        select_from_concept_relationship = r'''
+        SELECT *
+        FROM public.concept_relationship
+        WHERE concept_id_1=%s
+        '''
+        df_concept = pd.read_sql(select_from_concept%(source_concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+        df_relationship = pd.read_sql(select_from_concept_relationship%(source_concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+        print ()
+        print (df_concept.T)
+        print ()
+        print (df_relationship.T)
+        relationships=df_relationship['relationship_id'].tolist()
+        for relationship in relationships:
+            if relationship=="Mapped from":
+                self.is_standard="Standard"
+                self.target_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
+                self.source_concept_id=self.target_concept_id
+                self.target_table = df_concept['domain_id'].iloc[relationships.index(relationship)]
+            elif relationship=="Concept same_as to":
+                self.is_standard="Non-Standard"
+                self.source_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
+                self.target_concept_id=df_relationship['concept_id_2'].iloc[relationships.index(relationship)]
+                self.target_table = df_concept['domain_id'].iloc[0]
+
+concept_id=4060225
+detail1=OMOPDetails(concept_id)
+print(detail1.target_concept_id)
+print(detail1.target_table)
+print(detail1.is_standard)
+
+exit(0) 
+        
+
+
+# def get_mapping_rules(concept_id):
+#     select_from_concept = r'''
+#      SELECT *
+#      FROM public.concept
+#      WHERE concept_id=%s
+#     '''
+#     select_from_concept_relationship = r'''
+#     SELECT *
+#     FROM public.concept_relationship
+#     WHERE concept_id_1=%s
+#     '''
+#     df_concept = pd.read_sql(select_from_concept%(concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+#     df_relationship = pd.read_sql(select_from_concept_relationship%(concept_id),ngin).drop(["valid_start_date","valid_end_date","invalid_reason"],axis=1)
+#     print ()
+#     print (df_concept.T)
+#     print ()
+#     print (df_relationship.T)
+#     relationships=df_relationship['relationship_id'].tolist()
+#     for relationship in relationships:
+#         if relationship=="Mapped from":
+#             is_standard="Standard"
+#             concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
+#             source_concept_id=concept_id
+#             destination_table = df_concept['domain_id'].iloc[relationships.index(relationship)]
+#         elif relationship=="Concept same_as to":
+#             is_standard="Non-Standard"
+#             source_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
+#             concept_id=df_relationship['concept_id_2'].iloc[relationships.index(relationship)]
+#             destination_table = df_concept['domain_id'].iloc[0]
+#     print()
+#     print("Mapping is: ",is_standard)
+#     print("concept_id is: ",concept_id)
+#     print("source_concept_id is",source_concept_id)
+#     print("Destination Table is:",destination_table)
+
+# get_mapping_rules("4060225")
+
 
 selection = r'''
 SELECT *
