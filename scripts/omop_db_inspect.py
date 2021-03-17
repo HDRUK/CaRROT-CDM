@@ -45,7 +45,7 @@ print (json.dumps(omop_tables,indent=6))
 #     #print (class_id)
 #     #print (domain_id)
 # exit(0)
-for _id in ['8507','378253','40305063']:
+for _id in ['8507','378253','40305063','4060225']:
     selection1 = r'''
      SELECT *
      FROM public.concept
@@ -62,19 +62,31 @@ for _id in ['8507','378253','40305063']:
     print (df.T)
     print ()
     print (df2.T)
-    is_standard = df['standard_concept'].iloc[0]
-    if is_standard=='S':
-        print("Standard")
-        domain_id = df['domain_id'].iloc[0]
-        print (domain_id)
-    elif is_standard is None:
-        print('Non-standard')
-        standard_concept_id=df2['concept_id_2'].iloc[0]
-        print(standard_concept_id)
-
-
-    #print (class_id)
-    
+    relationships=df2['relationship_id'].tolist()
+    for relationship in relationships:
+        if relationship=="Mapped from":
+            print("Standard")
+            domain_id = df['domain_id'].iloc[relationships.index(relationship)]
+            print (domain_id)
+        elif relationship=="Concept same_as to":
+            print("Non-standard")
+            standard_concept_id=df2['concept_id_2'].iloc[0]
+            domain_id = df['domain_id'].iloc[0]
+            print(standard_concept_id)
+            print (domain_id)
+        
+        
+    # is_standard = df['standard_concept'].iloc[0]
+    # if is_standard=='S':
+    #     print("Standard")
+    #     domain_id = df['domain_id'].iloc[0]
+    #     print (domain_id)
+    # elif is_standard is None:
+    #     print('This concept_id is Non-standard')
+    #     standard_concept_id=df2['concept_id_2'].iloc[0]
+    #     print("Non-standard to standard mapping: ",standard_concept_id)
+    #     domain_id = df['domain_id'].iloc[0]
+    #     print ("Destination Table is: ",domain_id)
 exit(0)
 
 selection = r'''
