@@ -15,7 +15,7 @@ class OMOPDetails():
         con_str =f'postgresql://{db_user}%40{db_host}:{db_password}@{db_host}:{db_port}/{db_name}'
         self.ngin = sql.create_engine(con_str)
 
-        self.inspector = sql.inspect(ngin)
+        self.inspector = sql.inspect(self.ngin)
         self.schema = 'public'
         self.omop_tables = [
             table
