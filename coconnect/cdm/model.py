@@ -48,8 +48,9 @@ class CommonDataModel:
             if self.inputs == None:
                 raise NoInputFiles('You need to set or specify the input files.') 
 
+            self.initialise(self)
             self.finalise()
-            
+
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)
 

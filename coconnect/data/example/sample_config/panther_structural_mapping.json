@@ -1,456 +1,587 @@
 {
-      "person": [
-            {
-                  "birth_datetime": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
-                  "day_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
-                  "gender_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "gender",
-                        "term_mapping": {
-                              "M": 8507,
-                              "F": 8532
-                        }
-                  },
-                  "gender_source_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "gender",
-                        "term_mapping": {
-                              "M": 8507,
-                              "F": 8532
-                        }
-                  },
-                  "gender_source_value": {
-                        "source_table": "demographic.csv",
-                        "source_field": "gender",
-                        "term_mapping": null
-                  },
-                  "location_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "area",
-                        "term_mapping": {
-                              "Rushcliffe": 4021920,
-                              "Gedling": 4021920,
-                              "Erewash": 4021920,
-                              "Ashfield": 4021920,
-                              "Derby": 4021920,
-                              "Amber Valley": 4021920,
-                              "Charnwood": 4021920,
-                              "South Derbyshire": 4021920,
-                              "Mansfield": 4021920,
-                              "Broxtowe": 4021920,
-                              "Newark and Sherwood": 4021920,
-                              "Nottingham": 4021920
-                        }
-                  },
-                  "month_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "race_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "ethnicity",
-                        "term_mapping": {
-                              "WHITE BRITISH": 4196428,
-                              "ASIAN OTHER": 4087922,
-                              "BLACK CARIBBEAN": 4087917,
-                              "INDIAN": 4185920,
-                              "BLACK AFRICAN": 4057568
-                        }
-                  },
-                  "race_source_concept_id": {
-                        "source_table": "demographic.csv",
-                        "source_field": "ethnicity",
-                        "term_mapping": {
-                              "WHITE BRITISH": 4196428,
-                              "ASIAN OTHER": 4087922,
-                              "BLACK CARIBBEAN": 4087917,
-                              "INDIAN": 4185920,
-                              "BLACK AFRICAN": 4057568
-                        }
-                  },
-                  "race_source_value": {
-                        "source_table": "demographic.csv",
-                        "source_field": "ethnicity",
-                        "term_mapping": null
-                  },
-                  "year_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  }
+      "metadata": {
+            "datapartner": "University of Nottingham",
+            "dataset": "Panther",
+            "date_created": "2021-03-17T22:10:31.022137",
+            "person_id": {
+                  "ClassifedRoledata.csv": "ID Number",
+                  "Demographic.csv": "Study number",
+                  "Freezer.csv": "Serum 7PATIENT ID",
+                  "HTA Log 04062020.csv": "Sample ID",
+                  "Questionnaire.csv": "ID",
+                  "Serum 1.csv": "PATIENT ID",
+                  "Serum short.csv": "PATIENT ID",
+                  "Tracker.csv": "ID Number",
+                  "Visit 1.csv": "ID"
             }
-      ],
-      "condition_occurrence": [
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "headache",
-                        "term_mapping": {
-                              "Y": 378253,
-                              "Yes": 378253
+      },
+      "cdm": {
+            "person": [
+                  {
+                        "birth_datetime": {
+                              "source_table": "tracker.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "day_of_birth": {
+                              "source_table": "tracker.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "gender_concept_id": {
+                              "source_table": "demographic.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_concept_id": {
+                              "source_table": "demographic.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_value": {
+                              "source_table": "demographic.csv",
+                              "source_field": "gender",
+                              "term_mapping": null
+                        },
+                        "location_id": {
+                              "source_table": "demographic.csv",
+                              "source_field": "area",
+                              "term_mapping": {
+                                    "Rushcliffe": 4021920,
+                                    "Gedling": 4021920,
+                                    "Erewash": 4021920,
+                                    "Ashfield": 4021920,
+                                    "Derby": 4021920,
+                                    "Amber Valley": 4021920,
+                                    "Mansfield": 4021920,
+                                    "Charnwood": 4021920,
+                                    "South Derbyshire": 4021920,
+                                    "Broxtowe": 4021920,
+                                    "Newark and Sherwood": 4021920,
+                                    "Nottingham": 4021920
+                              }
+                        },
+                        "month_of_birth": {
+                              "source_table": "tracker.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "race_concept_id": {
+                              "source_table": "demographic.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 4196428,
+                                    "ASIAN OTHER": 4087922,
+                                    "BLACK CARIBBEAN": 4087917,
+                                    "INDIAN": 4185920,
+                                    "BLACK AFRICAN": 4057568
+                              }
+                        },
+                        "race_source_concept_id": {
+                              "source_table": "demographic.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 4196428,
+                                    "ASIAN OTHER": 4087922,
+                                    "BLACK CARIBBEAN": 4087917,
+                                    "INDIAN": 4185920,
+                                    "BLACK AFRICAN": 4057568
+                              }
+                        },
+                        "race_source_value": {
+                              "source_table": "demographic.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": null
+                        },
+                        "year_of_birth": {
+                              "source_table": "tracker.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        }
+                  }
+            ],
+            "condition_occurrence": [
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "headache",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "headache",
+                              "term_mapping": {
+                                    "Y": 378253,
+                                    "Yes": 378253
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "headache",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "muscle pain",
-                        "term_mapping": {
-                              "Y": 442752,
-                              "Yes": 442752
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "muscle pain",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "muscle pain",
+                              "term_mapping": {
+                                    "Y": 442752,
+                                    "Yes": 442752
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "muscle pain",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "breathing difficulty",
-                        "term_mapping": {
-                              "Y": 4041664
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "breathing difficulty",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "breathing difficulty",
+                              "term_mapping": {
+                                    "Y": 4041664
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "breathing difficulty",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fever",
-                        "term_mapping": {
-                              "Y": 437663
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "fever",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "fever",
+                              "term_mapping": {
+                                    "Y": 437663
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fever",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "sore throat",
-                        "term_mapping": {
-                              "Y": 4147326,
-                              "Yes": 4147326
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "sore throat",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "sore throat",
+                              "term_mapping": {
+                                    "Y": 4147326,
+                                    "Yes": 4147326
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "sore throat",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "dry cough",
-                        "term_mapping": {
-                              "Yes": 4038519,
-                              "Y": 4038519
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "dry cough",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "dry cough",
+                              "term_mapping": {
+                                    "Yes": 4038519,
+                                    "Y": 4038519
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "dry cough",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "wet cough",
-                        "term_mapping": {
-                              "Yes": 4102774,
-                              "Y": 4102774
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "wet cough",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "wet cough",
+                              "term_mapping": {
+                                    "Y": 4102774,
+                                    "Yes": 4102774
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "wet cough",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fatigue",
-                        "term_mapping": {
-                              "Y": 4223659,
-                              "Yes": 4223659
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "fatigue",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "fatigue",
+                              "term_mapping": {
+                                    "Y": 4223659,
+                                    "Yes": 4223659
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "fatigue",
-                        "term_mapping": null
-                  }
-            },
-            {
-                  "condition_end_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_end_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_date": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "condition_start_datetime": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "date of visit",
-                        "term_mapping": null
-                  },
-                  "person_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "id",
-                        "term_mapping": null
-                  },
-                  "condition_concept_id": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "loss of smell taste",
-                        "term_mapping": {
-                              "Y": 4289517
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "loss of smell taste",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "loss of smell taste",
+                              "term_mapping": {
+                                    "Y": 4289517
+                              }
                         }
                   },
-                  "condition_source_value": {
-                        "source_table": "questionnaire.csv",
-                        "source_field": "loss of smell taste",
-                        "term_mapping": null
+                  {
+                        "condition_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "other",
+                              "term_mapping": null
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "other",
+                              "term_mapping": null
+                        }
                   }
-            }
-      ]
+            ],
+            "visit_occurrence": [
+                  {
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "visit_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "visit number",
+                              "term_mapping": null
+                        },
+                        "visit_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_occurrence_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "visit number",
+                              "term_mapping": null
+                        }
+                  },
+                  {
+                        "person_id": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "id",
+                              "term_mapping": null
+                        },
+                        "visit_end_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_end_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_source_value": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "visit number",
+                              "term_mapping": null
+                        },
+                        "visit_start_date": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_start_datetime": {
+                              "source_table": "questionnaire.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null
+                        },
+                        "visit_occurrence_id": {
+                              "source_table": "serum 1.csv",
+                              "source_field": "visit",
+                              "term_mapping": null
+                        }
+                  }
+            ]
+      }
 }

@@ -47,7 +47,7 @@ def display(rules):
 #              help="")
 def make_class(name,rules):
     data = get_file(rules)
-    tools.extract.make_class(name,data)
+    tools.extract.make_class(data,name)
 
     
 def get_classes():

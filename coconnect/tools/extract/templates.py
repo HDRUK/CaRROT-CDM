@@ -6,16 +6,24 @@ from coconnect.cdm import CommonDataModel
 import json
 
 class {{ name }}(CommonDataModel):
-
+    {{ init }}
     {% for object in objects -%}
     {{ object }}
     {%- endfor %}
-
 
 if __name__ == '__main__':
     {{ name }}()
 
 ''')
+
+init = Template(r'''
+    def initialise(self):
+        {% for ds,pk in person_ids.items() -%}
+        self.inputs["{{ ds }}"].set_index("{{ pk }}")
+        {% endfor %} 
+''')
+
+rule = Template(r'''self.{{ destination_field }} = self.inputs["{{ source_table }}"]["{{ source_field }}"]''')
 
 obj = Template(r'''
     @define_{{ object_name }}
@@ -23,6 +31,5 @@ obj = Template(r'''
         {% for rule in map_rules -%}
         {{ rule }}
         {% endfor %}
-
 ''')
 

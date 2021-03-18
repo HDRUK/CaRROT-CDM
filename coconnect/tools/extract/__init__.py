@@ -8,14 +8,14 @@ from coconnect.cdm import classes
 from coconnect.tools.logger import Logger
 logger = Logger("extract")
 
-def make_class(name,
-               structural_mapping,
+def make_class(data,
+               name=None,
                f_inputs=None):
                
-
-    #inputs = "test"#json.dumps({x.split("/")[-1]: x for x in sorted(glob.glob(f_inputs))},indent=6)
-
-
+    
+    structural_mapping = data['cdm']
+    person_ids = data['metadata']['person_id']
+    
     objects = []
     for destination_table,_map in structural_mapping.items():
         for i,obj in enumerate(_map):
@@ -24,7 +24,10 @@ def make_class(name,
             for destination_field,source in sorted(obj.items()):
                 source_field = source['source_field']
                 source_table = source['source_table']
-                map_rules.append(f'self.{destination_field} = self.inputs["{source_table}"]["{source_field}"]')
+                rule = templates.rule.render(destination_field=destination_field,
+                                             source_table=source_table,
+                                             source_field=source_field)
+                map_rules.append(rule)
 
             #add a line break
             map_rules.append('')
@@ -50,8 +53,10 @@ def make_class(name,
                 object_name=destination_table,
                 map_rules=map_rules))
 
-    #source_code = templates.cls.render(name='Panther', inputs=inputs, objects=objects)
-    source_code = templates.cls.render(name=name, objects=objects)
+
+    person_ids = { k.lower():v.lower() for k,v in person_ids.items() }
+    init = templates.init.render(person_ids=person_ids)
+    source_code = templates.cls.render(name=name, init=init, objects=objects)
 
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
     fname = f'{save_dir}/{name}.py'
