@@ -8,6 +8,7 @@ import collections
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence
+from .objects import Init
 
 _classes = {
     'person' : Person,
@@ -34,12 +35,13 @@ class CommonDataModelTypes(collections.OrderedDict):
 
 class CommonDataModel:
 
-    def __init__(self,inputs=None,_start_on_init=True):
+    def __init__(self,inputs=None,output_folder=None,_start_on_init=True):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
         self.dtypes = CommonDataModelTypes()
         self.inputs = inputs
+        self.output_folder = output_folder
         
         if _start_on_init:
             self.tools = OperationTools()
@@ -48,8 +50,7 @@ class CommonDataModel:
             if self.inputs == None:
                 raise NoInputFiles('You need to set or specify the input files.') 
 
-            self.initialise(self)
-            self.finalise()
+            self.process()
 
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)
@@ -125,7 +126,15 @@ class CommonDataModel:
         return df_destination
 
         
-    def finalise(self,f_out='output_data/'):
+    def process(self,f_out='output_data/'):
+
+        init_objects = self.get_objs(Init)
+        for obj in init_objects:
+            obj.define(self)
+        
+        if not self.output_folder is None:
+            f_out = self.output_folder
+        
         self.df_map = {}
         self.df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')

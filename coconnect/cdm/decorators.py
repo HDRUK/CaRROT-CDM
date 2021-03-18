@@ -1,5 +1,12 @@
 from .objects import Person, ConditionOccurrence, VisitOccurrence
+from .objects import Init
 
+def init(defs):
+    i = Init()
+    i.define = defs
+    i.__name__ = defs.__name__
+    return i
+    
 def define_person(defs):
     p = Person()
     p.define = defs

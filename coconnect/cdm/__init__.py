@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from .model import CommonDataModel
 from .objects import Person, ConditionOccurrence, VisitOccurrence
 from .decorators import define_person, define_condition_occurrence, define_visit_occurrence
-
+from .decorators import init
 
 def load_csv(_map,nrows=None,load_path=""):
     for key,fname in _map.items():

@@ -1,7 +1,8 @@
 from jinja2 import Template
 
 cls = Template(r'''
-from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence, load_csv
+from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence
+from coconnect.cdm import init
 from coconnect.cdm import CommonDataModel
 import json
 
@@ -17,9 +18,10 @@ if __name__ == '__main__':
 ''')
 
 init = Template(r'''
+    @init
     def initialise(self):
         {% for ds,pk in person_ids.items() -%}
-        self.inputs["{{ ds }}"].set_index("{{ pk }}")
+        self.inputs["{{ ds }}"].index = self.inputs["{{ ds }}"]["{{ pk }}"].rename('index')
         {% endfor %} 
 ''')
 
