@@ -4,3 +4,5 @@ coloredlogs
 Jinja2
 graphviz
 click
+sqlalchemy
+
