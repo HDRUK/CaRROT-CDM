@@ -7,6 +7,7 @@ import numpy as np
 class MultipleDomainsForInputConcepts(Exception):
     pass
 
+
 class OMOPDetails():
     def __init__(self):
         db_name = os.environ['OMOP_POSTGRES_DB']
