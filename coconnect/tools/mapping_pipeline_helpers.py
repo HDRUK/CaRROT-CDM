@@ -138,7 +138,8 @@ class StructuralMapping:
                             _map[destination_table][j][destination_field] = obj
 
 
-        if len(_map['person']) > 1:
+                            
+        if 'person' in _map and len(_map['person']) > 1:
             print (json.dumps(_map['person'],indent=6))
             raise MultiplePersonDefined("Something wrong, more than one person object is being defined"
                                         "Likely because a mapping has been defined twice")
