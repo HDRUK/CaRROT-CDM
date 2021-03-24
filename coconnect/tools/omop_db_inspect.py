@@ -8,7 +8,20 @@ class MultipleDomainsForInputConcepts(Exception):
     pass
 
 
+
+
 class OMOPDetails():
+
+    @classmethod
+    def to_df(self,_version = 'v5_3_1'):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        f_path = f'{dir_path}/../data/cdm/OMOP_CDM_{_version}.csv'
+        self.cdm = pd.read_csv(f_path,encoding="ISO-8859-1")\
+                     .set_index('table')[['field']]
+        
+        return self.cdm
+
+    
     def __init__(self):
         db_name = os.environ['OMOP_POSTGRES_DB']
         db_user = os.environ['OMOP_POSTGRES_USER']
@@ -23,11 +36,6 @@ class OMOPDetails():
         self.inspector = sql.inspect(self.ngin)
         self.schema = 'public'
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        _version = 'v5_3_1'
-        f_path = f'{dir_path}/../data/cdm/OMOP_CDM_{_version}.csv'
-        self.cdm = pd.read_csv(f_path,encoding="ISO-8859-1")\
-                     .set_index('table')[['field']]
         
         #self.omop_tables = [
         #    table
