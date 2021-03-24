@@ -44,6 +44,7 @@ class OMOPDetails():
         #self.omop_tables.sort()
 
     def get_rules(self,source_concept_ids):
+        print ("working on",source_concept_ids)
         #From OMOP db get concept relationship
         select_from_concept = r'''
         SELECT *
@@ -103,7 +104,9 @@ class OMOPDetails():
         df_relationship.set_index('concept_id_1',inplace=True)
 
         #join em
-        info = df_concept.join(df_relationship).reset_index()
+        info = df_concept.join(df_relationship)
+        info.index.rename('concept_id',inplace=True)
+        info = info.reset_index()
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
