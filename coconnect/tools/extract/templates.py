@@ -19,8 +19,8 @@ if __name__ == '__main__':
 ''')
 
 init = Template(r'''
-    @init
-    def initialise(self):
+    def __init__(self):
+        super().__init__()
         {% for ds,pk in person_ids.items() -%}
         self.inputs["{{ ds }}"].index = self.inputs["{{ ds }}"]["{{ pk }}"].rename('index')
         {% endfor %} 

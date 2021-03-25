@@ -8,7 +8,6 @@ import collections
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
-from .objects import Init
 
 _classes = {
     'person' : Person,
@@ -129,10 +128,6 @@ class CommonDataModel:
         
     def process(self,f_out='output_data/'):
 
-        init_objects = self.get_objs(Init)
-        for obj in init_objects:
-            obj.define(self)
-        
         if not self.output_folder is None:
             f_out = self.output_folder
         
