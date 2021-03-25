@@ -9,11 +9,11 @@ from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
 
+#lookup for name to class, e.g. "person" : Person
 _classes = {
-    'person' : Person,
-    'condition_occurrence' : ConditionOccurrence,
-    'visit_occurrence': VisitOccurrence,
-    'measurement': Measurement
+    x.name: x
+    for x in [Person, ConditionOccurrence,
+              VisitOccurrence, Measurement]
 }
 
 class NoInputFiles(Exception):
@@ -35,23 +35,32 @@ class CommonDataModelTypes(collections.OrderedDict):
 
 class CommonDataModel:
 
-    def __init__(self,inputs=None,output_folder=None,_start_on_init=True):
+    inputs = None
+    output_folder = "output_data/"
+
+    def __init__(self):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
         self.dtypes = CommonDataModelTypes()
-        self.inputs = inputs
-        self.output_folder = output_folder
+
+        #self.inputs is global at this stage so need to make sure
+        #is registered with __dict__
+        self.inputs = self.inputs
+        self.output_folder = self.output_folder
+
+        #register opereation tools
+        self.tools = OperationTools()
+        self.__dict__.update(self.__class__.__dict__)
         
-        if _start_on_init:
-            self.tools = OperationTools()
-            self.__dict__.update(self.__class__.__dict__)
-            
-            if self.inputs == None:
-                raise NoInputFiles('You need to set or specify the input files.') 
+        if self.inputs == None:
+            raise NoInputFiles('You need to set or specify the input files.') 
 
-            self.process()
-
+    def set_inputs(self,inputs):
+        if not isinstance(inputs,dict):
+            raise NoInputFiles("calling set_inputs with inputs that are not a dict!")
+        self.inputs = inputs
+        
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)
 
