@@ -7,7 +7,7 @@ structural_mapping = mapping_pipeline_helpers\
     .to_json('University of Nottingham_PANTHER_AUTO_structural_mapping.json',
              save = 'panther_structural_mapping.json',
              strict = False,
-             destination_tables = ['person','condition_occurrence','visit_occurrence']
+             destination_tables = ['person','condition_occurrence','measurement','visit_occurrence']
     )
 
 
