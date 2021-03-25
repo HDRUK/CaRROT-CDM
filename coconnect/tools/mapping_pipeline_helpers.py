@@ -13,14 +13,14 @@ class StructuralMapping:
     @classmethod
     def to_json(self,
                 f_structural_mapping,
-                f_term_mapping=None,
                 destination_tables=None,
                 for_synthetic=False,
                 strict=True,
                 save=None):
-        
-        self.df_structural_mapping = pd.read_csv(f_structural_mapping)
 
+
+        self.df_structural_mapping = pd.read_json(f_structural_mapping)
+        
         if for_synthetic:
             for col in ['source_table','source_field']:
                 self.df_structural_mapping[col] = self.df_structural_mapping[col].str.lower()
@@ -29,21 +29,6 @@ class StructuralMapping:
         if destination_tables == None:
             destination_tables = self.df_structural_mapping.index.unique()
 
-        self.df_term_mapping = None
-        if f_term_mapping is not None:
-            self.df_term_mapping = pd.read_csv(f_term_mapping)
-            self.df_term_mapping = self.df_term_mapping\
-                                       .groupby('rule_id')\
-                                       .apply(lambda x: \
-                                              {
-                                                  k:v
-                                                  for k, v in zip(x['source_term'], x['destination_term'])
-                                              })\
-                                       .reset_index()\
-                                       .set_index('rule_id')
-            self.df_term_mapping.columns = ['term_mapping']
-
-            
         _map = {}
         
         for destination_table in destination_tables:
@@ -66,33 +51,6 @@ class StructuralMapping:
                     continue
 
             rules.set_index('destination_field',inplace=True)
-
-            rules['term_mapping'] = rules['term_mapping'].map({'y':True,'n':None})
-
-            #if destination_field.endswith("_source_value") and term_mapping:
-            #    logger.warning(f"why are you trying to map a source value for {destination_field}?")
-            #    logger.warning(f"{source['source_field']}")
-            #    logger.warning(f"{term_mapping}")
-            #    logger.warning(f"Removing! \n")
-            #    continue
-            rules_for_source_value = rules.index.str.endswith("_source_value") \
-                & rules['term_mapping'] == True
-            if rules_for_source_value.any():# and strict:
-                print ("Argh you have rules for source values! Auto fixing these...")
-                rules.loc[rules_for_source_value,'term_mapping'] = None
-
-                
-            
-            if not self.df_term_mapping is None:
-                rules.loc[rules['term_mapping']==True,:] = rules[rules['term_mapping']==True]\
-                     .reset_index()\
-                     .set_index('rule_id')\
-                     .drop('term_mapping',axis=1)\
-                     .join(self.df_term_mapping)\
-                     .set_index('destination_field')\
-                     .replace({np.NaN:None})
-                
-
 
             initial = sorted(values[values==1].index)
 
