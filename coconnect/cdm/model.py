@@ -46,8 +46,8 @@ class CommonDataModel:
 
         #self.inputs is global at this stage so need to make sure
         #is registered with __dict__
-        self.inputs = self.inputs
-        self.output_folder = self.output_folder
+        #self.inputs = self.inputs
+        #self.output_folder = self.output_folder
 
         #register opereation tools
         self.tools = OperationTools()
@@ -56,6 +56,21 @@ class CommonDataModel:
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.') 
 
+    def set_indexing(self,index_map):
+        if self.inputs == None:
+            raise NoInputFiles('Trying to indexing before any inputs have been setup')
+        
+        for key,index in index_map.items():
+            if key not in self.inputs:
+                self.logger.warning(f"trying to set index '{index}' for '{key}' but this has not been loaded as an inputs!")
+                continue
+
+            if index not in self.inputs[key].columns:
+                self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
+                continue
+                
+            self.inputs[key].index = self.inputs[key][index].rename('index') 
+        
     def set_inputs(self,inputs):
         if not isinstance(inputs,dict):
             raise NoInputFiles("calling set_inputs with inputs that are not a dict!")

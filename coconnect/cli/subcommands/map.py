@@ -148,7 +148,9 @@ def run(name,inputs,strip_name,drop_csv_from_name,type):
     for defined_class in defined_classes:
         cls = getattr(module,defined_class)
         cls.inputs = inputs
-        cls()
+        c = cls()
+        c.process()
+        
     
 map.add_command(show,"show")
 map.add_command(display,"display")

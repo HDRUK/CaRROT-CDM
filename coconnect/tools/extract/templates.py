@@ -20,11 +20,17 @@ if __name__ == '__main__':
 init = Template(r'''
     def __init__(self):
         super().__init__()
-        self.logger.info(self.inputs)
-        {% for ds,pk in person_ids.items() -%}
+        self.logger.info(self.inputs.keys())
+        {% if person_ids %}
+        self.set_indexing({{ person_ids }})
+        {% endif %}
+''')
+
+'''
+{% for ds,pk in person_ids.items() -%}
         self.inputs["{{ ds }}"].index = self.inputs["{{ ds }}"]["{{ pk }}"].rename('index')
         {% endfor %} 
-''')
+'''
 
 rule = Template(r'''self.{{ destination_field }} = self.inputs["{{ source_table }}"]["{{ source_field }}"]''')
 
