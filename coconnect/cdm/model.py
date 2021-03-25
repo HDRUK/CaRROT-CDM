@@ -14,7 +14,7 @@ from .objects import Measurement
 _classes = {
     'person' : Person,
     'condition_occurrence' : ConditionOccurrence,
-    'visit_occurrence': VisitOccurrence
+    'visit_occurrence': VisitOccurrence,
     'measurement': Measurement
 }
 
