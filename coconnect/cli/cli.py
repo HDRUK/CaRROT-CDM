@@ -1,4 +1,5 @@
 from .subcommands.map import map
+from .subcommands.find import find
 
 import click
 import json
@@ -13,6 +14,7 @@ def coconnect(loglevel):
 
 
 coconnect.add_command(map, "map")
+coconnect.add_command(find, "find")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 from jinja2 import Template
 
 cls = Template(r'''
-from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence
+from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence, define_measurement, load_csv
 from coconnect.cdm import init
+
 from coconnect.cdm import CommonDataModel
 import json
 

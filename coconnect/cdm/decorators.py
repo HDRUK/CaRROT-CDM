@@ -1,4 +1,4 @@
-from .objects import Person, ConditionOccurrence, VisitOccurrence
+from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
 from .objects import Init
 
 def init(defs):
@@ -25,4 +25,8 @@ def define_visit_occurrence(defs):
     c.set_name(defs.__name__)
     return c
 
-
+def define_measurement(defs):
+    c = Measurement()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c

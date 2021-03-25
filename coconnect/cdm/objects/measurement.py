@@ -13,7 +13,9 @@ class Measurement(Base):
     def finalise(self,df):
         """
         Overloads the finalise method defined in the Base class.
-        For measurement, the _id of the condition is often not set
+
+        For measurement, the _id of the measurement is often not set
+
         Therefore if the series is null, then we just make an incremental index for the _id
 
         Returns:
@@ -21,15 +23,21 @@ class Measurement(Base):
         """
 
         df = super().finalise(df)
+        #df = df.sort_values('person_id')
         if df['measurement_id'].isnull().any():
             df['measurement_id'] = df.reset_index().index + 1
 
+
+        if df['measurement_id'].isnull().any():
+            df['measurement_id'] = df.reset_index().index + 1
+
+            
         return df
         
     def get_df(self):
         """
         Overload/append the creation of the dataframe, specifically for the measurement objects
-        * condition_concept_id is required to be not null
+        * measurement_concept_id is required to be not null
           this can happen when spawning multiple rows from a person
           we just want to keep the ones that have actually been filled
         
@@ -50,6 +58,4 @@ class Measurement(Base):
             self.logger.error("automatic conversion to a numeric has failed")
             
         df = df[~nulls]
-
-        
         return df

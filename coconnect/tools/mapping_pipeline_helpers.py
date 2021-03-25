@@ -17,6 +17,7 @@ class StructuralMapping:
     @classmethod
     def to_json(self,
                 f_structural_mapping,
+<<<<<<< HEAD
                 f_term_mapping,
                 f_primary_key_mapping,
                 destination_tables=None,
@@ -28,6 +29,15 @@ class StructuralMapping:
         
         self.df_structural_mapping = pd.read_csv(f_structural_mapping)
 
+=======
+                destination_tables=None,
+                for_synthetic=False,
+                strict=True,
+                save=None):
+
+
+        self.df_structural_mapping = pd.read_json(f_structural_mapping)
+>>>>>>> origin/master
         
         if for_synthetic:
             for col in ['source_table','source_field']:
@@ -36,6 +46,7 @@ class StructuralMapping:
         self.df_structural_mapping.set_index('destination_table',inplace=True)
         if destination_tables == None:
             destination_tables = self.df_structural_mapping.index.unique()
+<<<<<<< HEAD
             
         self.df_term_mapping = None
         if f_term_mapping is not None:
@@ -52,6 +63,9 @@ class StructuralMapping:
             self.df_term_mapping.columns = ['term_mapping']
 
             
+=======
+
+>>>>>>> origin/master
         _map = {}
         
         for destination_table in destination_tables:
@@ -74,33 +88,6 @@ class StructuralMapping:
                     continue
 
             rules.set_index('destination_field',inplace=True)
-
-            rules['term_mapping'] = rules['term_mapping'].map({'y':True,'n':None})
-
-            #if destination_field.endswith("_source_value") and term_mapping:
-            #    logger.warning(f"why are you trying to map a source value for {destination_field}?")
-            #    logger.warning(f"{source['source_field']}")
-            #    logger.warning(f"{term_mapping}")
-            #    logger.warning(f"Removing! \n")
-            #    continue
-            rules_for_source_value = rules.index.str.endswith("_source_value") \
-                & rules['term_mapping'] == True
-            if rules_for_source_value.any():# and strict:
-                print ("Argh you have rules for source values! Auto fixing these...")
-                rules.loc[rules_for_source_value,'term_mapping'] = None
-
-                
-            
-            if not self.df_term_mapping is None:
-                rules.loc[rules['term_mapping']==True,:] = rules[rules['term_mapping']==True]\
-                     .reset_index()\
-                     .set_index('rule_id')\
-                     .drop('term_mapping',axis=1)\
-                     .join(self.df_term_mapping)\
-                     .set_index('destination_field')\
-                     .replace({np.NaN:None})
-                
-
 
             initial = sorted(values[values==1].index)
 
@@ -146,7 +133,8 @@ class StructuralMapping:
                             _map[destination_table][j][destination_field] = obj
 
 
-        if len(_map['person']) > 1:
+                            
+        if 'person' in _map and len(_map['person']) > 1:
             print (json.dumps(_map['person'],indent=6))
             raise MultiplePersonDefined("Something wrong, more than one person object is being defined"
                                         "Likely because a mapping has been defined twice")

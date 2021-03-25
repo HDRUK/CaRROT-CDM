@@ -7,13 +7,14 @@ import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Person, ConditionOccurrence, VisitOccurrence
+from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
 from .objects import Init
 
 _classes = {
     'person' : Person,
     'condition_occurrence' : ConditionOccurrence,
-    'visit_occurrence': VisitOccurrence
+    'visit_occurrence': VisitOccurrence,
+    'measurement': Measurement
 }
 
 class NoInputFiles(Exception):
@@ -138,10 +139,15 @@ class CommonDataModel:
         self.df_map = {}
         self.df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')
+
         self.df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
         self.logger.info(f'finalised {ConditionOccurrence.name}')
+
         self.df_map[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
         self.logger.info(f'finalised {VisitOccurrence.name}')
+
+        self.df_map[Measurement.name] = self.run_cdm(Measurement)
+        self.logger.info(f'finalised {Measurement.name}')
         self.save_to_file(self.df_map,f_out)
         
     def save_to_file(self,df_map,f_out):
