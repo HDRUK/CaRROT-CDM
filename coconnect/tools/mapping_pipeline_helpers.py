@@ -17,27 +17,14 @@ class StructuralMapping:
     @classmethod
     def to_json(self,
                 f_structural_mapping,
-<<<<<<< HEAD
-                f_term_mapping,
-                f_primary_key_mapping,
                 destination_tables=None,
                 for_synthetic=False,
                 strict=True,
                 save=None,
                 **kwargs):
+
         _metadata = kwargs
-        
-        self.df_structural_mapping = pd.read_csv(f_structural_mapping)
-
-=======
-                destination_tables=None,
-                for_synthetic=False,
-                strict=True,
-                save=None):
-
-
         self.df_structural_mapping = pd.read_json(f_structural_mapping)
->>>>>>> origin/master
         
         if for_synthetic:
             for col in ['source_table','source_field']:
@@ -46,26 +33,7 @@ class StructuralMapping:
         self.df_structural_mapping.set_index('destination_table',inplace=True)
         if destination_tables == None:
             destination_tables = self.df_structural_mapping.index.unique()
-<<<<<<< HEAD
-            
-        self.df_term_mapping = None
-        if f_term_mapping is not None:
-            self.df_term_mapping = pd.read_csv(f_term_mapping)
-            self.df_term_mapping = self.df_term_mapping\
-                                       .groupby('rule_id')\
-                                       .apply(lambda x: \
-                                              {
-                                                  k:v
-                                                  for k, v in zip(x['source_term'], x['destination_term'])
-                                              })\
-                                       .reset_index()\
-                                       .set_index('rule_id')
-            self.df_term_mapping.columns = ['term_mapping']
 
-            
-=======
-
->>>>>>> origin/master
         _map = {}
         
         for destination_table in destination_tables:
