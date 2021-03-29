@@ -38,17 +38,22 @@ class CommonDataModel:
     inputs = None
     output_folder = "output_data/"
 
-    def __init__(self):
+    def __init__(self,inputs=None):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
         self.dtypes = CommonDataModelTypes()
 
-        #self.inputs is global at this stage so need to make sure
-        #is registered with __dict__
-        #self.inputs = self.inputs
-        #self.output_folder = self.output_folder
+        if not inputs is None:
+            if not isinstance(inputs,dict):
+                self.logger.error(inputs)
+                raise NoInputFiles("setting up inputs that are not a dict!!")
 
+            if not self.inputs is None:
+                self.logger.waring("overwriting inputs")
+
+            self.inputs = inputs
+        
         #register opereation tools
         self.tools = OperationTools()
         self.__dict__.update(self.__class__.__dict__)
@@ -71,10 +76,6 @@ class CommonDataModel:
                 
             self.inputs[key].index = self.inputs[key][index].rename('index') 
         
-    def set_inputs(self,inputs):
-        if not isinstance(inputs,dict):
-            raise NoInputFiles("calling set_inputs with inputs that are not a dict!")
-        self.inputs = inputs
         
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)

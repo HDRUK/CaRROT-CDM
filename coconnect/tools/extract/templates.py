@@ -18,11 +18,10 @@ if __name__ == '__main__':
 ''')
 
 init = Template(r'''
-    def __init__(self):
-        super().__init__()
-        self.logger.info(self.inputs.keys())
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
         {% if person_ids %}
-        self.set_indexing({{ person_ids }})
+        #self.set_indexing({{ person_ids }})
         {% endif %}
 ''')
 

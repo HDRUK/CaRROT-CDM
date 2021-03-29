@@ -147,8 +147,7 @@ def run(name,inputs,strip_name,drop_csv_from_name,type):
 
     for defined_class in defined_classes:
         cls = getattr(module,defined_class)
-        cls.inputs = inputs
-        c = cls()
+        c = cls(inputs=inputs)
         c.process()
         
     
