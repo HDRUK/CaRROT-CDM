@@ -17,7 +17,7 @@ class OMOPDetails():
         dir_path = os.path.dirname(os.path.realpath(__file__))
         f_path = f'{dir_path}/../data/cdm/OMOP_CDM_{_version}.csv'
         self.cdm = pd.read_csv(f_path,encoding="ISO-8859-1")\
-                     .set_index('table')[['field']]
+                     .set_index('table')[['field','required']]
         
         return self.cdm
 
@@ -36,6 +36,7 @@ class OMOPDetails():
         self.inspector = sql.inspect(self.ngin)
         self.schema = 'public'
 
+        self.cdm = self.to_df()
         
         #self.omop_tables = [
         #    table
@@ -189,31 +190,36 @@ class OMOPDetails():
         #source_value shouldnt get mapped
         #so return this info
         info[f"{domain_id}_source_value"] = None
-        return info
+
+
+        contained_within = self.cdm['field'][
+            self.cdm['field']\
+            .str\
+            .contains(f"{domain_id}_source_value")
+        ].index.unique().tolist()
 
         
-#         relationships=df_relationship['relationship_id'].tolist()
-#         #1)Check if source_concept_id is Standard or Non-standard
-#         #2)Get the relevant target table for the source_concept_id
-#         for relationship in relationships:
-#             if relationship=="Mapped from":
-#                 self.is_standard="Standard"
-#                 self.target_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
-#                 self.source_concept_id=self.target_concept_id
-#                 self.target_table = df_concept['domain_id'].iloc[relationships.index(relationship)]
-#             elif relationship=="Concept same_as to":
-#                 self.is_standard="Non-Standard"
-#                 self.source_concept_id=df_relationship['concept_id_1'].iloc[relationships.index(relationship)]
-#                 self.target_concept_id=df_relationship['concept_id_2'].iloc[relationships.index(relationship)]
-#                 self.target_table = df_concept['domain_id'].iloc[0]
+        retval = {}
+        for table in contained_within:
+            retval[table] = info
+            
+        return retval
+
+    def get_fields(self,domains):
+        if isinstance(domains,str):
+            return self.cdm.loc[domains]['field'].tolist()
+        else:
+            return {x:self.cdm.loc[x]['field'].tolist() for x in domains}
 
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     tool = OMOPDetails()
-    print (tool.get_rules(37399052))
-    print (tool.get_rules({'M':8507,'F':8532}))
-    print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
-
-    print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
+    #print (tool.get_rules(37399052))
+    rules = tool.get_rules({'M':8507,'F':8532})
+    print (json.dumps(rules,indent=6))
+    #print (tool.get_fields(list(rules.keys())))
+    
+    #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
+    #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
     
