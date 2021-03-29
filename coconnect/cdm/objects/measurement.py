@@ -23,11 +23,7 @@ class Measurement(Base):
         """
 
         df = super().finalise(df)
-        #df = df.sort_values('person_id')
-        if df['measurement_id'].isnull().any():
-            df['measurement_id'] = df.reset_index().index + 1
-
-
+        df = df.sort_values('person_id')
         if df['measurement_id'].isnull().any():
             df['measurement_id'] = df.reset_index().index + 1
 
