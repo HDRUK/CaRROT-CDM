@@ -120,8 +120,7 @@ class OMOPDetails():
         info = df_concept.join(df_relationship)
         info.index.rename('concept_id',inplace=True)
         info = info.reset_index()
-        print("Info after merge")
-        print(info)
+        
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
@@ -172,8 +171,7 @@ class OMOPDetails():
                                         left_on='source_concept_id',
                                         right_on='source_concept_id')\
                                  .set_index('domain_id')
-        print("now with source_concept id")
-        print(info)
+        
        
         #raise an error if there are somehow multiple domain_ids for the input concepts
         if len(info.index.unique()) > 1:
@@ -246,7 +244,6 @@ if __name__ == '__main__':
     rules = tool.get_rules({'M':8507,'F':8532})
     print (json.dumps(rules,indent=6))
     #print (tool.get_fields(list(rules.keys())))
-    
     #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
     #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
     
