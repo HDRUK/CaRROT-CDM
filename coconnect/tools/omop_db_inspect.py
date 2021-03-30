@@ -1,17 +1,26 @@
 import json
 import os
+from pandas.io.formats.format import IntArrayFormatter
 import sqlalchemy as sql
 import pandas as pd
 import numpy as np
+from collections import defaultdict
+
 
 class MultipleDomainsForInputConcepts(Exception):
     pass
+class MultipleStandardMappingsForInputConcepts(Exception):
+    pass
+
 
 
 
 
 class OMOPDetails():
 
+    #Get the directory of the OMOP_CDM.csv file
+    #Save it into a pandas dataframe
+    #Return the dataframe
     @classmethod
     def to_df(self,_version = 'v5_3_1'):
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -20,8 +29,8 @@ class OMOPDetails():
                      .set_index('table')[['field','required']]
         
         return self.cdm
-
     
+    #Initialise the database connection to OMOP_POSTGRES_DB
     def __init__(self):
         db_name = os.environ['OMOP_POSTGRES_DB']
         db_user = os.environ['OMOP_POSTGRES_USER']
@@ -44,6 +53,11 @@ class OMOPDetails():
         #]
         #self.omop_tables.sort()
 
+    """ get_rules() method: 
+        1)Queries the DB, gets the contents of two tables: concept & concept_relationship
+        and puts the contents into two pandas dataframes.
+        2) Checks if the conceptID is standard/non-standard
+    """
     def get_rules(self,source_concept_ids):
         print ("working on",source_concept_ids)
         #From OMOP db get concept relationship
@@ -57,7 +71,7 @@ class OMOPDetails():
         FROM public.concept_relationship
         WHERE concept_id_1 IN (%s)
         '''
-
+    
         #little trick for handling single concept ids
         if isinstance(source_concept_ids,int):
             source_concept_ids = {None: source_concept_ids}
@@ -90,24 +104,23 @@ class OMOPDetails():
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
 
-        #this needs some work....
+        #when the relationship=Maps to -> Non-standard to standard mapping
+        #we don't need to check for Concept same_as_to
         relationship_ids = [
-            #'Mapped from',
-            'Concept same_as to',
             'Maps to']
         #only keep the rows for the relationship_id being in the above list
         df_relationship = df_relationship[
             df_relationship['relationship_id'].isin(relationship_ids)
         ]
-
+        
         #do some indexing, so we can join the two dataframes
         df_concept.set_index('concept_id',inplace=True)
         df_relationship.set_index('concept_id_1',inplace=True)
-
         #join em
         info = df_concept.join(df_relationship)
         info.index.rename('concept_id',inplace=True)
         info = info.reset_index()
+        
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
@@ -129,26 +142,37 @@ class OMOPDetails():
         info = info[['concept_id','concept_id_2','domain_id']]
         #index on domain_id
         info.set_index('domain_id',inplace=True)
-
+        
         #rename concept_id --> source_concept_id
-        #renae concept_id_2 --> concept_id
-        #is this right??
+        #rename concept_id_2 --> concept_id
         info.columns = ['source_concept_id','concept_id']
-
+        
         #temp dataframe to help handle source values
         temp = pd.DataFrame.from_dict(source_concept_ids,
                                       columns=['source_concept_id'],
                                       orient='index')
-        #some shit, trust me
+
         temp.index.rename('source_value',inplace=True)
         temp.reset_index(inplace=True)
-        
+       
+        if len(info.concept_id.unique())>1:
+            print("There is more than one standard mapping for this source concept ID")
+            print(info.concept_id.items)
+
+        #for now not raising an exception until we decide if we handle the two standard maps
+        #     raise MultipleStandardMappingsForInputConcepts(
+        #         f"{info.concept_id.items}\n"
+        #         f"{source_concept_ids} \n"
+        #         "There is more than one standard mapping for this source concept ID"
+        #         )
+           
         #merge with the info table so now we have source_concept_id
         info = info.reset_index().merge(temp,
                                         left_on='source_concept_id',
                                         right_on='source_concept_id')\
                                  .set_index('domain_id')
-
+        
+       
         #raise an error if there are somehow multiple domain_ids for the input concepts
         if len(info.index.unique()) > 1:
             raise MultipleDomainsForInputConcepts(
@@ -156,15 +180,17 @@ class OMOPDetails():
                 f"{source_concept_ids} \n"
                 "Somehow your concept_ids are associated with different domain_ids"
                 )
-            
+        
+      
         #get the domain_id
         domain_id = info.index.unique()[0]
-
+        
         #prepend the domain_id (e.g. gender) to the name of each column
         info.columns = [f"{domain_id}_{col}" for col in info.columns]
 
         #some playing around, converting/pivoting the dataframe
         #so that we generate multiple rules
+        
         info = info.loc[[domain_id]]\
                    .reset_index(drop=True)\
                    .set_index(f"{domain_id}_source_value")\
@@ -172,13 +198,12 @@ class OMOPDetails():
                    .astype('Int64')\
                    .fillna(np.NaN)\
                    .astype(str)
-        
+       
         #make into a dictionary
-        info = {
-            x:info.loc[x].to_dict()
-            for x in info.index
-        }
-
+        #first column is a dictionary key
+        #second column is the value
+        info=info.to_dict('index')
+        
         #convert None to scalar for field level mapping
         # {None: 12345} --> 12345
         # the key is None if we're not mapping values but the whole field
@@ -219,7 +244,6 @@ if __name__ == '__main__':
     rules = tool.get_rules({'M':8507,'F':8532})
     print (json.dumps(rules,indent=6))
     #print (tool.get_fields(list(rules.keys())))
-    
     #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
     #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
     
