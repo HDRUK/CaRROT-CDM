@@ -67,6 +67,7 @@ class Base(object):
         Finalise function, expected to be overloaded by children classes
         """
         if 'person_id' in df.columns:
+
             masker = {
                 x:i+1 #start from 1
                 for i,x in enumerate(sorted(df['person_id'].unique()))
@@ -192,9 +193,11 @@ class Base(object):
         dfs = {}
         for key in self.fields:
             series = getattr(self,key)
+                        
             if series is None:
                 continue
-            series = series.rename(key) 
+            series = series.rename(key)
+            series = series.sort_index()
             dfs[key] = series
 
         # non_series = [k for k,v in dfs.items() if isinstance(v,str) ]
@@ -217,6 +220,22 @@ class Base(object):
         if len(dfs) == 0:
             return None
 
+        #check the lengths of the dataframes
+        lengths = list(set([len(df) for df in dfs.values()]))
+        if len(lengths)>1:
+            self.logger.error("One or more inputs being mapped to this object has a different number of entries")
+            for name,df in dfs.items():
+                self.logger.error(f"{name} of length {len(df)}")
+            raise BadInputs("Differring number of rows in the inputs")
+
+        #check for duplicate indicies
+        for key,df in dfs.items():
+            dups = df.index.duplicated()
+            if len(df[dups])>1:
+                self.logger.warning(f"{key} {len(df[dups])}/{len(df)} indicies (person_id) are duplicated")
+                self.logger.warning(f"      if this is synthetic data... dont worry about it")
+                dfs[key] = df[~df.index.duplicated()]
+            
         #create a dataframe from all the series objects
         df = pd.concat(dfs.values(),axis=1)
 

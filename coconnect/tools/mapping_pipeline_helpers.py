@@ -2,11 +2,15 @@ import copy
 import json
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 class MultiplePersonDefined(Exception):
     pass
 
 class MissConfiguredStructuralMapping(Exception):
+    pass
+
+class NoPrimaryKeyDefined(Exception):
     pass
 
 class StructuralMapping:
@@ -16,9 +20,10 @@ class StructuralMapping:
                 destination_tables=None,
                 for_synthetic=False,
                 strict=True,
-                save=None):
+                save=None,
+                **kwargs):
 
-
+        _metadata = kwargs
         self.df_structural_mapping = pd.read_json(f_structural_mapping)
         
         if for_synthetic:
@@ -101,7 +106,28 @@ class StructuralMapping:
             print (json.dumps(_map['person'],indent=6))
             raise MultiplePersonDefined("Something wrong, more than one person object is being defined"
                                         "Likely because a mapping has been defined twice")
-                            
+
+        _metadata.update(
+            {
+                'date_created':datetime.utcnow().isoformat()
+            })
+
+
+        all_used_tables = self.df_structural_mapping.loc[destination_tables]['source_table'].unique()
+        pk_mapping = json.load(open(f_primary_key_mapping))
+
+
+        missing = list((set(all_used_tables) - set(pk_mapping.keys())))
+        if len(missing)>0:
+            raise NoPrimaryKeyDefined(f"you use {missing} without defining which field is the pk (person id)")
+
+        _metadata.update(
+            {
+                'person_id':{k:v for k,v in sorted(pk_mapping.items()) }
+            })
+        
+        
+        _output = {'metadata':_metadata,'cdm':_map}
         if not save is None:
-            json.dump(_map,open(save,'w'),indent=6)
+            json.dump(_output,open(save,'w'),indent=6)
         return _map

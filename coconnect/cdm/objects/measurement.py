@@ -13,7 +13,9 @@ class Measurement(Base):
     def finalise(self,df):
         """
         Overloads the finalise method defined in the Base class.
+
         For measurement, the _id of the measurement is often not set
+
         Therefore if the series is null, then we just make an incremental index for the _id
 
         Returns:
@@ -52,5 +54,4 @@ class Measurement(Base):
             self.logger.error("automatic conversion to a numeric has failed")
             
         df = df[~nulls]
-        
         return df

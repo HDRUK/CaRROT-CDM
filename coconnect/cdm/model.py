@@ -7,15 +7,13 @@ import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Person, ConditionOccurrence, VisitOccurrence
-from .objects import Measurement
+from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
 
-
+#lookup for name to class, e.g. "person" : Person
 _classes = {
-    'person' : Person,
-    'condition_occurrence' : ConditionOccurrence,
-    'visit_occurrence': VisitOccurrence,
-    'measurement': Measurement
+    x.name: x
+    for x in [Person, ConditionOccurrence,
+              VisitOccurrence, Measurement]
 }
 
 class NoInputFiles(Exception):
@@ -37,22 +35,48 @@ class CommonDataModelTypes(collections.OrderedDict):
 
 class CommonDataModel:
 
-    def __init__(self,inputs=None,_start_on_init=True):
+    inputs = None
+    output_folder = "output_data/"
+
+    def __init__(self,inputs=None):
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
         self.dtypes = CommonDataModelTypes()
-        self.inputs = inputs
-        
-        if _start_on_init:
-            self.tools = OperationTools()
-            self.__dict__.update(self.__class__.__dict__)
-            
-            if self.inputs == None:
-                raise NoInputFiles('You need to set or specify the input files.') 
 
-            self.finalise()
-            
+        if not inputs is None:
+            if not isinstance(inputs,dict):
+                self.logger.error(inputs)
+                raise NoInputFiles("setting up inputs that are not a dict!!")
+
+            if not self.inputs is None:
+                self.logger.waring("overwriting inputs")
+
+            self.inputs = inputs
+        
+        #register opereation tools
+        self.tools = OperationTools()
+        self.__dict__.update(self.__class__.__dict__)
+        
+        if self.inputs == None:
+            raise NoInputFiles('You need to set or specify the input files.') 
+
+    def set_indexing(self,index_map):
+        if self.inputs == None:
+            raise NoInputFiles('Trying to indexing before any inputs have been setup')
+        
+        for key,index in index_map.items():
+            if key not in self.inputs:
+                self.logger.warning(f"trying to set index '{index}' for '{key}' but this has not been loaded as an inputs!")
+                continue
+
+            if index not in self.inputs[key].columns:
+                self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
+                continue
+                
+            self.inputs[key].index = self.inputs[key][index].rename('index') 
+        
+        
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)
 
@@ -127,7 +151,11 @@ class CommonDataModel:
         return df_destination
 
         
-    def finalise(self,f_out='output_data/'):
+    def process(self,f_out='output_data/'):
+
+        if not self.output_folder is None:
+            f_out = self.output_folder
+        
         self.df_map = {}
         self.df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')
