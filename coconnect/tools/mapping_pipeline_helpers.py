@@ -26,8 +26,12 @@ class StructuralMapping:
 
         _metadata = kwargs
         self.df_structural_mapping = pd.read_json(f_structural_mapping)
-        pk_mapping = json.load(open(f_pk_mapping))
         
+        if isinstance(f_pk_mapping,str):
+            pk_mapping = json.load(open(f_pk_mapping))
+        else:
+            pk_mapping = json.load(f_pk_mapping)
+            
         if for_synthetic:
             for col in ['source_table','source_field']:
                 self.df_structural_mapping[col] = self.df_structural_mapping[col].str.lower()
