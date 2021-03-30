@@ -21,7 +21,7 @@ init = Template(r'''
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         {% if person_ids %}
-        #self.set_indexing({{ person_ids }})
+        self.set_indexing({{ person_ids }})
         {% endif %}
 ''')
 
