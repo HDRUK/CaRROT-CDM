@@ -134,4 +134,4 @@ class StructuralMapping:
         _output = {'metadata':_metadata,'cdm':_map}
         if not save is None:
             json.dump(_output,open(save,'w'),indent=6)
-        return _map
+        return _output
