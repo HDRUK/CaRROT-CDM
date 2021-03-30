@@ -17,6 +17,7 @@ class StructuralMapping:
     @classmethod
     def to_json(self,
                 f_structural_mapping,
+                f_pk_mapping,
                 destination_tables=None,
                 for_synthetic=False,
                 strict=True,
@@ -25,6 +26,7 @@ class StructuralMapping:
 
         _metadata = kwargs
         self.df_structural_mapping = pd.read_json(f_structural_mapping)
+        pk_mapping = json.load(open(f_pk_mapping))
         
         if for_synthetic:
             for col in ['source_table','source_field']:
@@ -114,8 +116,6 @@ class StructuralMapping:
 
 
         all_used_tables = self.df_structural_mapping.loc[destination_tables]['source_table'].unique()
-        pk_mapping = json.load(open(f_primary_key_mapping))
-
 
         missing = list((set(all_used_tables) - set(pk_mapping.keys())))
         if len(missing)>0:
