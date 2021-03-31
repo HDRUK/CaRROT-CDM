@@ -1,4 +1,5 @@
-from types import SimpleNamespace 
+from types import SimpleNamespace
+import pandas as pd
 import os
 import json
 import glob
