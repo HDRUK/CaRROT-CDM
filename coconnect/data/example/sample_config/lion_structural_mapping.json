@@ -5,7 +5,7 @@
             "date_created": "2021-03-17T22:10:31.022137",
             "person_id": {
                   "demo.csv": "study number",
-                  "track.csv": "id Number",
+                  "track.csv": "id Number"
             }
       },
       "cdm": {
@@ -49,7 +49,7 @@
                         },
                         "person_id": {
                               "source_table": "demo.csv",
-                              "source_field": "id number",
+                              "source_field": "study number",
                               "term_mapping": null
                         },
                         "race_concept_id": {
@@ -57,7 +57,7 @@
                               "source_field": "ethnicity",
                               "term_mapping": {
                                     "WHITE BRITISH": 4196428,
-                                    "BLACK CARIBBEAN": 4087917,
+                                    "BLACK CARIBBEAN": 4087917
                               }
                         },
                         "race_source_concept_id": {
@@ -65,7 +65,7 @@
                               "source_field": "ethnicity",
                               "term_mapping": {
                                     "WHITE BRITISH": 4196428,
-                                    "BLACK CARIBBEAN": 4087917,
+                                    "BLACK CARIBBEAN": 4087917
                               }
                         },
                         "race_source_value": {
@@ -74,7 +74,7 @@
                               "term_mapping": null
                         },
                         "year_of_birth": {
-                              "source_table": "tracker.csv",
+                              "source_table": "track.csv",
                               "source_field": "dob",
                               "term_mapping": null
                         }
