@@ -1,24 +1,10 @@
-import os
 import inspect
+import os
 import click
 import json
 import glob
 import coconnect
 import coconnect.tools as tools
-from coconnect.cdm import load_csv
-
-def get_file(f_in):
-    try:
-        data = json.load(open(f_in))
-    except FileNotFoundError as err:
-        try:
-            data_dir = os.path.dirname(coconnect.__file__)
-            data_dir = f'{data_dir}/data/'
-            data =  json.load(open(f'{data_dir}{f_in}'))
-        except FileNotFoundError:
-            raise FileNotFoundError(err)
-
-    return data
 
     
 @click.group()
@@ -28,13 +14,13 @@ def map():
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
 def show(rules):
-    data = get_file(rules)
+    data = tools.load_json(rules)
     print (json.dumps(data,indent=6))
 
 @click.command(help="Display the OMOP mapping json as a DAG")
 @click.argument("rules")
 def display(rules):
-    data = get_file(rules)
+    data = tools.load_json(rules)
     tools.make_dag(data,render=True) 
 
 @click.command(help="Generate a python class from the OMOP mapping json")
@@ -46,36 +32,13 @@ def display(rules):
 #              is_flag=True,
 #              help="")
 def make_class(name,rules):
-    data = get_file(rules)
+    data = tools.load_json(rules)
     tools.extract.make_class(data,name)
-
-    
-def get_classes():
-    import time
-    from coconnect.cdm import classes
-    _dir = os.path.dirname(classes.__file__)
-    files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
-    retval = {}
-    for fname in files:
-        mname = fname.split(".")[0]
-        mname = '.'.join([classes.__name__, mname])
-        module = __import__(mname,fromlist=[fname])
-        defined_classes = {
-            m[0]: {
-                'module':m[1].__module__,
-                'path': os.path.join(_dir,fname),
-                'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(_dir,fname))))
-            }
-            for m in inspect.getmembers(module, inspect.isclass)
-            if m[1].__module__ == module.__name__
-        }
-        retval.update(defined_classes)
-    return retval
         
     
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
-    print (json.dumps(get_classes(),indent=6))
+    print (json.dumps(tools.get_classes(),indent=6))
         
 
 @click.command(help="Perform OMOP Mapping")
@@ -129,11 +92,11 @@ def run(name,inputs,strip_name,drop_csv_from_name,type):
 
     
     if type == 'csv':
-        inputs = load_csv(inputs)
+        inputs = tools.load_csv(inputs)
     else:
         raise NotImplementedError("Can only handle inputs that are .csv so far")
         
-    available_classes = get_classes()
+    available_classes = tools.get_classes()
     if name not in available_classes:
         print (available_classes)
         raise KeyError(f"cannot find config for {name}")

@@ -59,7 +59,9 @@ class CommonDataModel:
         self.__dict__.update(self.__class__.__dict__)
         
         if self.inputs == None:
-            raise NoInputFiles('You need to set or specify the input files.') 
+            raise NoInputFiles('You need to set or specify the input files.')
+
+        self.omop = {}
 
     def set_indexing(self,index_map):
         if self.inputs == None:
@@ -147,7 +149,7 @@ class CommonDataModel:
         df_destination = objects[0].finalise(df_destination)
         self.logger.info(f'Formating the output for {class_type}')
         df_destination = objects[0].format(df_destination,raise_error=False)
-        
+
         return df_destination
 
         
@@ -156,19 +158,23 @@ class CommonDataModel:
         if not self.output_folder is None:
             f_out = self.output_folder
         
-        self.df_map = {}
-        self.df_map[Person.name] = self.run_cdm(Person)
+        self._df_map = {}
+        self._df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')
 
-        self.df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
+        self._df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
         self.logger.info(f'finalised {ConditionOccurrence.name}')
 
-        self.df_map[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
+        self._df_map[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
         self.logger.info(f'finalised {VisitOccurrence.name}')
 
-        self.df_map[Measurement.name] = self.run_cdm(Measurement)
+        self._df_map[Measurement.name] = self.run_cdm(Measurement)
         self.logger.info(f'finalised {Measurement.name}')
-        self.save_to_file(self.df_map,f_out)
+        self.save_to_file(self._df_map,f_out)
+
+        #register output
+        self.omop = self._df_map
+        
         
     def save_to_file(self,df_map,f_out):
         for name,df in df_map.items():

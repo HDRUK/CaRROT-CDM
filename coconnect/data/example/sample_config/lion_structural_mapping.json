@@ -1,0 +1,84 @@
+{
+      "metadata": {
+            "datapartner": "University of Nottingham Trent",
+            "dataset": "Lion",
+            "date_created": "2021-03-17T22:10:31.022137",
+            "person_id": {
+                  "demo.csv": "study number",
+                  "track.csv": "id Number"
+            }
+      },
+      "cdm": {
+            "person": [
+                  {
+                        "birth_datetime": {
+                              "source_table": "track.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "day_of_birth": {
+                              "source_table": "track.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "gender_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": null
+                        },
+                        "month_of_birth": {
+                              "source_table": "track.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        },
+                        "race_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 4196428,
+                                    "BLACK CARIBBEAN": 4087917
+                              }
+                        },
+                        "race_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 4196428,
+                                    "BLACK CARIBBEAN": 4087917
+                              }
+                        },
+                        "race_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": null
+                        },
+                        "year_of_birth": {
+                              "source_table": "track.csv",
+                              "source_field": "dob",
+                              "term_mapping": null
+                        }
+                  }
+	    ]
+      }
+}
