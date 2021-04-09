@@ -229,12 +229,12 @@ class Base(object):
             raise BadInputs("Differring number of rows in the inputs")
 
         #check for duplicate indicies
-        for key,df in dfs.items():
-            dups = df.index.duplicated()
-            if len(df[dups])>1:
-                self.logger.warning(f"{key} {len(df[dups])}/{len(df)} indicies (person_id) are duplicated")
-                self.logger.warning(f"      if this is synthetic data... dont worry about it")
-                dfs[key] = df[~df.index.duplicated()]
+        #for key,df in dfs.items():
+        #    dups = df.index.duplicated()
+        #    if len(df[dups])>1:
+        #        self.logger.warning(f"{key} {len(df[dups])}/{len(df)} indicies (person_id) are duplicated")
+        #        self.logger.warning(f"      if this is synthetic data... dont worry about it")
+        #        dfs[key] = df[~df.index.duplicated()]
             
         #create a dataframe from all the series objects
         df = pd.concat(dfs.values(),axis=1)

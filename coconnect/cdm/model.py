@@ -9,6 +9,7 @@ from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
 
+
 #lookup for name to class, e.g. "person" : Person
 _classes = {
     x.name: x
@@ -38,7 +39,9 @@ class CommonDataModel:
     inputs = None
     output_folder = "output_data/"
 
+    
     def __init__(self,inputs=None):
+        
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
@@ -53,16 +56,20 @@ class CommonDataModel:
                 self.logger.waring("overwriting inputs")
 
             self.inputs = inputs
-        
-        #register opereation tools
-        self.tools = OperationTools()
-        self.__dict__.update(self.__class__.__dict__)
-        
+
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
 
+            
+        #register opereation tools
+        self.tools = OperationTools()
+        self.__dict__.update(self.__class__.__dict__)
+
         self.omop = {}
 
+
+
+        
     def set_indexing(self,index_map):
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')
@@ -154,7 +161,7 @@ class CommonDataModel:
 
         
     def process(self,f_out='output_data/'):
-
+        
         if not self.output_folder is None:
             f_out = self.output_folder
         

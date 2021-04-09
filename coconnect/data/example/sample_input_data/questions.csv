@@ -1,9 +1,13 @@
-id,date of visit,study id,visit number,headache,muscle pain,breathing difficulty,fever,sore throat,dry cough,wet cough,fatigue,loss of smell taste
-101,01/05/2020,pk1,1,Y,Y,Y,N,No,Yes,,N,Y
-102,01/05/2020,pk2,1,N,,Y,Y,N,Y,N,N,N
-103,01/05/2020,pk3,1,N,Y,,,,Y,Y,Y,Y
-104,01/05/2020,pk4,1,N,N,N,N,,N,Y,Y,Y
-105,20/05/2020,pk1,2,N,N,Y,N,No,N,,N,N
-106,21/05/2020,pk2,2,Y,Y,Y,Y,Y,Y,Y,N,Y
-107,21/05/2020,pk3,2,N,N,N,N,Y,N,N,N,N
-108,22/05/2020,pk4,2,Y,Y,N,N,N,N,N,Y,Y
+id,date of visit,study id,visit number,headache,sore throat
+101,01/05/2020,pk1,1,Y,N
+xc102,01/05/2020,pk2,1,N,Y
+103,01/05/2020,pk3,1,N,N
+104,01/05/2020,pk4,1,Y,Y
+105,20/05/2020,pk1,2,N,N
+106,21/05/2020,pk2,2,Y,Y
+107,21/05/2020,pk3,2,Y,N
+108,22/05/2020,pk4,2,Y,Y
+105,02/06/2020,pk1,3,N,Y
+106,02/06/2020,pk2,3,Y,Y
+107,02/06/2020,pk3,3,Y,Y
+108,02/06/2020,pk4,3,Y,N

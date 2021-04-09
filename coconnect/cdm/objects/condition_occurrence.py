@@ -50,7 +50,7 @@ class ConditionOccurrence(Base):
             self.logger.error("the condition_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
-            
+
         df = df[~nulls]
-        
+                
         return df

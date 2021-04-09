@@ -29,6 +29,19 @@ def make_class(data,
                                              source_field=source_field)
                 map_rules.append(rule)
 
+
+            #add a line break
+            map_rules.append('')
+            map_rules.append('# --- insert field operations --- ')
+
+            for destination_field,source in sorted(obj.items()):
+                if 'operations' in source:
+                    for operation in source['operations']:
+                        rule = templates.operation.render(destination_field=destination_field,
+                                                          operation=operation)
+                        map_rules.append(rule)
+                        
+                
             #add a line break
             map_rules.append('')
             map_rules.append('# --- insert term mapping --- ')
@@ -58,7 +71,9 @@ def make_class(data,
     init = templates.init.render(person_ids=person_ids)
     source_code = templates.cls.render(name=name, init=init, objects=objects)
 
-    save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    #save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    save_dir = os.getcwd()
+
     fname = f'{save_dir}/{name}.py'
     if os.path.isfile(fname):
         print (f"Recreating file {fname}")

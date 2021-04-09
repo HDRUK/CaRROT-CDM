@@ -15,4 +15,3 @@ class OperationTools:
             norm = datetime.datetime(2020, 7, 1)
         return df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
 
-    
