@@ -95,6 +95,8 @@ class OMOPDetails():
                                "invalid_reason"
                            ]
                            ,axis=1)
+                       
+        print(df_concept)
 
         #retrieve a relationship lookup
         df_relationship = pd.read_sql(
@@ -103,6 +105,8 @@ class OMOPDetails():
                                 ["valid_start_date",
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
+                            
+        print(df_relationship)
 
         #when the relationship=Maps to -> Non-standard to standard mapping
         #we don't need to check for Concept same_as_to
