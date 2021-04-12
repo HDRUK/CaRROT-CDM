@@ -58,6 +58,35 @@ class OMOPDetails():
         and puts the contents into two pandas dataframes.
         2) Checks if the conceptID is standard/non-standard
     """
+    
+    def lookup_code(self, concept_code):
+        
+        print ("Working on... ", concept_code)
+        
+        #From OMOP db get concept relationship
+        select_from_code = r'''
+        SELECT *
+        FROM public.concept
+        WHERE concept_code = '%s'
+        '''
+        select_from_concept_relationship = r'''
+        SELECT *
+        FROM public.concept_relationship
+        WHERE concept_id_1 = ('%s')
+        '''
+    
+        #retrieve the concept code mapping
+        df_code = pd.read_sql(select_from_code%(concept_code),self.ngin)
+        print(df_code)
+        
+        maps = []
+        for index, row in df_code.iterrows():
+            print(row['concept_id'])
+            maps.append(pd.read_sql(select_from_concept_relationship%(row['concept_id']),self.ngin))
+        
+        print(maps)
+        
+    
     def get_rules(self,source_concept_ids):
         print ("working on",source_concept_ids)
         #From OMOP db get concept relationship
@@ -96,8 +125,6 @@ class OMOPDetails():
                            ]
                            ,axis=1)
                        
-        print(df_concept)
-
         #retrieve a relationship lookup
         df_relationship = pd.read_sql(
             select_from_concept_relationship%(_ids),self.ngin)\
@@ -106,8 +133,6 @@ class OMOPDetails():
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
                             
-        print(df_relationship)
-
         #when the relationship=Maps to -> Non-standard to standard mapping
         #we don't need to check for Concept same_as_to
         relationship_ids = [
