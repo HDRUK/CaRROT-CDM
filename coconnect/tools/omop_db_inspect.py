@@ -26,9 +26,53 @@ class OMOPDetails():
         dir_path = os.path.dirname(os.path.realpath(__file__))
         f_path = f'{dir_path}/../data/cdm/OMOP_CDM_{_version}.csv'
         self.cdm = pd.read_csv(f_path,encoding="ISO-8859-1")\
-                     .set_index('table')[['field','required']]
-        
+                     .set_index('table')[['field']]        
         return self.cdm
+
+    #instead get the cdm objects (destination table & field) from the OMOPDB
+    def get_cdm_as_df(self):
+
+        cdm = []
+        print ('loading tables')
+        #loop over all tables in the OMOP-db
+        for table in self.inspector.get_table_names(schema=self.schema):
+            #print (self.inspector.get_columns(table_name=table,schema=self.schema))
+            #grab the table and put it in a dataframe
+            #limit this to 1 row to not take forever to load this up
+            df = pd.read_sql('SELECT * FROM %s.%s LIMIT 1'%(self.schema,table),self.ngin)
+            #in the omopdb, all cdm objects have length zero
+            #anything else is something else e.g concept look up
+            if len(df) > 0 : continue
+
+            #get all the column names as a list
+            cols = df.columns.tolist()
+            print ('loaded',table,'with columns',cols)
+
+            #create an index for each column value to be the table name
+            index =[
+                table
+                for _ in range(len(cols))
+            ]
+
+            #add as a dataframe to an array for each table
+            # will look like this....
+            #                                             field
+            #attribute_definition       attribute_definition_id
+            #attribute_definition                attribute_name
+            #attribute_definition         attribute_description
+            #attribute_definition     attribute_type_concept_id
+            #attribute_definition              attribute_syntax
+            cdm.append(
+                pd.DataFrame(cols,
+                             index,
+                             columns=['field'],
+                )
+            )
+
+        #merge them together and return this as the cdm lookup frame
+        return pd.concat(cdm)
+        
+
     
     #Initialise the database connection to OMOP_POSTGRES_DB
     def __init__(self):
@@ -45,7 +89,7 @@ class OMOPDetails():
         self.inspector = sql.inspect(self.ngin)
         self.schema = 'public'
 
-        self.cdm = self.to_df()
+        self.cdm = self.get_cdm_as_df()#self.to_df()
         
         #self.omop_tables = [
         #    table
