@@ -62,7 +62,7 @@ def make_class(data,
                         map_rules.append(f')')
                     #force all values to be a single value
                     else:
-                        temp = f'self.{destination_field}.values[:] = {term_mapping}'
+                        temp = f'self.{destination_field} = self.tools.make_scalar(self.{destination_field},{term_mapping})'
                         map_rules.append(temp)
                         
 
