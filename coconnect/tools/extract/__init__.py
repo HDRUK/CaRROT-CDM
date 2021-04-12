@@ -48,15 +48,23 @@ def make_class(data,
             #find term mapping
             for destination_field,source in sorted(obj.items()):
                 term_mapping = source['term_mapping']
-                    
+
+                
                 if term_mapping:
-                    nindent=4
-                    term_mapping = json.dumps(term_mapping,indent=nindent).splitlines()
-                    temp = f'self.{destination_field} = self.{destination_field}.map('
-                    map_rules.append(temp)
-                    for line in term_mapping:
-                        map_rules.append(f'{" "*nindent}{line}')
-                    map_rules.append(f')')
+                    #term map each value
+                    if isinstance(term_mapping,dict):
+                        nindent=4
+                        term_mapping = json.dumps(term_mapping,indent=nindent).splitlines()
+                        temp = f'self.{destination_field} = self.{destination_field}.map('
+                        map_rules.append(temp)
+                        for line in term_mapping:
+                            map_rules.append(f'{" "*nindent}{line}')
+                        map_rules.append(f')')
+                    #force all values to be a single value
+                    else:
+                        temp = f'self.{destination_field}.values[:] = {term_mapping}'
+                        map_rules.append(temp)
+                        
 
 
             
