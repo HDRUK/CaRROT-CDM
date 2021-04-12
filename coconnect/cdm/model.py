@@ -185,10 +185,10 @@ class CommonDataModel:
 
         self._df_map[Measurement.name] = self.run_cdm(Measurement)
         self.logger.info(f'finalised {Measurement.name}')
-        self.save_to_file(self._df_map,f_out)
 
         self._df_map[Observation.name] = self.run_cdm(Observation)
         self.logger.info(f'finalised {Observation.name}')
+
         self.save_to_file(self._df_map,f_out)
 
         #register output
