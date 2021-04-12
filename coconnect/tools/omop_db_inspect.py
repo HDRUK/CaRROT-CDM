@@ -136,14 +136,17 @@ class OMOPDetails():
                 axis=1
             )
             relationship_ids = ['Maps to']
-            x = x[x['relationship_id'].isin(relationship_ids)]
+            x = x[x['relationship_id']
+                  .isin(relationship_ids)]
             maps.append(x)
             
         # Concat maps list into single pandas df
         df_maps = pd.concat(maps,ignore_index=True)
         
         # Join the first df_codes dataframe to the mapped codes for return
-        joined_df = df_code.merge(df_maps, left_on='concept_id', right_on='concept_id_1')
+        joined_df = df_code.merge(
+            df_maps, left_on='concept_id', right_on='concept_id_1'
+            )
         
         return joined_df
         
