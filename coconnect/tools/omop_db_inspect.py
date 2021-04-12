@@ -22,7 +22,7 @@ class OMOPDetails():
     #Save it into a pandas dataframe
     #Return the dataframe
     @classmethod
-    def to_df(self,_version = 'v5_3_1'):
+    def from_csv(self,_version = 'v5_3_1'):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         f_path = f'{dir_path}/../data/cdm/OMOP_CDM_{_version}.csv'
         self.cdm = pd.read_csv(f_path,encoding="ISO-8859-1")\
@@ -30,7 +30,7 @@ class OMOPDetails():
         return self.cdm
 
     #instead get the cdm objects (destination table & field) from the OMOPDB
-    def get_cdm_as_df(self):
+    def load_cdm_from_db(self):
 
         cdm = []
         print ('loading tables')
@@ -70,12 +70,18 @@ class OMOPDetails():
             )
 
         #merge them together and return this as the cdm lookup frame
-        return pd.concat(cdm)
+        cdm = pd.concat(cdm)
+        cdm.index.name = 'table'
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        f_path = f'{dir_path}/../data/cdm/OMOP_CDM_ONLINE_LATEST.csv'
+        cdm.to_csv(f_path)
+        
         
 
     
     #Initialise the database connection to OMOP_POSTGRES_DB
-    def __init__(self):
+    def __init__(self,load_from_db=False):
         db_name = os.environ['OMOP_POSTGRES_DB']
         db_user = os.environ['OMOP_POSTGRES_USER']
         db_password = os.environ['OMOP_POSTGRES_PASSWORD']
@@ -89,8 +95,13 @@ class OMOPDetails():
         self.inspector = sql.inspect(self.ngin)
         self.schema = 'public'
 
-        self.cdm = self.get_cdm_as_df()#self.to_df()
-        
+        #force the recreation of the cdm csv dump from the omopdb
+        if load_from_db:
+            self.load_cdm_from_db()
+            
+        self.cdm = self.from_csv(_version='ONLINE_LATEST')
+
+                   
         #self.omop_tables = [
         #    table
         #    for table in self.inspector.get_table_names(schema=self.schema)
@@ -283,7 +294,7 @@ class OMOPDetails():
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
-    tool = OMOPDetails()
+    tool = OMOPDetails(load_from_db=False)
     #print (tool.get_rules(37399052))
     rules = tool.get_rules({'M':8507,'F':8532})
     print (json.dumps(rules,indent=6))
