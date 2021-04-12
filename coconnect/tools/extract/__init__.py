@@ -71,8 +71,8 @@ def make_class(data,
     init = templates.init.render(person_ids=person_ids)
     source_code = templates.cls.render(name=name, init=init, objects=objects)
 
-    #save_dir = os.path.dirname(os.path.abspath(classes.__file__))
-    save_dir = os.getcwd()
+    save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    #save_dir = os.getcwd()
 
     fname = f'{save_dir}/{name}.py'
     if os.path.isfile(fname):
