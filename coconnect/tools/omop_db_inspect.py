@@ -102,6 +102,55 @@ class OMOPDetails():
         and puts the contents into two pandas dataframes.
         2) Checks if the conceptID is standard/non-standard
     """
+    
+    def lookup_code(self, concept_code):
+        
+        print ("Working on...", concept_code)
+        
+        # SQL code for looking up codes and conceptIDs
+        select_from_code = r'''
+        SELECT *
+        FROM public.concept
+        WHERE concept_code = '%s'
+        '''
+        select_from_concept_relationship = r'''
+        SELECT *
+        FROM public.concept_relationship
+        WHERE concept_id_1 = ('%s')
+        '''
+    
+        # Retrieve the concept *code* mapping (not the conceptID)
+        df_code = pd.read_sql(
+            select_from_code%(concept_code),self.ngin
+            )
+        
+        # Look up each concept *code* for a corresponding conceptID
+        # Returns only rows where relationship_id == 'Maps to'
+        # This is OMOPs weird way of flagging which concept ID is std and valid
+        maps = []
+        for index, row in df_code.iterrows():
+            x = pd.read_sql(select_from_concept_relationship%(row['concept_id']),self.ngin).drop(
+                ['valid_start_date',
+                 'valid_end_date',
+                 'invalid_reason'], 
+                axis=1
+            )
+            relationship_ids = ['Maps to']
+            x = x[x['relationship_id']
+                  .isin(relationship_ids)]
+            maps.append(x)
+            
+        # Concat maps list into single pandas df
+        df_maps = pd.concat(maps,ignore_index=True)
+        
+        # Join the first df_codes dataframe to the mapped codes for return
+        joined_df = df_code.merge(
+            df_maps, left_on='concept_id', right_on='concept_id_1'
+            )
+        
+        return joined_df
+        
+    
     def get_rules(self,source_concept_ids):
         print ("working on",source_concept_ids)
         #From OMOP db get concept relationship
@@ -139,7 +188,7 @@ class OMOPDetails():
                                "invalid_reason"
                            ]
                            ,axis=1)
-
+                       
         #retrieve a relationship lookup
         df_relationship = pd.read_sql(
             select_from_concept_relationship%(_ids),self.ngin)\
@@ -147,7 +196,7 @@ class OMOPDetails():
                                 ["valid_start_date",
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
-
+                            
         #when the relationship=Maps to -> Non-standard to standard mapping
         #we don't need to check for Concept same_as_to
         relationship_ids = [
