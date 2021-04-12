@@ -105,7 +105,7 @@ class OMOPDetails():
     
     def lookup_code(self, concept_code):
         
-        print ("Working on... ", concept_code)
+        print ("Working on...", concept_code)
         
         # SQL code for looking up codes and conceptIDs
         select_from_code = r'''
@@ -123,7 +123,6 @@ class OMOPDetails():
         df_code = pd.read_sql(
             select_from_code%(concept_code),self.ngin
             )
-        # print('CONCEPT CODES >>>>> \n', df_code)
         
         # Look up each concept *code* for a corresponding conceptID
         # Returns only rows where relationship_id == 'Maps to'
@@ -140,10 +139,12 @@ class OMOPDetails():
             x = x[x['relationship_id'].isin(relationship_ids)]
             maps.append(x)
             
+        # Concat maps list into single pandas df
         df_maps = pd.concat(maps,ignore_index=True)
+        
+        # Join the first df_codes dataframe to the mapped codes for return
         joined_df = df_code.merge(df_maps, left_on='concept_id', right_on='concept_id_1')
         
-        # print('MAPS >>>>> \n', joined_df)
         return joined_df
         
     
