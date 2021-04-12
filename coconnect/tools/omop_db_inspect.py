@@ -63,7 +63,7 @@ class OMOPDetails():
         
         print ("Working on... ", concept_code)
         
-        #From OMOP db get concept relationship
+        # SQL code for looking up codes and conceptIDs
         select_from_code = r'''
         SELECT *
         FROM public.concept
@@ -75,16 +75,32 @@ class OMOPDetails():
         WHERE concept_id_1 = ('%s')
         '''
     
-        #retrieve the concept code mapping
-        df_code = pd.read_sql(select_from_code%(concept_code),self.ngin)
-        print(df_code)
+        # Retrieve the concept *code* mapping (not the conceptID)
+        df_code = pd.read_sql(
+            select_from_code%(concept_code),self.ngin
+            )
+        # print('CONCEPT CODES >>>>> \n', df_code)
         
+        # Look up each concept *code* for a corresponding conceptID
+        # Returns only rows where relationship_id == 'Maps to'
+        # This is OMOPs weird way of flagging which concept ID is std and valid
         maps = []
         for index, row in df_code.iterrows():
-            print(row['concept_id'])
-            maps.append(pd.read_sql(select_from_concept_relationship%(row['concept_id']),self.ngin))
+            x = pd.read_sql(select_from_concept_relationship%(row['concept_id']),self.ngin).drop(
+                ['valid_start_date',
+                 'valid_end_date',
+                 'invalid_reason'], 
+                axis=1
+            )
+            relationship_ids = ['Maps to']
+            x = x[x['relationship_id'].isin(relationship_ids)]
+            maps.append(x)
+            
+        df_maps = pd.concat(maps,ignore_index=True)
+        joined_df = df_code.merge(df_maps, left_on='concept_id', right_on='concept_id_1')
         
-        print(maps)
+        # print('MAPS >>>>> \n', joined_df)
+        return joined_df
         
     
     def get_rules(self,source_concept_ids):
