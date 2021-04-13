@@ -13,9 +13,6 @@ class MultipleStandardMappingsForInputConcepts(Exception):
     pass
 
 
-
-
-
 class OMOPDetails():
 
     #Get the directory of the OMOP_CDM.csv file
@@ -73,7 +70,6 @@ class OMOPDetails():
         return pd.concat(cdm)
         
 
-    
     #Initialise the database connection to OMOP_POSTGRES_DB
     def __init__(self):
         db_name = os.environ['OMOP_POSTGRES_DB']
@@ -168,7 +164,6 @@ class OMOPDetails():
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
-        print(info.domain_id.values[0])
         
         #get a list of unique domain names
         domains = info['domain_id'].unique()
@@ -184,14 +179,14 @@ class OMOPDetails():
         #       'concept_id_2','relationship_id']
 
         #only select what's needed for now
+        #plus check if domain_id is a measurement
+        #define is_measurement boolean variable for later checks
         if info.domain_id.values[0]=='measurement':
              info.insert(2, column='value_as_number', value='')
              info=info[['concept_id','concept_id_2','value_as_number','domain_id']]
-             print(info)
              is_measurement=True
         else:
             info = info[['concept_id','concept_id_2','domain_id']]
-            print(info)
             is_measurement=False
         #index on domain_id
         info.set_index('domain_id',inplace=True)
@@ -202,7 +197,6 @@ class OMOPDetails():
             info.columns = ['source_concept_id','concept_id','value_as_number']
         else:
             info.columns = ['source_concept_id','concept_id']
-        print(info)
      
         #temp dataframe to help handle source values
         temp = pd.DataFrame.from_dict(source_concept_ids,
@@ -233,10 +227,12 @@ class OMOPDetails():
         domain_id = info.index.unique()[0]
         #prepend the domain_id (e.g. gender) to the name of each column
         info.columns = [f"{domain_id}_{col}" for col in info.columns]
+        #when value_as_number is present do not prepend domain_id
         if is_measurement: info.rename(columns={f"{domain_id}_value_as_number":'value_as_number'}, inplace=True)
 
         #some playing around, converting/pivoting the dataframe
         #so that we generate multiple rules
+        #if the rule is for measurement do not cast to int64
         if is_measurement:
             info = info.loc[[domain_id]]\
                     .reset_index(drop=True)\
@@ -252,7 +248,7 @@ class OMOPDetails():
                    .astype('Int64')\
                    .fillna(np.NaN)\
                    .astype(str)
-        print(info)
+        
         #make into a dictionary
         #first column is a dictionary key
         #second column is the value
@@ -269,9 +265,9 @@ class OMOPDetails():
         #source_value shouldnt get mapped
         #so return this info
         info[f"{domain_id}_source_value"] = None
+        #check if measurement and set value_as_number to None
         if is_measurement: 
             info["value_as_number"] = None
-        print(info)
 
         contained_within = self.cdm['field'][
             self.cdm['field']\
@@ -279,11 +275,10 @@ class OMOPDetails():
             .contains(f"{domain_id}_source_value")
         ].index.unique().tolist()
 
-        
         retval = {}
         for table in contained_within:
             retval[table] = info
-        print(retval)
+        
         return retval
 
     def get_fields(self,domains):
@@ -302,4 +297,3 @@ if __name__ == '__main__':
     #print (tool.get_fields(list(rules.keys())))
     #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
     #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
-    
