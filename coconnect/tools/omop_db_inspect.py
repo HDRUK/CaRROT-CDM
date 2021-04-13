@@ -188,7 +188,7 @@ class OMOPDetails():
                                "invalid_reason"
                            ]
                            ,axis=1)
-                       
+
         #retrieve a relationship lookup
         df_relationship = pd.read_sql(
             select_from_concept_relationship%(_ids),self.ngin)\
@@ -196,7 +196,7 @@ class OMOPDetails():
                                 ["valid_start_date",
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
-                            
+
         #when the relationship=Maps to -> Non-standard to standard mapping
         #we don't need to check for Concept same_as_to
         relationship_ids = [
@@ -217,10 +217,10 @@ class OMOPDetails():
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
-
+        
         #get a list of unique domain names
         domains = info['domain_id'].unique()
-
+        
         #could look up the associated tables here...
         #turned off for now, but could be used again
         #cond = self.cdm['field'].str.contains(domain) \
@@ -232,14 +232,25 @@ class OMOPDetails():
         #       'concept_id_2','relationship_id']
 
         #only select what's needed for now
-        info = info[['concept_id','concept_id_2','domain_id']]
+        #plus check if domain_id is a measurement
+        #define is_measurement boolean variable for later checks
+        if info.domain_id.values[0]=='measurement':
+             info.insert(2, column='value_as_number', value='')
+             info=info[['concept_id','concept_id_2','value_as_number','domain_id']]
+             is_measurement=True
+        else:
+            info = info[['concept_id','concept_id_2','domain_id']]
+            is_measurement=False
         #index on domain_id
         info.set_index('domain_id',inplace=True)
         
         #rename concept_id --> source_concept_id
         #rename concept_id_2 --> concept_id
-        info.columns = ['source_concept_id','concept_id']
-        
+        if is_measurement:
+            info.columns = ['source_concept_id','concept_id','value_as_number']
+        else:
+            info.columns = ['source_concept_id','concept_id']
+     
         #temp dataframe to help handle source values
         temp = pd.DataFrame.from_dict(source_concept_ids,
                                       columns=['source_concept_id'],
@@ -247,25 +258,16 @@ class OMOPDetails():
 
         temp.index.rename('source_value',inplace=True)
         temp.reset_index(inplace=True)
-       
         if len(info.concept_id.unique())>1:
             print("There is more than one standard mapping for this source concept ID")
             print(info.concept_id.items)
 
-        #for now not raising an exception until we decide if we handle the two standard maps
-        #     raise MultipleStandardMappingsForInputConcepts(
-        #         f"{info.concept_id.items}\n"
-        #         f"{source_concept_ids} \n"
-        #         "There is more than one standard mapping for this source concept ID"
-        #         )
-           
         #merge with the info table so now we have source_concept_id
         info = info.reset_index().merge(temp,
                                         left_on='source_concept_id',
                                         right_on='source_concept_id')\
                                  .set_index('domain_id')
         
-       
         #raise an error if there are somehow multiple domain_ids for the input concepts
         if len(info.index.unique()) > 1:
             raise MultipleDomainsForInputConcepts(
@@ -274,24 +276,32 @@ class OMOPDetails():
                 "Somehow your concept_ids are associated with different domain_ids"
                 )
         
-      
         #get the domain_id
         domain_id = info.index.unique()[0]
-        
         #prepend the domain_id (e.g. gender) to the name of each column
         info.columns = [f"{domain_id}_{col}" for col in info.columns]
+        #when value_as_number is present do not prepend domain_id
+        if is_measurement: info.rename(columns={f"{domain_id}_value_as_number":'value_as_number'}, inplace=True)
 
         #some playing around, converting/pivoting the dataframe
         #so that we generate multiple rules
-        
-        info = info.loc[[domain_id]]\
+        #if the rule is for measurement do not cast to int64
+        if is_measurement:
+            info = info.loc[[domain_id]]\
+                    .reset_index(drop=True)\
+                    .set_index(f"{domain_id}_source_value")\
+                    .T\
+                    .fillna(np.NaN)\
+                    .astype(str)
+        else:
+            info = info.loc[[domain_id]]\
                    .reset_index(drop=True)\
                    .set_index(f"{domain_id}_source_value")\
                    .T\
                    .astype('Int64')\
                    .fillna(np.NaN)\
                    .astype(str)
-       
+        
         #make into a dictionary
         #first column is a dictionary key
         #second column is the value
@@ -308,7 +318,9 @@ class OMOPDetails():
         #source_value shouldnt get mapped
         #so return this info
         info[f"{domain_id}_source_value"] = None
-
+        #check if measurement and set value_as_number to None
+        if is_measurement: 
+            info["value_as_number"] = None
 
         contained_within = self.cdm['field'][
             self.cdm['field']\
@@ -316,12 +328,12 @@ class OMOPDetails():
             .contains(f"{domain_id}_source_value")
         ].index.unique().tolist()
 
-        
         retval = {}
         for table in contained_within:
             retval[table] = info
-            
+        
         return retval
+
 
     def get_fields(self,domains):
         if isinstance(domains,str):
@@ -339,4 +351,3 @@ if __name__ == '__main__':
     #print (tool.get_fields(list(rules.keys())))
     #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
     #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))
-    
