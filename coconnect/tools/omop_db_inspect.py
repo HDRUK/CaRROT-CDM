@@ -102,55 +102,6 @@ class OMOPDetails():
         and puts the contents into two pandas dataframes.
         2) Checks if the conceptID is standard/non-standard
     """
-    
-    def lookup_code(self, concept_code):
-        
-        print ("Working on...", concept_code)
-        
-        # SQL code for looking up codes and conceptIDs
-        select_from_code = r'''
-        SELECT *
-        FROM public.concept
-        WHERE concept_code = '%s'
-        '''
-        select_from_concept_relationship = r'''
-        SELECT *
-        FROM public.concept_relationship
-        WHERE concept_id_1 = ('%s')
-        '''
-    
-        # Retrieve the concept *code* mapping (not the conceptID)
-        df_code = pd.read_sql(
-            select_from_code%(concept_code),self.ngin
-            )
-        
-        # Look up each concept *code* for a corresponding conceptID
-        # Returns only rows where relationship_id == 'Maps to'
-        # This is OMOPs weird way of flagging which concept ID is std and valid
-        maps = []
-        for index, row in df_code.iterrows():
-            x = pd.read_sql(select_from_concept_relationship%(row['concept_id']),self.ngin).drop(
-                ['valid_start_date',
-                 'valid_end_date',
-                 'invalid_reason'], 
-                axis=1
-            )
-            relationship_ids = ['Maps to']
-            x = x[x['relationship_id']
-                  .isin(relationship_ids)]
-            maps.append(x)
-            
-        # Concat maps list into single pandas df
-        df_maps = pd.concat(maps,ignore_index=True)
-        
-        # Join the first df_codes dataframe to the mapped codes for return
-        joined_df = df_code.merge(
-            df_maps, left_on='concept_id', right_on='concept_id_1'
-            )
-        
-        return joined_df
-        
-    
     def get_rules(self,source_concept_ids):
         print ("working on",source_concept_ids)
         #From OMOP db get concept relationship
@@ -188,7 +139,7 @@ class OMOPDetails():
                                "invalid_reason"
                            ]
                            ,axis=1)
-                       
+
         #retrieve a relationship lookup
         df_relationship = pd.read_sql(
             select_from_concept_relationship%(_ids),self.ngin)\
@@ -196,7 +147,7 @@ class OMOPDetails():
                                 ["valid_start_date",
                                  "valid_end_date",
                                  "invalid_reason"],axis=1)
-                            
+
         #when the relationship=Maps to -> Non-standard to standard mapping
         #we don't need to check for Concept same_as_to
         relationship_ids = [
@@ -217,10 +168,11 @@ class OMOPDetails():
         #lower the domain id so it matches the output omop names
         #e.g. Gender --> gender
         info['domain_id'] = info['domain_id'].str.lower()
-
+        print(info.domain_id.values[0])
+        
         #get a list of unique domain names
         domains = info['domain_id'].unique()
-
+        
         #could look up the associated tables here...
         #turned off for now, but could be used again
         #cond = self.cdm['field'].str.contains(domain) \
@@ -232,14 +184,26 @@ class OMOPDetails():
         #       'concept_id_2','relationship_id']
 
         #only select what's needed for now
-        info = info[['concept_id','concept_id_2','domain_id']]
+        if info.domain_id.values[0]=='measurement':
+             info.insert(2, column='value_as_number', value='')
+             info=info[['concept_id','concept_id_2','value_as_number','domain_id']]
+             print(info)
+             is_measurement=True
+        else:
+            info = info[['concept_id','concept_id_2','domain_id']]
+            print(info)
+            is_measurement=False
         #index on domain_id
         info.set_index('domain_id',inplace=True)
         
         #rename concept_id --> source_concept_id
         #rename concept_id_2 --> concept_id
-        info.columns = ['source_concept_id','concept_id']
-        
+        if is_measurement:
+            info.columns = ['source_concept_id','concept_id','value_as_number']
+        else:
+            info.columns = ['source_concept_id','concept_id']
+        print(info)
+     
         #temp dataframe to help handle source values
         temp = pd.DataFrame.from_dict(source_concept_ids,
                                       columns=['source_concept_id'],
@@ -247,25 +211,16 @@ class OMOPDetails():
 
         temp.index.rename('source_value',inplace=True)
         temp.reset_index(inplace=True)
-       
         if len(info.concept_id.unique())>1:
             print("There is more than one standard mapping for this source concept ID")
             print(info.concept_id.items)
 
-        #for now not raising an exception until we decide if we handle the two standard maps
-        #     raise MultipleStandardMappingsForInputConcepts(
-        #         f"{info.concept_id.items}\n"
-        #         f"{source_concept_ids} \n"
-        #         "There is more than one standard mapping for this source concept ID"
-        #         )
-           
         #merge with the info table so now we have source_concept_id
         info = info.reset_index().merge(temp,
                                         left_on='source_concept_id',
                                         right_on='source_concept_id')\
                                  .set_index('domain_id')
         
-       
         #raise an error if there are somehow multiple domain_ids for the input concepts
         if len(info.index.unique()) > 1:
             raise MultipleDomainsForInputConcepts(
@@ -274,24 +229,30 @@ class OMOPDetails():
                 "Somehow your concept_ids are associated with different domain_ids"
                 )
         
-      
         #get the domain_id
         domain_id = info.index.unique()[0]
-        
         #prepend the domain_id (e.g. gender) to the name of each column
         info.columns = [f"{domain_id}_{col}" for col in info.columns]
+        if is_measurement: info.rename(columns={f"{domain_id}_value_as_number":'value_as_number'}, inplace=True)
 
         #some playing around, converting/pivoting the dataframe
         #so that we generate multiple rules
-        
-        info = info.loc[[domain_id]]\
+        if is_measurement:
+            info = info.loc[[domain_id]]\
+                    .reset_index(drop=True)\
+                    .set_index(f"{domain_id}_source_value")\
+                    .T\
+                    .fillna(np.NaN)\
+                    .astype(str)
+        else:
+            info = info.loc[[domain_id]]\
                    .reset_index(drop=True)\
                    .set_index(f"{domain_id}_source_value")\
                    .T\
                    .astype('Int64')\
                    .fillna(np.NaN)\
                    .astype(str)
-       
+        print(info)
         #make into a dictionary
         #first column is a dictionary key
         #second column is the value
@@ -308,7 +269,9 @@ class OMOPDetails():
         #source_value shouldnt get mapped
         #so return this info
         info[f"{domain_id}_source_value"] = None
-
+        if is_measurement: 
+            info["value_as_number"] = None
+        print(info)
 
         contained_within = self.cdm['field'][
             self.cdm['field']\
@@ -320,7 +283,7 @@ class OMOPDetails():
         retval = {}
         for table in contained_within:
             retval[table] = info
-            
+        print(retval)
         return retval
 
     def get_fields(self,domains):
