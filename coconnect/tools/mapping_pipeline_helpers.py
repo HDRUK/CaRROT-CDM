@@ -94,7 +94,7 @@ class StructuralMapping:
                     source_tables = rule['source_table'].str.lower()
 
                     if filter_source_tables is not None:
-                        source_tables = source_tables.str.isin(filter_source_tables)
+                        source_tables = source_tables.isin(filter_source_tables)
                 
                     
                     
