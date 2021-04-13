@@ -19,6 +19,7 @@ class StructuralMapping:
                 f_structural_mapping,
                 f_pk_mapping,
                 destination_tables=None,
+                filter_source_tables=None,
                 for_synthetic=False,
                 strict=True,
                 save=None,
@@ -69,6 +70,10 @@ class StructuralMapping:
             for destination_field in initial:
                 rule = rules.loc[destination_field]
                 source_table = rule['source_table'].lower()
+
+                if filter_source_tables is not None:
+                    if source_table not in filter_source_tables: continue
+                
                 source_field = rule['source_field'].lower()
                 term_mapping = rule['term_mapping']
                 
@@ -87,6 +92,12 @@ class StructuralMapping:
 
                     rule = rules.loc[destination_field]
                     source_tables = rule['source_table'].str.lower()
+
+                    if filter_source_tables is not None:
+                        source_tables = source_tables.str.isin(filter_source_tables)
+                
+                    
+                    
                     source_fields = rule['source_field'].str.lower()
                     term_mappings = rule['term_mapping']
 
