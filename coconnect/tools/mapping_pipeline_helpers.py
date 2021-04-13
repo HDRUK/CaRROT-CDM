@@ -91,11 +91,14 @@ class StructuralMapping:
                 for i,destination_field in enumerate(duplicates):
 
                     rule = rules.loc[destination_field]
-                    source_tables = rule['source_table'].str.lower()
 
                     if filter_source_tables is not None:
-                        source_tables = source_tables.isin(filter_source_tables)
-                
+                        rule = rule[rule['source_table'].isin(filter_source_tables)]
+                        
+                    
+                    source_tables = rule['source_table'].str.lower()
+
+                   
                     
                     
                     source_fields = rule['source_field'].str.lower()

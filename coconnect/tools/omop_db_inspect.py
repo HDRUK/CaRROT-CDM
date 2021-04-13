@@ -277,7 +277,6 @@ class OMOPDetails():
             .str\
             .contains(f"{domain_id}_source_value")
         ].index.unique().tolist()
-
         
         retval = {}
         for table in contained_within:
