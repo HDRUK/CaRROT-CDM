@@ -189,6 +189,73 @@
                               }
                         }
                   }
+	    ],
+            "observation": [
+                  {
+                        "observation_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": {
+                                    "Y": "40766945"
+                              }
+                        },
+                        "observation_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "consent date",
+                              "term_mapping": null
+                        },
+                        "observation_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": {
+                                    "Y": "40766945"
+                              }
+                        },
+                        "observation_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        }
+                  }
+            ],
+	    "measurement": [
+                  {
+                        "measurement_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": "4022977"
+                        },
+                        "measurement_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "consent date",
+                              "term_mapping": null
+                        },
+                        "measurement_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": "4022977"
+                        },
+                        "measurement_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        },
+                        "value_as_number": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": null
+                        }
+		  }
 	    ]
       }      
 }

@@ -29,6 +29,7 @@ class CommonDataModelTypes(collections.OrderedDict):
         self['FLOAT'] = lambda x : x.astype('Float64')
         self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
         self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
         self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')

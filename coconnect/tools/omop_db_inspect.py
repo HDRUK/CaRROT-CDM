@@ -103,8 +103,8 @@ class OMOPDetails():
 
 
         self.date_field_mapper = {
-            'person':'birth_datetime',
-            'condition_occurrence':'condition_start_date',
+            'person': 'birth_datetime',
+            'condition_occurrence':'condition_start_datetime',
             'measurement':'measurement_datetime',
             'observation':'observation_datetime'
         }
