@@ -12,12 +12,12 @@
             "person": [
                   {
                         "birth_datetime": {
-                              "source_table": "track.csv",
+                              "source_table": "demo.csv",
                               "source_field": "dob",
                               "term_mapping": null
                         },
                         "day_of_birth": {
-                              "source_table": "track.csv",
+                              "source_table": "demo.csv",
                               "source_field": "dob",
                               "term_mapping": null
                         },
@@ -43,7 +43,7 @@
                               "term_mapping": null
                         },
                         "month_of_birth": {
-                              "source_table": "track.csv",
+                              "source_table": "demo.csv",
                               "source_field": "dob",
                               "term_mapping": null
                         },
@@ -74,7 +74,7 @@
                               "term_mapping": null
                         },
                         "year_of_birth": {
-                              "source_table": "track.csv",
+                              "source_table": "demo.csv",
                               "source_field": "dob",
                               "term_mapping": null
                         }

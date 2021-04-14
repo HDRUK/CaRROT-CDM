@@ -1,5 +1,5 @@
-study number,gender,group,smoker,diabetic,ethnicity,antibody
-pk1,F,NURSE,y,n,WHITE BRITISH,0.7
-pk2,F,NURSE,n,n,WHITE BRITISH,0.2
-pk3,F,DOCTOR,y,y,BLACK CARIBBEAN,0.1
-pk4,F,NURSE,n,y,WHITE BRITISH,0.6
+study number,gender,dob,group,smoker,diabetic,ethnicity,antibody
+pk1,F,18/07/1962,NURSE,y,n,WHITE BRITISH,0.7
+pk2,F,01/03/1972,NURSE,n,n,WHITE BRITISH,0.2
+pk3,F,23/01/1979,DOCTOR,y,y,BLACK CARIBBEAN,0.1
+pk4,F,13/09/1991,NURSE,n,y,WHITE BRITISH,0.6
