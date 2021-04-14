@@ -169,9 +169,6 @@ class Base(object):
                 raise 
             except Exception as err:
                 self.logger.error(err)
-
-                print (pd.to_numeric(df[col],errors='coerce').astype('Int64'))
-                
                 self.logger.error(df[col])
                 self.logger.error(f'failed to convert {col} to {_type}')
                 self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
