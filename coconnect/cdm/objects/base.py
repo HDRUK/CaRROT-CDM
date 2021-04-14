@@ -167,7 +167,23 @@ class Base(object):
                 df[col] = convert_function(df[col])
             except KeyError:
                 raise 
-            except:
+            except Exception as err:
+                self.logger.error(err)
+
+                print (df[col])
+
+                print (df[col].astype(int))
+                print (df[col].astype('int64'))
+                
+                print (pd.to_numeric(df[col],errors='coerce').astype('Int64'))
+                exit(0)
+                
+                print (_type)
+
+                print (convert_function)
+
+                exit(0)
+                
                 self.logger.error(df[col])
                 self.logger.error(f'failed to convert {col} to {_type}')
                 self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
