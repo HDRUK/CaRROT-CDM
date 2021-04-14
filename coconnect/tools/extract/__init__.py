@@ -29,21 +29,42 @@ def make_class(data,
                                              source_field=source_field)
                 map_rules.append(rule)
 
+
+            #add a line break
+            map_rules.append('')
+            map_rules.append('# --- insert field operations --- ')
+
+            for destination_field,source in sorted(obj.items()):
+                if 'operations' in source:
+                    for operation in source['operations']:
+                        rule = templates.operation.render(destination_field=destination_field,
+                                                          operation=operation)
+                        map_rules.append(rule)
+                        
+                
             #add a line break
             map_rules.append('')
             map_rules.append('# --- insert term mapping --- ')
             #find term mapping
             for destination_field,source in sorted(obj.items()):
                 term_mapping = source['term_mapping']
-                    
+
+                
                 if term_mapping:
-                    nindent=4
-                    term_mapping = json.dumps(term_mapping,indent=nindent).splitlines()
-                    temp = f'self.{destination_field} = self.{destination_field}.map('
-                    map_rules.append(temp)
-                    for line in term_mapping:
-                        map_rules.append(f'{" "*nindent}{line}')
-                    map_rules.append(f')')
+                    #term map each value
+                    if isinstance(term_mapping,dict):
+                        nindent=4
+                        term_mapping = json.dumps(term_mapping,indent=nindent).splitlines()
+                        temp = f'self.{destination_field} = self.{destination_field}.map('
+                        map_rules.append(temp)
+                        for line in term_mapping:
+                            map_rules.append(f'{" "*nindent}{line}')
+                        map_rules.append(f')')
+                    #force all values to be a single value
+                    else:
+                        temp = f'self.{destination_field} = self.tools.make_scalar(self.{destination_field},{term_mapping})'
+                        map_rules.append(temp)
+                        
 
 
             
@@ -59,6 +80,8 @@ def make_class(data,
     source_code = templates.cls.render(name=name, init=init, objects=objects)
 
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    #save_dir = os.getcwd()
+
     fname = f'{save_dir}/{name}.py'
     if os.path.isfile(fname):
         print (f"Recreating file {fname}")

@@ -21,7 +21,7 @@ def show(rules):
 @click.argument("rules")
 def display(rules):
     data = tools.load_json(rules)
-    tools.make_dag(data,render=True) 
+    tools.make_dag(data['cdm'],render=True) 
 
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",

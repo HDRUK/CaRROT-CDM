@@ -7,13 +7,15 @@ import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement
+from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
+
 
 #lookup for name to class, e.g. "person" : Person
 _classes = {
     x.name: x
     for x in [Person, ConditionOccurrence,
-              VisitOccurrence, Measurement]
+              VisitOccurrence, Measurement,
+              Observation]
 }
 
 class NoInputFiles(Exception):
@@ -38,7 +40,9 @@ class CommonDataModel:
     inputs = None
     output_folder = "output_data/"
 
+    
     def __init__(self,inputs=None):
+        
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
@@ -53,17 +57,21 @@ class CommonDataModel:
                 self.logger.waring("overwriting inputs")
 
             self.inputs = inputs
-        
-        #register opereation tools
-        self.tools = OperationTools()
-        self.__dict__.update(self.__class__.__dict__)
-        
+
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
 
+            
+        #register opereation tools
+        self.tools = OperationTools()
+        self.__dict__.update(self.__class__.__dict__)
+
         self.omop = {}
 
-    def set_indexing(self,index_map):
+
+
+        
+    def set_indexing(self,index_map,strict_check=False):
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')
         
@@ -77,8 +85,15 @@ class CommonDataModel:
                 continue
                 
             self.inputs[key].index = self.inputs[key][index].rename('index') 
-        
-        
+
+
+        if strict_check:
+            indicies = {}
+            for key in self.inputs:
+                indicies[key] = self.inputs[key].index.to_list()
+
+            print (set([tuple(x) for x in indicies.values()]))
+
     def apply_term_map(self,f_term_mapping):
         self.df_term_mapping = pd.read_csv(f_term_mapping)
 
@@ -154,7 +169,7 @@ class CommonDataModel:
 
         
     def process(self,f_out='output_data/'):
-
+        
         if not self.output_folder is None:
             f_out = self.output_folder
         
@@ -170,6 +185,10 @@ class CommonDataModel:
 
         self._df_map[Measurement.name] = self.run_cdm(Measurement)
         self.logger.info(f'finalised {Measurement.name}')
+
+        self._df_map[Observation.name] = self.run_cdm(Observation)
+        self.logger.info(f'finalised {Observation.name}')
+
         self.save_to_file(self._df_map,f_out)
 
         #register output

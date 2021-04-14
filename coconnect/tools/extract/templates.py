@@ -1,8 +1,6 @@
 from jinja2 import Template
 
-cls = Template(r'''
-from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence, define_measurement
-
+cls = Template(r'''from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence, define_measurement, define_observation
 from coconnect.cdm import CommonDataModel
 import json
 
@@ -19,8 +17,12 @@ if __name__ == '__main__':
 
 init = Template(r'''
     def __init__(self,**kwargs):
+        """ 
+        initialise the inputs and setup indexing 
+        """
         super().__init__(**kwargs)
         {% if person_ids %}
+        #set primary key indexing so tables can be linked
         self.set_indexing({{ person_ids }})
         {% endif %}
 ''')
@@ -32,10 +34,14 @@ init = Template(r'''
 '''
 
 rule = Template(r'''self.{{ destination_field }} = self.inputs["{{ source_table }}"]["{{ source_field }}"]''')
+operation = Template(r'''self.{{ destination_field }} = self.tools.{{ operation }}(self.{{ destination_field }})''')
 
 obj = Template(r'''
     @define_{{ object_name }}
     def {{ function_name }}(self):
+        """
+        Create CDM object for {{ object_name }}
+        """
         {% for rule in map_rules -%}
         {{ rule }}
         {% endfor %}

@@ -15,4 +15,9 @@ class OperationTools:
             norm = datetime.datetime(2020, 7, 1)
         return df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
 
-    
+
+    def make_scalar(self,series,value):
+        #if we dont do a copy, the original data gets replaced
+        temp = series.copy()
+        temp.values[:] = value
+        return temp
