@@ -14,7 +14,13 @@ def make_class(data,
                
     
     structural_mapping = data['cdm']
-    person_ids = data['metadata']['person_id']
+
+    metadata = data['metadata']
+    person_ids = None
+    if 'person_id' in metadata:
+        person_ids = metadata['person_id']
+        person_ids = { k.lower():v.lower() for k,v in person_ids.items() }
+
     
     objects = []
     for destination_table,_map in structural_mapping.items():
@@ -75,7 +81,6 @@ def make_class(data,
                 map_rules=map_rules))
 
 
-    person_ids = { k.lower():v.lower() for k,v in person_ids.items() }
     init = templates.init.render(person_ids=person_ids)
     source_code = templates.cls.render(name=name, init=init, objects=objects)
 

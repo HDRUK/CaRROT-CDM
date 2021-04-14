@@ -116,7 +116,7 @@
                         },
                         "person_id": {
                               "source_table": "questions.csv",
-                              "source_field": "id",
+                              "source_field": "study id",
                               "term_mapping": null
                         },
                         "condition_source_value": {
@@ -164,7 +164,7 @@
                         },
                         "person_id": {
                               "source_table": "questions.csv",
-                              "source_field": "id",
+                              "source_field": "study id",
                               "term_mapping": null
                         },
                         "condition_source_value": {
