@@ -73,8 +73,8 @@
                               "source_table": "demo.csv",
                               "source_field": "ethnicity",
                               "term_mapping": {
-                                    "WHITE BRITISH": 4196428,
-                                    "BLACK CARIBBEAN": 4087917
+                                    "WHITE BRITISH": 123456,
+                                    "BLACK CARIBBEAN": 123422
                               }
                         },
                         "race_source_value": {
@@ -196,7 +196,7 @@
                               "source_table": "demo.csv",
                               "source_field": "smoker",
                               "term_mapping": {
-                                    "Y": "40766945"
+                                    "y": "40766945"
                               }
                         },
                         "observation_datetime": {
@@ -208,13 +208,16 @@
                               "source_table": "demo.csv",
                               "source_field": "smoker",
                               "term_mapping": {
-                                    "Y": "40766945"
+                                    "y": "40766945"
                               }
                         },
                         "observation_source_value": {
                               "source_table": "demo.csv",
                               "source_field": "smoker",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "extract_name_from_source_field"
+			      ]
                         },
                         "person_id": {
                               "source_table": "demo.csv",

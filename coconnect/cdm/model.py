@@ -27,6 +27,7 @@ class CommonDataModelTypes(collections.OrderedDict):
         super().__init__()
         self['INTEGER'] = lambda x : x.astype('Int64')
         self['FLOAT'] = lambda x : x.astype('Float64')
+        self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
         self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
         self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
