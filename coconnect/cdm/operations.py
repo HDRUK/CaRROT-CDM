@@ -16,7 +16,7 @@ class OperationTools:
         retval = df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
         return self.get_datetime(retval)
 
-    def extract_name_from_source_field(self,series):
+    def get_source_field_name_as_value(self,series):
         temp = series.copy()
         temp.values[:] = series.name
         return temp

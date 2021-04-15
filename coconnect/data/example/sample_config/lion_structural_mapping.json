@@ -216,7 +216,7 @@
                               "source_field": "smoker",
                               "term_mapping": null,
 			      "operations": [
-				    "extract_name_from_source_field"
+				    "get_source_field_name_as_value"
 			      ]
                         },
                         "person_id": {
