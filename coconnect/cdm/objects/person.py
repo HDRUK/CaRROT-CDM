@@ -30,7 +30,10 @@ class Person(Base):
         #df['year_of_birth'] = self.tools.get_year(df['year_of_birth'])
         #df['month_of_birth'] = self.tools.get_month(df['month_of_birth'])
         #df['day_of_birth'] = self.tools.get_day(df['day_of_birth'])
-        #df['birth_datetime'] = self.tools.get_datetime(df['birth_datetime'])
+
+        print (df['birth_datetime'])
+        exit(0)
+        df['birth_datetime'] = self.tools.get_datetime(df['birth_datetime'])
 
         
         return df
