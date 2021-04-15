@@ -165,7 +165,10 @@ class Base(object):
             try:
                 convert_function = self.dtypes[_type]
                 df[col] = convert_function(df[col])
-            except:
+            except KeyError:
+                raise 
+            except Exception as err:
+                self.logger.error(err)
                 self.logger.error(df[col])
                 self.logger.error(f'failed to convert {col} to {_type}')
                 self.logger.error(f'this is likely coming from the definition {self.define.__name__}')

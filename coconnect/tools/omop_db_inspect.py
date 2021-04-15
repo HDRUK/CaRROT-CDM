@@ -101,7 +101,17 @@ class OMOPDetails():
             
         self.cdm = self.from_csv(_version='ONLINE_LATEST')
 
-                   
+
+        self.date_field_mapper = {
+            'person': 'birth_datetime',
+            'condition_occurrence':'condition_start_datetime',
+            'measurement':'measurement_datetime',
+            'observation':'observation_datetime'
+        }
+
+
+
+        
         #self.omop_tables = [
         #    table
         #    for table in self.inspector.get_table_names(schema=self.schema)
@@ -352,13 +362,22 @@ class OMOPDetails():
         else:
             return {x:self.cdm.loc[x]['field'].tolist() for x in domains}
 
+    def get_primary_date_field(self,destination_table):
+        return self.date_field_mapper[destination_table]
+    
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     tool = OMOPDetails(load_from_db=False)
     #print (tool.get_rules(37399052))
-    rules = tool.get_rules({'M':8507,'F':8532})
-    print (json.dumps(rules,indent=6))
+    #rules = tool.get_rules({'M':8507,'F':8532})
+    #print (json.dumps(rules,indent=6))
+
+    print (tool.get_primary_date_field('person'))    
+    print (tool.get_primary_date_field('condition_occurrence'))    
+    print (tool.get_primary_date_field('measurement'))    
+    print (tool.get_primary_date_field('observation'))    
+    
     #print (tool.get_fields(list(rules.keys())))
     #print (tool.get_rules({"BLACK CARIBBEAN": 4087917, "ASIAN OTHER": 4087922, "INDIAN": 4185920, "WHITE BRITISH": 4196428}))
     #print (tool.get_rules({'0.2':37398191,'0.4':37398191}))

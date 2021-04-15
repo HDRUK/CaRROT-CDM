@@ -8,3 +8,4 @@ build
 coconnect/cdm/classes/
 *.env
 scripts/*.json
+temp
