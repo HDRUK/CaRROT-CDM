@@ -70,7 +70,7 @@ class Base(object):
 
             masker = {
                 x:i+1 #start from 1
-                for i,x in enumerate(sorted(df['person_id'].unique()))
+                for i,x in enumerate(df['person_id'].unique())
             }
             
             df['person_id'] = df['person_id'].map(masker)

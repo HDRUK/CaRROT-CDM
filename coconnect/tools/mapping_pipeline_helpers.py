@@ -119,9 +119,11 @@ class StructuralMapping:
                     source_table = rule['source_table'].lower()
                     source_field = rule['source_field'].lower()
                     term_mapping = rule['term_mapping']
+                    operations = rule['operations']
                     obj = {
                         'source_table':source_table,
                         'source_field':source_field,
+                        'operations':operations,
                         'term_mapping':term_mapping
                     }
                     _dmap[destination_field] = obj
@@ -135,17 +137,6 @@ class StructuralMapping:
                     #extract the non-base rules
                     duplicates = values[values==unique_values[1]].index
                     #loop over them
-
-                    #temp = pd.read_json(f_structural_mapping)[['destination_field','source_table','source_field']]
-                    #temp.set_index('destination_field',inplace=True)
-
-                    #print (temp.loc['condition_concept_id'])
-                    #print (temp.loc['condition_source_concept_id'])
-                    
-                    #print (rules.loc['condition_concept_id'][['source_table','source_field']])
-                    #print (rules.loc['condition_source_concept_id'][['source_table','source_field']])
-                    #exit(0)
-                    
                     for i,destination_field in enumerate(duplicates):
                         #ordering of these is going funny..
                         #temp fix is to order by source_field so they are in line with each other
@@ -153,16 +144,19 @@ class StructuralMapping:
                         source_tables = rule['source_table'].str.lower()
                         source_fields = rule['source_field'].str.lower()
                         term_mappings = rule['term_mapping']
-
-
-                        for j,(source_table,source_field,term_mapping)\
-                            in enumerate(zip(source_tables,source_fields,term_mappings)):
+                        operations_set = rule['operations']
+ 
+ 
+                        for j,(source_table,source_field,term_mapping,operations)\
+                            in enumerate(zip(source_tables,source_fields,term_mappings,operations_set)):
                             obj = {
                                 'source_table':source_table,
                                 'source_field':source_field,
+                                'operations':operations,
                                 'term_mapping':term_mapping
                             }
                             
+
                             if i == 0 and j>0:
                                 _dmap = copy.copy(_map[destination_table][0])
                                 _dmap[destination_field] = obj

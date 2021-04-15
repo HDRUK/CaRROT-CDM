@@ -25,12 +25,16 @@ class Person(Base):
            pandas.Dataframe: output dataframe
         """
         df = super().get_df()
-        
-        #convert these key fields
-        #df['year_of_birth'] = self.tools.get_year(df['year_of_birth'])
-        #df['month_of_birth'] = self.tools.get_month(df['month_of_birth'])
-        #df['day_of_birth'] = self.tools.get_day(df['day_of_birth'])
-        #df['birth_datetime'] = self.tools.get_datetime(df['birth_datetime'])
 
+
+        #auto conversion
+        if not df['birth_datetime'].isnull().any():
+            if df['year_of_birth'].isnull().all():
+                df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
+            if df['month_of_birth'].isnull().all():
+                df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
+            if df['day_of_birth'].isnull().all():
+                df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
+            
         
         return df
