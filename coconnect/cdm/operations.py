@@ -13,7 +13,8 @@ class OperationTools:
         if norm is None:
             #set normalisation to middle of 2020
             norm = datetime.datetime(2020, 7, 1)
-        return df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
+        retval = df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
+        return self.get_datetime(retval)
 
     def extract_name_from_source_field(self,series):
         temp = series.copy()
