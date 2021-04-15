@@ -144,11 +144,11 @@ class StructuralMapping:
                         source_tables = rule['source_table'].str.lower()
                         source_fields = rule['source_field'].str.lower()
                         term_mappings = rule['term_mapping']
-                        operationss = rule['operations']
+                        operations_set = rule['operations']
  
  
                         for j,(source_table,source_field,term_mapping,operations)\
-                            in enumerate(zip(source_tables,source_fields,term_mappings,operationss)):
+                            in enumerate(zip(source_tables,source_fields,term_mappings,operations_set)):
                             obj = {
                                 'source_table':source_table,
                                 'source_field':source_field,
