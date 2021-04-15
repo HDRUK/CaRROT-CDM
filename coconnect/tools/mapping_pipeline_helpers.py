@@ -137,17 +137,6 @@ class StructuralMapping:
                     #extract the non-base rules
                     duplicates = values[values==unique_values[1]].index
                     #loop over them
-
-                    #temp = pd.read_json(f_structural_mapping)[['destination_field','source_table','source_field']]
-                    #temp.set_index('destination_field',inplace=True)
-
-                    #print (temp.loc['condition_concept_id'])
-                    #print (temp.loc['condition_source_concept_id'])
-                    
-                    #print (rules.loc['condition_concept_id'][['source_table','source_field']])
-                    #print (rules.loc['condition_source_concept_id'][['source_table','source_field']])
-                    #exit(0)
-                    
                     for i,destination_field in enumerate(duplicates):
                         #ordering of these is going funny..
                         #temp fix is to order by source_field so they are in line with each other
@@ -167,9 +156,6 @@ class StructuralMapping:
                                 'term_mapping':term_mapping
                             }
                             
-
-                            #print (obj)
-
 
                             if i == 0 and j>0:
                                 _dmap = copy.copy(_map[destination_table][0])
