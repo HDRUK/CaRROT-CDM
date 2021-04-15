@@ -41,7 +41,7 @@ def make_class(data,
             map_rules.append('# --- insert field operations --- ')
 
             for destination_field,source in sorted(obj.items()):
-                if 'operations' in source:
+                if 'operations' in source and source['operations'] is not None:
                     for operation in source['operations']:
                         rule = templates.operation.render(destination_field=destination_field,
                                                           operation=operation)

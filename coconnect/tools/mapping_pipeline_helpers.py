@@ -119,9 +119,11 @@ class StructuralMapping:
                     source_table = rule['source_table'].lower()
                     source_field = rule['source_field'].lower()
                     term_mapping = rule['term_mapping']
+                    operations = rule['operations']
                     obj = {
                         'source_table':source_table,
                         'source_field':source_field,
+                        'operations':operations,
                         'term_mapping':term_mapping
                     }
                     _dmap[destination_field] = obj
@@ -153,16 +155,22 @@ class StructuralMapping:
                         source_tables = rule['source_table'].str.lower()
                         source_fields = rule['source_field'].str.lower()
                         term_mappings = rule['term_mapping']
-
-
-                        for j,(source_table,source_field,term_mapping)\
-                            in enumerate(zip(source_tables,source_fields,term_mappings)):
+                        operationss = rule['operations']
+ 
+ 
+                        for j,(source_table,source_field,term_mapping,operations)\
+                            in enumerate(zip(source_tables,source_fields,term_mappings,operationss)):
                             obj = {
                                 'source_table':source_table,
                                 'source_field':source_field,
+                                'operations':operations,
                                 'term_mapping':term_mapping
                             }
                             
+
+                            #print (obj)
+
+
                             if i == 0 and j>0:
                                 _dmap = copy.copy(_map[destination_table][0])
                                 _dmap[destination_field] = obj
