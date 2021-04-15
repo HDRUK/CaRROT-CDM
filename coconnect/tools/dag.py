@@ -25,8 +25,7 @@ def make_dag(data,render=False):
 
                 if 'operations' in source:
                     operations = source['operations']
-                    print (operations)
-                                
+                                                    
                 dot.edge(table_name,source_field,dir='back')
                 
                 dot.node(source_table,shape='box')
