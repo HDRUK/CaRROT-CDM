@@ -83,21 +83,25 @@ This quick example shows how you can run OMOP mapping based on a sample json fil
 
 Firstly run `show` to display the input `json` structure
 ```
-$ coconnect map show example/sample_config/panther_structural_mapping.json 
-{
-      "person": [
-            {
-                  "day_of_birth": {
-                        "source_table": "tracker.csv",
-                        "source_field": "dob",
-                        "term_mapping": null
-                  },
-		  ...
+$ coconnect map show example/sample_config/lion_structural_mapping.json
+...
+      "cdm": {
+            "person": [
+                  {
+                        "birth_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "dob",
+                              "term_mapping": null,
+                              "operations": [
+                                    "get_datetime"
+                              ]
+                        },
+			...
 ```
 
 To display this `json` as a `dag` you can run:
 ```
-$ coconnect map display example/sample_config/panther_structural_mapping.json 
+$ coconnect map display example/sample_config/lion_structural_mapping.json 
 ```
 
 The next step is to create a `.py` configuration file from this input `json`. The tool automatically registers these files, to see registred files, you can run:
@@ -109,125 +113,65 @@ Showing that no files have been created and registered.
 
 To create your first configuration file, run `make` specifying the name of the output file/class:
 ```
-$ coconnect map make --name Panther  example/sample_config/panther_structural_mapping.json 
-Making new file /Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Panther.py
-
-Looking at the file that has been created, you can see the `.py` configuration file has been made:
+$ coconnect map make --name Lion  example/sample_config/lion_structural_mapping.json
+Making new file <your install dir>/co-connect-tools/coconnect/cdm/classes/Lion.py
 ```
 
+Looking at the file that has been created, you can see the `.py` configuration file has been made:
+
+
 ```python
-from coconnect.cdm import define_person, define_condition_occurrence, load_csv
+from coconnect.cdm import define_person, define_condition_occurrence, define_visit_occurrence, define_measurement, define_observation
 from coconnect.cdm import CommonDataModel
 import json
 
-class Panther(CommonDataModel):
-
+class Lion(CommonDataModel):
     
+...
     @define_person
     def person_0(self):
-        self.day_of_birth = self.inputs["tracker.csv"]["dob"]
-        self.gender_concept_id = self.inputs["demographic.csv"]["gender"]
-        self.gender_source_concept_id = self.inputs["demographic.csv"]["gender"]
-        self.gender_source_value = self.inputs["demographic.csv"]["gender"]
-	...
+        """
+        Create CDM object for person
+        """
+        self.birth_datetime = self.inputs["demo.csv"]["dob"]
+        self.day_of_birth = self.inputs["demo.csv"]["dob"]
+        self.gender_concept_id = self.inputs["demo.csv"]["gender"]
+        self.gender_source_concept_id = self.inputs["demo.csv"]["gender"]
+        self.gender_source_value = self.inputs["demo.csv"]["gender"]
+        self.month_of_birth = self.inputs["demo.csv"]["dob"]
+....
+
 ```
 
 Now the `list` command shows that the file has been registered with the tool:
 ```
 $ coconnect map list
 {
-      "Panther": {
-            "module": "coconnect.cdm.classes.Panther",
-            "path": "/Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Panther.py",
-            "last-modified": "2021-03-12 10:34:43"
+      "Lion": {
+            "module": "coconnect.cdm.classes.Lion",
+            "path": "/Users/calummacdonald/Usher/CO-CONNECT/Software/co-connect-tools/coconnect/cdm/classes/Lion.py",
+            "last-modified": "2021-04-16 10:26:33"
       }
 }
 ```
 
 Now we're able to run:
 ```
-$coconnect map run --name Panther example/sample_input_data/*.csv
+$ coconnect map run --name Lion example/sample_input_data/*.csv
 ...
-2021-03-12 10:37:30 - Panther - INFO - saving person to output_data//person.csv
-2021-03-12 10:37:30 - Panther - INFO -            gender_concept_id  year_of_birth  ...  race_source_concept_id  ethnicity_source_value
+
+2021-04-16 10:29:12 - Lion - INFO - finalised observation
+2021-04-16 10:29:12 - Lion - INFO - saving person to output_data//person.csv
+2021-04-16 10:29:12 - Lion - INFO -            gender_concept_id  year_of_birth  ...  race_source_concept_id  ethnicity_source_value
 person_id                                    ...                                                
-1                       8532           1962  ...                 4196428                        
-2                       8532           1992  ...                 4196428                        
+1                       8532           1962  ...                  123456                        
+2                       8507           1972  ...                  123456                        
+3                       8532           1979  ...                  123422                        
+4                       8532           1991  ...                  123456                        
+
+[4 rows x 12 columns]
+...
 ```
 
 Outputs are saved in the folder `output_data`
-
-
-______
-
-## **DECREPIT** ETLTool
-
-A tool for converting a ETL to a CDM, as used by the UK [CO-CONNECT](https://co-connect.ac.uk) project.
-```
-usage: etl2cdm [-h] --inputs INPUTS [INPUTS ...] [--output-folder OUTPUT_FOLDER] [--term-mapping TERM_MAPPING]
-               --structural-mapping STRUCTURAL_MAPPING [--chunk-size CHUNK_SIZE] [-v]
-
-Tool for mapping datasets
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --inputs INPUTS [INPUTS ...], -i INPUTS [INPUTS ...]
-                        input .csv files for the original data to be mapped to the CDM
-  --output-folder OUTPUT_FOLDER, -o OUTPUT_FOLDER
-                        location of where to store the data
-  --term-mapping TERM_MAPPING, -tm TERM_MAPPING
-                        file that will handle the term mapping
-  --structural-mapping STRUCTURAL_MAPPING, -sm STRUCTURAL_MAPPING
-                        file that will handle the structural mapping
-  --chunk-size CHUNK_SIZE
-                        define how to "chunk" the dataframes, this specifies how many rows in the csv files to read
-                        in at a time
-  -v, --verbose         set debugging level
-```
-
-
-### Installing
-
-To install the tools, you can use `pip`
-```
-pip install co-connect-tools
-```
-
-Otherwise, to install locally, checkout the package, navigate to the directory containing the source code and run
-```
-pip install -e .
-```
-
-
-### Running etl2cdm locally
-
-To run this tool contained within the co-connect-tools package
-
-```bash
-etl2cdm -v \
-       --inputs sample_input_data/patients_sample.csv\
-       --structural-mapping sample_input_data/rules1.csv\
-       --term-mapping sample_input_data/rules2.csv 
-```
-Which by default will create files in a folder called `data/`
-
-### Running with Docker
-
-First you need to build the docker image from this source
-
-```bash
-docker build . -t etltool:latest
-```
-
-Running
-```bash
-docker run -it -v `pwd`:/data/ etltool:latest\
-            --inputs /data/sample_input_data/patients_sample.csv\
-	    --structural-mapping /data/sample_input_data/rules1.csv\
-	    --term-mapping /data/sample_input_data/rules2.csv\
-	    --output-folder /data/output_data/
-```
-
-* `-v <folder>:/data/`: will mount any local folder containing the data
-   * the container will then be able to see local files under `/data/`, and therefore you should specify additional commands to point to that root directory instead.
 
