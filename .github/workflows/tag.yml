@@ -1,5 +1,8 @@
 name: tag-version
-on: [tag]
+on:
+  push:
+    tags:
+    - '*'
 
 jobs:
   run:
