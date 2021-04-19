@@ -5,10 +5,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
+
+with open('version.txt') as f:
+    version = f.read()
     
 setuptools.setup(
     name="co-connect-tools", 
     author="CO-CONNECT",
+    version=version,
     author_email="CO-CONNECT@dundee.ac.uk",
     description="Python package for performing mapping of ETL to CDM ",
     long_description=long_description,
