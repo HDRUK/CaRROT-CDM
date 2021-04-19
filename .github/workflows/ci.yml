@@ -34,11 +34,10 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.6.8
-      - run : echo ${GITHUB_REF#refs/*/}
-      - run : echo ${GITHUB_REF#refs/*/} >> version.txt
       - run: pip3 install wheel
       - uses: actions/checkout@v2
       - run:  |
+         echo ${GITHUB_REF#refs/*/} >> version.txt
          cat version.txt 
          python3 setup.py sdist bdist_wheel
          ls dist
