@@ -1,4 +1,5 @@
 import setuptools
+import os
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -6,8 +7,11 @@ with open("README.md", "r", encoding="utf-8") as fh:
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-with open('version.txt') as f:
-    version = f.read()
+version = '0.0.0'
+if os.path.exists('version.txt'):
+    with open('version.txt') as f:
+        version = f.read()
+
     
 setuptools.setup(
     name="co-connect-tools", 
