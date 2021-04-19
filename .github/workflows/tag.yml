@@ -12,4 +12,4 @@ jobs:
         with:
           python-version: 3.6.8
       - name: check secret
-        run: echo {{ secrets.PYPI_KEY }}
+        run: echo ${{ secrets.PYPI_KEY }}
