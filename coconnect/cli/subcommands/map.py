@@ -91,10 +91,10 @@ def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
             
     inputs = {
         (
-            x.split("/")[-1][:strip_name]
+            x.split("/")[-1][:strip_name].lower()
             if drop_csv_from_name is False
             else
-            x.split("/")[-1][:strip_name].replace('.csv','')
+            x.split("/")[-1][:strip_name].lower().replace('.csv','')
         ):x
         for x in inputs
     }
