@@ -4,6 +4,7 @@ Welcome to our repo for `python` tools used by/with the CO-CONNECT project
 
 ### Table of Contents
 1. [Installing](#installing)
+1. [Quick Start](#quick)
 1. [CLI](#cli)
 
 
@@ -42,6 +43,19 @@ coloredlogs
 Jinja2
 graphviz
 click
+```
+
+
+## Quick Start <a name="quick"></a>
+
+Example:
+```
+coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
+```
+
+To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
+```bash
+coconnect map run --name <NAME> --rules <RULES.json> <INPUTFILE 1> <INPUTFILE 2> ....
 ```
 
 
