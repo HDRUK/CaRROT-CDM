@@ -39,8 +39,10 @@ jobs:
       - run: pip3 install wheel
       - uses: actions/checkout@v2
       - run:  |
+         cat version.txt 
          python3 setup.py sdist bdist_wheel
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_KEY }}
+         ls dist
+      #- uses: pypa/gh-action-pypi-publish@release/v1
+      #  with:
+      #    user: __token__
+      #    password: ${{ secrets.PYPI_KEY }}
