@@ -1,15 +1,22 @@
 import setuptools
+import os
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
+
+version = '0.0.0'
+if os.path.exists('version.txt'):
+    with open('version.txt') as f:
+        version = f.read()
+
     
 setuptools.setup(
     name="co-connect-tools", 
-    version="0.1.8",
     author="CO-CONNECT",
+    version=version,
     author_email="CO-CONNECT@dundee.ac.uk",
     description="Python package for performing mapping of ETL to CDM ",
     long_description=long_description,

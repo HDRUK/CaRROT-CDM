@@ -1,8 +1,8 @@
-name: ci
+name: co-coconnect-tools
 on: [push]
 
 jobs:
-  run:
+  build:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
@@ -26,3 +26,20 @@ jobs:
           name: outputs
           path: output_data
           retention-days: 1
+  pypi:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - run : echo $CI_COMMIT_TAG
+      - run : echo $CI_COMMIT_TAG >> version.txt
+      - run: pip3 install wheel
+      - uses: actions/checkout@v2
+      - run:  |
+          python3 setup.py sdist bdist_wheel
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_KEY }}
