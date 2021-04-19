@@ -45,6 +45,9 @@ def list_classes():
 @click.option("--name",
               required=True,
               help="give the name of the dataset, use 'coconnect map list' to see what classes have been registered")
+@click.option("--rules",
+              required=False,
+              help="pass the input json file containing all the mapping rules to be applied")
 @click.option("--type",
               default='csv',
               type=click.Choice(['csv']),
@@ -63,8 +66,14 @@ def list_classes():
               help="handy tool to drop .csv. from the key name, may be needed with whiterabbit")
 @click.argument("inputs",
                 nargs=-1)
-def run(name,inputs,strip_name,drop_csv_from_name,type):
+@click.pass_context
+def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
 
+    if not rules is None:
+        ctx.invoke(make_class,name=name,rules=rules)
+        ctx.invoke(list_classes)
+
+    
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(coconnect.__file__)
