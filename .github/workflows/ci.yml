@@ -41,6 +41,6 @@ jobs:
       - run:  |
          python3 setup.py sdist bdist_wheel
       - uses: pypa/gh-action-pypi-publish@release/v1
-       with:
-         user: __token__
-         password: ${{ secrets.PYPI_KEY }}
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_KEY }}
