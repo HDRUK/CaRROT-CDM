@@ -48,6 +48,10 @@ click
 
 ## Quick Start <a name="quick"></a>
 
+Example:
+```
+coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
+```
 
 To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
 ```bash
