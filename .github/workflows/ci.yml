@@ -40,8 +40,6 @@ jobs:
          echo ${GITHUB_REF#refs/*/} >> version.txt
          cat version.txt 
          python3 setup.py sdist bdist_wheel
-         ls dist
-      - run: ls dist
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
