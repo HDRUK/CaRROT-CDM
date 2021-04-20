@@ -27,7 +27,8 @@ class StructuralMapping:
                 **kwargs):
 
         _metadata = kwargs
-        self.df_structural_mapping = pd.read_json(f_structural_mapping)
+        self.df_structural_mapping = pd.read_json(f_structural_mapping,encoding='utf-8-sig')
+
         #for some reason null columns are being read-in as NaN
         self.df_structural_mapping.replace({np.nan: None},inplace=True)
         
@@ -120,8 +121,8 @@ class StructuralMapping:
                 #build rules from the base_fields
                 for destination_field in base_fields:
                     rule = rules.loc[destination_field]
-                    source_table = rule['source_table'].lower()
-                    source_field = rule['source_field'].lower()
+                    source_table = rule['source_table'].lower().replace(u'\ufeff', '')
+                    source_field = rule['source_field'].lower().replace(u'\ufeff', '')
                     term_mapping = rule['term_mapping']
                     operations = rule['operations']
                     
@@ -166,7 +167,7 @@ class StructuralMapping:
                                 _dmap = copy.copy(_map_source_table[0])
                                 _dmap[destination_field] = obj
                                 _map_source_table.append(_dmap)
-                                                             
+
                             else:
                                 _map_source_table[j][destination_field] = obj
 
