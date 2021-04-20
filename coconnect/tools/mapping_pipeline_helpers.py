@@ -27,6 +27,9 @@ class StructuralMapping:
 
         _metadata = kwargs
         self.df_structural_mapping = pd.read_json(f_structural_mapping)
+        #for some reason null columns are being read-in as NaN
+        self.df_structural_mapping.replace({np.nan: None},inplace=True)
+        
         if filter_destination_tables:
             self.df_structural_mapping = self.df_structural_mapping[
                 self.df_structural_mapping['destination_table'].isin(filter_destination_tables)
@@ -111,8 +114,7 @@ class StructuralMapping:
                 _dmap = {}
 
                 rules = rules.reset_index().set_index('destination_field')
-                
-                
+
                 #build rules from the base_fields
                 for destination_field in base_fields:
                     rule = rules.loc[destination_field]
@@ -120,6 +122,7 @@ class StructuralMapping:
                     source_field = rule['source_field'].lower()
                     term_mapping = rule['term_mapping']
                     operations = rule['operations']
+                    
                     obj = {
                         'source_table':source_table,
                         'source_field':source_field,
@@ -166,7 +169,6 @@ class StructuralMapping:
 
 
 
-        #print (json.dumps(_map,indent=6))
                             
         if 'person' in _map and len(_map['person']) > 1:
             print (json.dumps(_map['person'],indent=6))
