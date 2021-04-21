@@ -67,6 +67,7 @@ def load_csv(_map,nrows=None,load_path=""):
         df = pd.read_csv(load_path+fname,nrows=nrows)
         for col in df.columns:
             df[col].fname = fname
+        df.columns = df.columns.str.lower()
         _map[key] = df 
     return _map
 
