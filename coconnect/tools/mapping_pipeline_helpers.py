@@ -13,6 +13,7 @@ class MissConfiguredStructuralMapping(Exception):
 class NoPrimaryKeyDefined(Exception):
     pass
 
+
 class StructuralMapping:
     @classmethod
     def to_json(self,
@@ -26,7 +27,11 @@ class StructuralMapping:
                 **kwargs):
 
         _metadata = kwargs
-        self.df_structural_mapping = pd.read_json(f_structural_mapping)
+        self.df_structural_mapping = pd.read_json(f_structural_mapping,encoding='utf-8-sig')
+
+        #for some reason null columns are being read-in as NaN
+        self.df_structural_mapping.replace({np.nan: None},inplace=True)
+        
         if filter_destination_tables:
             self.df_structural_mapping = self.df_structural_mapping[
                 self.df_structural_mapping['destination_table'].isin(filter_destination_tables)
@@ -63,17 +68,18 @@ class StructuralMapping:
             all_rules.set_index('source_table',inplace=True)
             #find all source tables associated with this destination_table
             source_tables = all_rules.index.unique()
-
+           
             #loop over the source tables
             for source_table in source_tables:
+                _map_source_table = []
                 rules = all_rules.loc[source_table]
-                
+                                
                 #count how many times a rule appears for a destination field and a source field
                 values = rules['destination_field'].value_counts()
                 unique_values = sorted(values.unique())
 
-                
-                
+
+                                
                 if len(unique_values) > 2:
                     print ('having to skip',destination_table)
                     if strict:
@@ -111,15 +117,15 @@ class StructuralMapping:
                 _dmap = {}
 
                 rules = rules.reset_index().set_index('destination_field')
-                
-                
+
                 #build rules from the base_fields
                 for destination_field in base_fields:
                     rule = rules.loc[destination_field]
-                    source_table = rule['source_table'].lower()
-                    source_field = rule['source_field'].lower()
+                    source_table = rule['source_table'].lower().replace(u'\ufeff', '')
+                    source_field = rule['source_field'].lower().replace(u'\ufeff', '')
                     term_mapping = rule['term_mapping']
                     operations = rule['operations']
+                    
                     obj = {
                         'source_table':source_table,
                         'source_field':source_field,
@@ -130,7 +136,7 @@ class StructuralMapping:
 
               
                 #save these base rules
-                _map[destination_table].append(_dmap)
+                _map_source_table.append(_dmap)
 
                 #now move onto multiple rules that need to use the base
                 if len(unique_values) == 2:
@@ -158,15 +164,14 @@ class StructuralMapping:
                             
 
                             if i == 0 and j>0:
-                                _dmap = copy.copy(_map[destination_table][0])
+                                _dmap = copy.copy(_map_source_table[0])
                                 _dmap[destination_field] = obj
-                                _map[destination_table].append(_dmap)
+                                _map_source_table.append(_dmap)
+
                             else:
-                                _map[destination_table][j][destination_field] = obj
+                                _map_source_table[j][destination_field] = obj
 
-
-
-        #print (json.dumps(_map,indent=6))
+                _map[destination_table].extend(_map_source_table)
                             
         if 'person' in _map and len(_map['person']) > 1:
             print (json.dumps(_map['person'],indent=6))
