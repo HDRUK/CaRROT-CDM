@@ -89,39 +89,6 @@ class CommonDataModel:
             self.inputs[key].index = self.inputs[key][index].rename('index') 
 
 
-        if strict_check:
-            indicies = {}
-            for key in self.inputs:
-                indicies[key] = self.inputs[key].index.to_list()
-
-            print (set([tuple(x) for x in indicies.values()]))
-
-    def apply_term_map(self,f_term_mapping):
-        self.df_term_mapping = pd.read_csv(f_term_mapping)
-
-        self.df_term_mapping = self.df_term_mapping.set_index('rule_id').sort_index()
-        self.df_structural_mapping= self.df_structural_mapping\
-            [self.df_structural_mapping['term_mapping'].str.contains('y')].reset_index().set_index('rule_id').sort_index()
-        
-        maps = self.df_term_mapping.join(self.df_structural_mapping)\
-                                   .set_index(['destination_table','destination_field'])\
-                                   [['source_term','destination_term','term_mapping']].sort_index()
-
-        
-        for p in self.get_objs(Person):
-            person_map = maps.loc['person']
-            for destination_field in person_map.index.unique():
-                term_mapper = maps.loc[p.name,destination_field]\
-                             .reset_index(drop=True)\
-                             .set_index('source_term')['destination_term']\
-                             .to_dict()
-                print ('mapping',destination_field,'with',term_mapper)
-                print (maps.loc[p.name,destination_field])
-                mapped_field = getattr(p,destination_field).map(term_mapper)
-                setattr(p,destination_field,mapped_field)
-               
-        
-
     def get_cdm_class(self,class_type):
         if class_type in _classes:
             return _classes[class_type]()

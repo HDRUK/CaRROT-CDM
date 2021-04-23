@@ -369,7 +369,8 @@ if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     tool = OMOPDetails(load_from_db=False)
-    #print (tool.get_rules(37399052))
+    print (tool.get_rules(9189))
+    exit(0)
     #rules = tool.get_rules({'M':8507,'F':8532})
     #print (json.dumps(rules,indent=6))
 

@@ -84,10 +84,9 @@ def make_class(data,
     init = templates.init.render(person_ids=person_ids)
     source_code = templates.cls.render(name=name, init=init, objects=objects)
 
-    save_dir = os.path.dirname(os.path.abspath(classes.__file__))
-    #save_dir = os.getcwd()
+    current_dir = os.getcwd()
 
-    fname = f'{save_dir}/{name}.py'
+    fname = f'{current_dir}/{name}.py'
     if os.path.isfile(fname):
         print (f"Recreating file {fname}")
     else:
@@ -95,3 +94,11 @@ def make_class(data,
         
     with open(fname,'w') as f:
         f.write(source_code)
+
+    #register the file within coconnect/classes so it can be imported
+    save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+    fname_dst =  f'{save_dir}/{name}.py'
+    if os.path.isfile(fname_dst):
+        os.unlink(fname_dst)
+        
+    os.symlink(fname, fname_dst)

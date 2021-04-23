@@ -107,7 +107,6 @@ def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
         
     available_classes = tools.get_classes()
     if name not in available_classes:
-        print (available_classes)
         raise KeyError(f"cannot find config for {name}")
 
     module = __import__(available_classes[name]['module'],fromlist=[name])
