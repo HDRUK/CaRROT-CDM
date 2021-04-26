@@ -43,10 +43,11 @@ def get_classes(format=False):
         mname = fname.split(".")[0]
         mname = '.'.join([classes.__name__, mname])
         module = __import__(mname,fromlist=[fname])
+        path = os.path.join(_dir,fname)
         defined_classes = {
             m[0]: {
                 'module':m[1].__module__,
-                'path': os.path.join(_dir,fname),
+                'path': path  if not os.path.islink(path) else os.readlink(path),
                 'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(_dir,fname))))
             }
             for m in inspect.getmembers(module, inspect.isclass)
