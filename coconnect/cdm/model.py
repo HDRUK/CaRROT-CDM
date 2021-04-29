@@ -45,7 +45,10 @@ class CommonDataModel:
     
     def __init__(self,**kwargs):
 
-
+        name = self.__class__.__name__
+        if 'name' in kwargs:
+            name = kwargs['name']
+            
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
@@ -72,9 +75,8 @@ class CommonDataModel:
         #register opereation tools
         self.tools = OperationTools()
         self.__dict__.update(self.__class__.__dict__)
-
+        
         self.omop = {}
-
 
 
         
