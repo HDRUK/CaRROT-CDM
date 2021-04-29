@@ -44,6 +44,7 @@ class Observation(Base):
         df = super().get_df()
 
         #make sure the concept_ids are numeric, otherwise set them to null
+        print (df['observation_concept_id'] )
         df['observation_concept_id'] = pd.to_numeric(df['observation_concept_id'],errors='coerce')
 
         #require the observation_concept_id to be filled

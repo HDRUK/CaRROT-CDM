@@ -74,7 +74,8 @@ class CommonDataModel:
             
         #register opereation tools
         self.tools = OperationTools()
-        self.__dict__.update(self.__class__.__dict__)
+
+        #self.__dict__.update(self.__class__.__dict__)
         
         self.omop = {}
 

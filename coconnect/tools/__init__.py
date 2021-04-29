@@ -65,7 +65,7 @@ def get_classes(format=False):
 
 def load_csv(_map,nrows=None,load_path=""):
     for key,fname in _map.items():
-        df = pd.read_csv(load_path+fname,nrows=nrows)
+        df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
         for col in df.columns:
             df[col].fname = fname
         df.columns = df.columns.str.lower()
