@@ -103,10 +103,10 @@ class OMOPDetails():
 
 
         self.date_field_mapper = {
-            'person': 'birth_datetime',
-            'condition_occurrence':'condition_start_datetime',
-            'measurement':'measurement_datetime',
-            'observation':'observation_datetime'
+            'person': ['birth_datetime'],
+            'condition_occurrence': ['condition_start_datetime','condition_end_datetime'],
+            'measurement':['measurement_datetime'],
+            'observation':['observation_datetime']
         }
 
 
@@ -362,14 +362,15 @@ class OMOPDetails():
         else:
             return {x:self.cdm.loc[x]['field'].tolist() for x in domains}
 
-    def get_primary_date_field(self,destination_table):
+    def get_date_fields(self,destination_table):
         return self.date_field_mapper[destination_table]
     
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     tool = OMOPDetails(load_from_db=False)
-    #print (tool.get_rules(37399052))
+    print (tool.get_rules(9189))
+    exit(0)
     #rules = tool.get_rules({'M':8507,'F':8532})
     #print (json.dumps(rules,indent=6))
 

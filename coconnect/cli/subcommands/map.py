@@ -64,10 +64,15 @@ def list_classes():
 @click.option("--drop-csv-from-name",
               is_flag=True,
               help="handy tool to drop .csv. from the key name, may be needed with whiterabbit")
+@click.option("--output-folder",
+              default=None,
+              help="define the output folder where to dump csv files to")
 @click.argument("inputs",
                 nargs=-1)
 @click.pass_context
-def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
+def run(ctx,
+        name,rules,inputs,output_folder,
+        strip_name,drop_csv_from_name,type):
 
     if not rules is None:
         ctx.invoke(make_class,name=name,rules=rules)
@@ -107,7 +112,6 @@ def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
         
     available_classes = tools.get_classes()
     if name not in available_classes:
-        print (available_classes)
         raise KeyError(f"cannot find config for {name}")
 
     module = __import__(available_classes[name]['module'],fromlist=[name])
@@ -117,9 +121,15 @@ def run(ctx,name,rules,inputs,strip_name,drop_csv_from_name,type):
         if m[1].__module__ == module.__name__
     ]
 
+    
+    if output_folder is None:
+        output_folder = os.getcwd()+'/output_data/'
+
+    
     for defined_class in defined_classes:
         cls = getattr(module,defined_class)
-        c = cls(inputs=inputs)
+        c = cls(inputs=inputs,
+                output_folder=output_folder)
         c.process()
         
     

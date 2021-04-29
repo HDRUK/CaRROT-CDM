@@ -43,14 +43,19 @@ class CommonDataModel:
     output_folder = "output_data/"
 
     
-    def __init__(self,inputs=None):
-        
+    def __init__(self,**kwargs):
+
+
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
         self.dtypes = CommonDataModelTypes()
 
-        if not inputs is None:
+        if 'output_folder' in kwargs:
+            self.output_folder = kwargs['output_folder']
+        
+        if 'inputs' in kwargs:
+            inputs = kwargs['inputs']
             if not isinstance(inputs,dict):
                 self.logger.error(inputs)
                 raise NoInputFiles("setting up inputs that are not a dict!!")
@@ -88,39 +93,6 @@ class CommonDataModel:
                 
             self.inputs[key].index = self.inputs[key][index].rename('index') 
 
-
-        if strict_check:
-            indicies = {}
-            for key in self.inputs:
-                indicies[key] = self.inputs[key].index.to_list()
-
-            print (set([tuple(x) for x in indicies.values()]))
-
-    def apply_term_map(self,f_term_mapping):
-        self.df_term_mapping = pd.read_csv(f_term_mapping)
-
-        self.df_term_mapping = self.df_term_mapping.set_index('rule_id').sort_index()
-        self.df_structural_mapping= self.df_structural_mapping\
-            [self.df_structural_mapping['term_mapping'].str.contains('y')].reset_index().set_index('rule_id').sort_index()
-        
-        maps = self.df_term_mapping.join(self.df_structural_mapping)\
-                                   .set_index(['destination_table','destination_field'])\
-                                   [['source_term','destination_term','term_mapping']].sort_index()
-
-        
-        for p in self.get_objs(Person):
-            person_map = maps.loc['person']
-            for destination_field in person_map.index.unique():
-                term_mapper = maps.loc[p.name,destination_field]\
-                             .reset_index(drop=True)\
-                             .set_index('source_term')['destination_term']\
-                             .to_dict()
-                print ('mapping',destination_field,'with',term_mapper)
-                print (maps.loc[p.name,destination_field])
-                mapped_field = getattr(p,destination_field).map(term_mapper)
-                setattr(p,destination_field,mapped_field)
-               
-        
 
     def get_cdm_class(self,class_type):
         if class_type in _classes:
@@ -170,10 +142,10 @@ class CommonDataModel:
         return df_destination
 
         
-    def process(self,f_out='output_data/'):
+    def process(self,output_folder='output_data/'):
         
         if not self.output_folder is None:
-            f_out = self.output_folder
+            output_folder = self.output_folder
         
         self._df_map = {}
         self._df_map[Person.name] = self.run_cdm(Person)
@@ -191,7 +163,7 @@ class CommonDataModel:
         self._df_map[Observation.name] = self.run_cdm(Observation)
         self.logger.info(f'finalised {Observation.name}')
 
-        self.save_to_file(self._df_map,f_out)
+        self.save_to_file(self._df_map,output_folder)
 
         #register output
         self.omop = self._df_map
