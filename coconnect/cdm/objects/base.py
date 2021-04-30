@@ -66,6 +66,16 @@ class Base(object):
         """
         Finalise function, expected to be overloaded by children classes
         """
+        ninitial = len(df)
+        df = df[~df['person_id'].isna()]
+        nfinal = len(df)
+        if nfinal < ninitial:
+            self.logger.error(f"{nfinal}/{ninitial} rows survived person_id NaN value filtering")
+            self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
+            self.logger.warning("If this is synthetic data... it's probably not a problem")
+            self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
+            
+            
         return df
 
 

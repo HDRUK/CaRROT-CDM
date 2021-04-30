@@ -160,7 +160,7 @@ class CommonDataModel:
                     for i,x in enumerate(df['person_id'].unique())
                 }
             #apply the masking
-            df['person_id'] = df['person_id'].map(masker)
+            df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
         return df
         
