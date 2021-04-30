@@ -92,8 +92,29 @@ def run(ctx,
                 new_inputs.append(x)
         inputs = new_inputs
 
+    source_map = None
+    if rules is not None:
+        config = json.load(open(rules,"r"))['cdm']
+        #extract a tuple of source tables and source fields
+        sources = [
+            (x['source_table'],x['source_field'])
+            for cdm_obj_set in config.values()
+            for cdm_obj in cdm_obj_set
+            for x in cdm_obj.values()
+        ]
 
-            
+        source_map = {}
+        for (table,field) in sources:
+            if table not in source_map:
+                source_map[table] = []
+            source_map[table].append(field)
+
+        source_map = {
+            k:list(set(v))
+            for k,v in source_map.items()
+        }
+
+
     inputs = {
         (
             x.split("/")[-1][:strip_name].lower()
@@ -104,7 +125,17 @@ def run(ctx,
         for x in inputs
     }
 
-    
+    fields = None
+    #reduce the mapping of inputs, if we dont need them all
+    if source_map is not None:
+        inputs = {
+            k: {
+                'file':v,
+                'fields':source_map[k]
+            }
+            for k,v in inputs.items()
+            if k in source_map
+        }
     if type == 'csv':
         inputs = tools.load_csv(inputs)
     else:

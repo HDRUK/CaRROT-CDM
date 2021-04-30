@@ -64,11 +64,23 @@ def get_classes(format=False):
 
 
 def load_csv(_map,nrows=None,load_path=""):
-    for key,fname in _map.items():
+    for key,obj in _map.items():
+        fields = None
+        if isinstance(obj,str):
+            fname = obj
+        else:
+            fname = obj['file']
+            fields = obj['fields']
+                    
         df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
         for col in df.columns:
             df[col].fname = fname
         df.columns = df.columns.str.lower()
+
+        #filter on only the fields we need
+        if fields is not None:
+            df = df[fields]
+        
         _map[key] = df 
     return _map
 
