@@ -76,7 +76,8 @@ class CommonDataModel:
         self.tools = OperationTools()
 
         #self.__dict__.update(self.__class__.__dict__)
-        
+
+        self.person_id_masker = None
         self.omop = {}
 
 
@@ -137,13 +138,31 @@ class CommonDataModel:
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
+
+        self.logger.info(f'Masking the person_id for {class_type}')
+        df_destination = self.mask_person_id(df_destination)
+        
         self.logger.info(f'Finalising {class_type}')
         df_destination = objects[0].finalise(df_destination)
+        
         self.logger.info(f'Formating the output for {class_type}')
         df_destination = objects[0].format(df_destination,raise_error=False)
 
         return df_destination
 
+
+    def mask_person_id(self,df):
+        if 'person_id' in df.columns:
+            #if masker has not been defined, define it
+            if self.person_id_masker is None:
+                self.person_id_masker = {
+                    x:i+1
+                    for i,x in enumerate(df['person_id'].unique())
+                }
+            #apply the masking
+            df['person_id'] = df['person_id'].map(masker)
+            self.logger.info(f"Just masked person_id")
+        return df
         
     def process(self,output_folder='output_data/'):
         

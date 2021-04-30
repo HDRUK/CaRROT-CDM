@@ -66,16 +66,6 @@ class Base(object):
         """
         Finalise function, expected to be overloaded by children classes
         """
-        if 'person_id' in df.columns:
-
-            masker = {
-                x:i+1 #start from 1
-                for i,x in enumerate(df['person_id'].unique())
-            }
-            
-            df['person_id'] = df['person_id'].map(masker)
-            self.logger.info(f"Just masked person_id")# \n {df['person_id']}")
-
         return df
 
 
