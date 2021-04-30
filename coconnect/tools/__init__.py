@@ -64,6 +64,7 @@ def get_classes(format=False):
 
 
 def load_csv(_map,nrows=None,load_path=""):
+
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):
@@ -71,7 +72,7 @@ def load_csv(_map,nrows=None,load_path=""):
         else:
             fname = obj['file']
             fields = obj['fields']
-                    
+
         df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
         for col in df.columns:
             df[col].fname = fname
