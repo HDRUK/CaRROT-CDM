@@ -198,7 +198,7 @@ class CommonDataModel:
             fname = f'{f_out}/{name}.csv'
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
-                os.mkdir(f'{f_out}')
+                os.makedirs(f'{f_out}')
             self.logger.info(f'saving {name} to {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,index=True)
