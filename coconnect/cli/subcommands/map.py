@@ -94,7 +94,7 @@ def run(ctx,
 
     source_map = None
     if rules is not None:
-        config = json.load(open(rules,"r"))['cdm']
+        config = tools.load_json(rules)['cdm']
         #extract a tuple of source tables and source fields
         sources = [
             (x['source_table'],x['source_field'])
