@@ -97,22 +97,35 @@
                         "condition_end_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
                         },
                         "condition_end_datetime": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                
                         },
                         "condition_start_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
                         },
                         "condition_start_datetime": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
                         },
                         "person_id": {
                               "source_table": "questions.csv",
@@ -145,22 +158,34 @@
 			"condition_end_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
                         },
                         "condition_end_datetime": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
                         },
                         "condition_start_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
                         },
                         "condition_start_datetime": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
                         },
                         "person_id": {
                               "source_table": "questions.csv",
@@ -202,7 +227,10 @@
                         "observation_datetime": {
                               "source_table": "demo.csv",
                               "source_field": "consent date",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
                         },
                         "observation_source_concept_id": {
                               "source_table": "demo.csv",
@@ -236,7 +264,10 @@
                         "measurement_datetime": {
                               "source_table": "demo.csv",
                               "source_field": "consent date",
-                              "term_mapping": null
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
                         },
                         "measurement_source_concept_id": {
                               "source_table": "demo.csv",
