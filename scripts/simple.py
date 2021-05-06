@@ -54,14 +54,27 @@ def main():
         }
     )
 
+    #build an object to store the cdm
     cdm = CommonDataModel(name='test',inputs=inputs,output_folder=args.out_dir)
-    
+
+    #loop over the cdm object types defined in the configuration
+    #e.g person, measurement etc..
     for destination_table,rules_set in config['cdm'].items():
+        #loop over each object instance in the rule set
+        #for example, condition_occurrence may have multiple rules
+        #for multiple condition_ocurrences e.g. Headache, Fever ..
         for i,rules in enumerate(rules_set):
-            #make a new object for the destination_table
+            #make a new object for the cdm object
+            #Example:
+            # destination_field : person
+            # obj : Person()
             obj = cdm.get_cdm_class(destination_table)
+            #set the name of the object
             obj.set_name(f"{destination_table}-{i}")
+            #call the apply_rules function to setup how to modify the inputs
+            #based on the rules
             apply_rules(cdm,obj,rules)
+            #register this object with the CDM model, so it can be processed
             cdm.add(obj)
                             
     cdm.process()
