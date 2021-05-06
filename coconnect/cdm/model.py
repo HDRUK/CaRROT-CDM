@@ -97,10 +97,17 @@ class CommonDataModel:
                 
             self.inputs[key].index = self.inputs[key][index].rename('index') 
 
+    def add(self,obj):
+        if obj.name not in self.__dict__.keys():
+            setattr(self,obj.name,obj)
+        else:
+            raise Exception(f"Object called {obj.name} already exists")
 
     def get_cdm_class(self,class_type):
         if class_type in _classes:
             return _classes[class_type]()
+
+        raise NotImplemented(f"Not able to handling mapping for {class_type} yet")
     
     def get_objs(self,class_type):
         self.logger.debug(f"looking for {class_type}")

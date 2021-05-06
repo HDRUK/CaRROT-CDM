@@ -78,7 +78,12 @@ class Base(object):
             
         return df
 
+    def __getitem__(self, key):
+        return getattr(self, key)
 
+    def __setitem__(self, key, obj):
+        return setattr(self, key, obj)
+    
     def set_name(self,name):
         self.name = name
         self.logger.name = self.name
