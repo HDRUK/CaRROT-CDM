@@ -29,7 +29,7 @@ class Base(object):
            None
         """
         self.name = _type
-        self.tools = OperationTools()
+        #self.tools = OperationTools()
         self.logger = Logger(self.name)
         self.logger.debug("Initialised Class")
         
@@ -58,6 +58,7 @@ class Base(object):
             self.logger.debug(f'setting up the field {field} -- {_type} -- Required: {_required}')
             #initialise the field with value None
             setattr(self,field,None)
+         
             
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
@@ -74,8 +75,7 @@ class Base(object):
             self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
             self.logger.warning("If this is synthetic data... it's probably not a problem")
             self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
-            
-            
+
         return df
 
     def __getitem__(self, key):
@@ -160,6 +160,18 @@ class Base(object):
         if not self.dtypes:
             return df
 
+
+        concepts = [
+            col
+            for col in df.columns
+            if 'concept_id' in col
+            and  df[col].dtype == 'object'
+            ]
+
+        for col in concepts:
+            df = df.explode(col)
+        
+        
         #loop over all columns (series) in the dataframe
         for col in df.columns:
             #extract the datatype associated to this colun
@@ -171,20 +183,20 @@ class Base(object):
                 convert_function = self.dtypes[_type]
                 df[col] = convert_function(df[col])
             except KeyError:
-                raise 
+               raise 
             except Exception as err:
-                self.logger.error(err)
-                self.logger.error(df[col])
-                self.logger.error(f'failed to convert {col} to {_type}')
-                self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
-                self.logger.error('this has the following unique values...')
-                self.logger.error(df[col].unique())
+               self.logger.error(err)
+               self.logger.error(df[col])
+               self.logger.error(f'failed to convert {col} to {_type}')
+               self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
+               self.logger.error('this has the following unique values...')
+               self.logger.error(df[col].unique())
 
                 
-                if raise_error:
-                    raise ConvertDataType(f'failed to convert {col} to {_type}')
-                else:
-                    df[col] = np.NaN
+               if raise_error:
+                   raise ConvertDataType(f'failed to convert {col} to {_type}')
+               else:
+                   df[col] = np.NaN
             
         return df
         

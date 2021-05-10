@@ -8,6 +8,25 @@ class Person(Base):
     def __init__(self):
         super().__init__(self.name)
 
+        self.person_id = None
+        self.gender_concept_id = None
+        self.year_of_birth = None
+        self.month_of_birth = None
+        self.day_of_birth = None
+        self.birth_datetime = None
+        self.race_concept_id = None
+        self.ethnicity_concept_id = None
+        self.location_id = None
+        self.provider_id = None
+        self.care_site_id = None
+        self.person_source_value = None
+        self.gender_source_value = None
+        self.gender_source_concept_id = None
+        self.race_source_value = None
+        self.race_source_concept_id = None
+        self.ethnicity_source_value = None
+        self.ethnicity_source_concept_id = None
+        
     def finalise(self,df):
         df = super().finalise(df)
         return df.sort_values('person_id')
@@ -25,7 +44,6 @@ class Person(Base):
            pandas.Dataframe: output dataframe
         """
         df = super().get_df()
-
 
         #auto conversion
         if do_auto_conversion:

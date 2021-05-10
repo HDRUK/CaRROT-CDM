@@ -54,8 +54,12 @@ def main():
         }
     )
 
+    name = config['metadata']['dataset']
+
     #build an object to store the cdm
-    cdm = CommonDataModel(name='test',inputs=inputs,output_folder=args.out_dir)
+    cdm = CommonDataModel(name='test',
+                          inputs=inputs,
+                          output_folder=args.out_dir)
 
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
@@ -70,7 +74,7 @@ def main():
             # obj : Person()
             obj = cdm.get_cdm_class(destination_table)
             #set the name of the object
-            obj.set_name(f"{destination_table}-{i}")
+            obj.set_name(f"{destination_table}_{i}")
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
             apply_rules(cdm,obj,rules)
