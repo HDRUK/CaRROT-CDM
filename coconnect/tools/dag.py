@@ -9,7 +9,7 @@ def make_dag(data,render=False):
     dot = Digraph(strict=True,format=_format)
     dot.attr(rankdir='RL', size='8,5')
 
-
+    
     for destination_table_name,destination_tables in data.items():
         dot.node(destination_table_name,shape='box')
 
@@ -25,8 +25,18 @@ def make_dag(data,render=False):
 
                 if 'operations' in source:
                     operations = source['operations']
-                                                    
-                dot.edge(table_name,source_field,dir='back')
+
+                if 'term_mapping' in source and source['term_mapping'] is not None:
+                    term_mapping = source['term_mapping']
+                    #tmap = f'{table_name}_{source_table}_{source_field}'
+                    
+                    #dot.node(tmap,label=json.dumps(term_mapping),style='filled', fillcolor='azure2',shape='box')
+                    #dot.edge(tmap,source_field,dir='back')
+                    #dot.edge(table_name,tmap,dir='back')
+                    dot.edge(table_name,source_field,dir='back',label=json.dumps(term_mapping,indent=6))
+                else:                                                    
+                    dot.edge(table_name,source_field,dir='back')
+
                 
                 dot.node(source_table,shape='box')
                 dot.edge(source_field,source_table,dir='back')
