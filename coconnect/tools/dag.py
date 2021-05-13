@@ -16,12 +16,16 @@ def make_dag(data,render=False):
         #destination_table = destination_tables[0]
 
         for destination_table in destination_tables:
-            for table_name,source in destination_table.items():
-                dot.node(table_name,style='filled', fillcolor='yellow',shape='box')
-                dot.edge(destination_table_name,table_name,dir='back')
-                
+            for destination_field,source in destination_table.items():
                 source_field = source['source_field']
                 source_table = source['source_table']
+
+                table_name = f"{destination_field}_{source_table}"
+                
+                dot.node(table_name,
+                         label=destination_field,style='filled', fillcolor='yellow',shape='box')
+                dot.edge(destination_table_name,table_name,dir='back')
+                
 
                 if 'operations' in source:
                     operations = source['operations']
