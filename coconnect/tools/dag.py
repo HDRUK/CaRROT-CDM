@@ -29,11 +29,10 @@ def make_dag(data,render=False):
                 if 'term_mapping' in source and source['term_mapping'] is not None:
                     term_mapping = source['term_mapping']
                     #tmap = f'{table_name}_{source_table}_{source_field}'
-                    
                     #dot.node(tmap,label=json.dumps(term_mapping),style='filled', fillcolor='azure2',shape='box')
                     #dot.edge(tmap,source_field,dir='back')
                     #dot.edge(table_name,tmap,dir='back')
-                    dot.edge(table_name,source_field,dir='back',label=json.dumps(term_mapping,indent=6))
+                    dot.edge(table_name,source_field,dir='back',color='red')
                 else:                                                    
                     dot.edge(table_name,source_field,dir='back')
 
