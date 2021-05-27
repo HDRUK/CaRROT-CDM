@@ -15,6 +15,13 @@ class FailedRequiredCheck(Exception):
 class BadInputs(Exception):
     pass
 
+class DataType(object):
+    def __init__(self, series, dtype: str, required: bool):
+        self.series = series
+        self.dtype = dtype
+        self.required = required
+        
+
 class Base(object):
     """
     Common object that all CDM objects inherit from
