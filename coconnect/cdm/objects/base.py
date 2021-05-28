@@ -66,16 +66,16 @@ class Base(object):
         """
         Finalise function, expected to be overloaded by children classes
         """
-        if 'person_id' in df.columns:
-
-            masker = {
-                x:i+1 #start from 1
-                for i,x in enumerate(df['person_id'].unique())
-            }
+        ninitial = len(df)
+        df = df[~df['person_id'].isna()]
+        nfinal = len(df)
+        if nfinal < ninitial:
+            self.logger.error(f"{nfinal}/{ninitial} rows survived person_id NaN value filtering")
+            self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
+            self.logger.warning("If this is synthetic data... it's probably not a problem")
+            self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
             
-            df['person_id'] = df['person_id'].map(masker)
-            self.logger.info(f"Just masked person_id")# \n {df['person_id']}")
-
+            
         return df
 
 

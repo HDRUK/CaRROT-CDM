@@ -26,3 +26,10 @@ class OperationTools:
         temp = series.copy()
         temp.values[:] = value
         return temp
+
+    def __getitem__(self, item):
+        try:
+            retval = getattr(self,item)
+        except AttributeError as err:
+            raise UnknownOperation(err)
+        return retval
