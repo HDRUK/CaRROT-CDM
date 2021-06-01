@@ -21,22 +21,6 @@ _classes = {
 class NoInputFiles(Exception):
     pass
 
-
-class CommonDataModelTypes(collections.OrderedDict):
-    def __init__(self):
-        super().__init__()
-        self['INTEGER'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['FLOAT'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
-        self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-        self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
-        self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
-        self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
-        self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-        self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
-    
-
 class CommonDataModel:
 
     inputs = None
@@ -51,8 +35,6 @@ class CommonDataModel:
             
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
-
-        self.dtypes = CommonDataModelTypes()
 
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']

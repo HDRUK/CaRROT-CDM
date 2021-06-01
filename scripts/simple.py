@@ -12,8 +12,11 @@ def apply_rules(cdm,obj,rules):
         operations = None
         if 'operations' in rule:
             operations = rule['operations']
-        term_mapping = rule['term_mapping']
+        term_mapping = None
+        if 'term_mapping' in rule:
+            term_mapping = rule['term_mapping']
 
+        #make a copy of the input data column slice 
         series = cdm.inputs[source_table][source_field].copy()
 
         if operations is not None:
@@ -23,8 +26,14 @@ def apply_rules(cdm,obj,rules):
                 
         if term_mapping is not None:
             if isinstance(term_mapping,dict):
+                # value level mapping
+                # - term_mapping is a dictionary between values and concepts
+                # - map values in the input data, based on this map
                 series = series.map(term_mapping)
             else:
+                # field level mapping.
+                # - term_mapping is the concept_id
+                # - set all values in this column to it
                 series.values[:] = term_mapping
 
         obj[destination_field].series = series

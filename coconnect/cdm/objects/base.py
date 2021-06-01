@@ -17,13 +17,25 @@ class BadInputs(Exception):
 
 class DataType(object):
     def __init__(self, dtype: str, required: bool):
-        self.series = None#pd.Series([])
+        self.series = None
         self.dtype = dtype
         self.required = required
-        
-    #def __assign__(self,series):
-    #    self.series = series
 
+class DataFormatter(collections.OrderedDict):
+    def __init__(self):
+        super().__init__()
+        self['INTEGER'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
+        self['FLOAT'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
+        self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
+        self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
+        self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+        self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
+
+        
 class Base(object):
     """
     Common object that all CDM objects inherit from
@@ -41,6 +53,9 @@ class Base(object):
         self.logger = Logger(self.name)
         self.logger.debug("Initialised Class")
 
+        self.dtypes = DataFormatter()
+
+        
         self.fields = [
             item
             for item in dir(self)
@@ -144,25 +159,29 @@ class Base(object):
 
         """
         #if the datatypes for this object haven't be defined, then cant do any formatting
-        if not self.dtypes:
-            return df
+        #if not self.dtypes:
+        #    return df
 
 
-        concepts = [
-            col
-            for col in df.columns
-            if 'concept_id' in col
-            and  df[col].dtype == 'object'
-            ]
+        #concepts = [
+        #    col
+        #    for col in df.columns
+        #    if 'concept_id' in col
+        #    and  df[col].dtype == 'object'
+        #    ]
 
-        for col in concepts:
-            df = df.explode(col)
+        #for col in concepts:
+        #    df = df.explode(col)
         
         
         #loop over all columns (series) in the dataframe
         for col in df.columns:
             #extract the datatype associated to this colun
             _type = self.cdm.loc[col]['type']
+
+            print (df[col])
+            exit(0)
+            
             self.logger.debug(f'applying formatting to {_type} for field {col}')
 
             #pull the function of how to convert the column and convert it
@@ -198,30 +217,21 @@ class Base(object):
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
-        for key in self.fields:
-            series = getattr(self,key).series
+        for field in self.fields:
+            obj = getattr(self,field)
+            series = obj.series
+            required = obj.required
+            dtype = obj.dtype
             if series is None:
                 continue
-            series = series.rename(key)
-            series = series.sort_index()
-            dfs[key] = series
+            series = series.rename(field)
 
-        # non_series = [k for k,v in dfs.items() if isinstance(v,str) ]
-        # if len(non_series) == len(dfs.keys()):
-        #     self.logger.error("All series are strings! They should be pandas series or dataframes!")
-        #     raise BadInputs("Can't find any pandas dataframes")
+            convert_function = self.dtypes[dtype]
+            series = convert_function(series)
+            #series = series.sort_index()
+            dfs[field] = series
 
-        # elif len(non_series)>0:
-        #     good_series = list(set(dfs.keys()) - set(non_series))[0]
-        #     for key in non_series:
-        #         self.logger.warning(f'attempting to set the field "{key}" to a string'
-        #                             f'"{series}"), will turn this into a series')
-
-        #         dfs[key] = pd.Series([dfs[key] for _ in range(len(good_series)) ])
-
-        # for key,series in dfs.items():
-        #     dfs[key] = series.rename(key)
-            
+        exit(0)
         #if there's none defined, dont do anything
         if len(dfs) == 0:
             return None
@@ -234,14 +244,6 @@ class Base(object):
                 self.logger.error(f"{name} of length {len(df)}")
             raise BadInputs("Differring number of rows in the inputs")
 
-        #check for duplicate indicies
-        #for key,df in dfs.items():
-        #    dups = df.index.duplicated()
-        #    if len(df[dups])>1:
-        #        self.logger.warning(f"{key} {len(df[dups])}/{len(df)} indicies (person_id) are duplicated")
-        #        self.logger.warning(f"      if this is synthetic data... dont worry about it")
-        #        dfs[key] = df[~df.index.duplicated()]
-            
         #create a dataframe from all the series objects
         df = pd.concat(dfs.values(),axis=1)
 
@@ -251,7 +253,10 @@ class Base(object):
         for field in missing_fields:
             df[field] = np.NaN
 
+
+
+            
         #simply order the columns 
         df = df[self.fields]
-        
+
         return df
