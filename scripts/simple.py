@@ -75,7 +75,7 @@ def main():
     #e.g person, measurement etc..
     for destination_table,rules_set in config['cdm'].items():
         #loop over each object instance in the rule set
-        #for example, condition_occurrence may have multiple rules
+        #for example, condition_occurrence may have multiple rulesx
         #for multiple condition_ocurrences e.g. Headache, Fever ..
         for i,rules in enumerate(rules_set):
             #make a new object for the cdm object

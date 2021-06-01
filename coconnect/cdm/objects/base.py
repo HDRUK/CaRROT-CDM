@@ -2,9 +2,12 @@ import os
 import json
 import pandas as pd
 import numpy as np
+import collections
 from coconnect.cdm.operations import OperationTools
 from coconnect.tools.logger import Logger
 
+class RequiredFieldIsNone(Exception):
+    pass
 
 class ConvertDataType(Exception):
     pass
@@ -55,30 +58,33 @@ class Base(object):
 
         self.dtypes = DataFormatter()
 
-        
         self.fields = [
             item
-            for item in dir(self)
+            for item in self.__dict__.keys()
             if isinstance(getattr(self,item),DataType)
         ]
+
+        if len(self.fields) == 0:
+            raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
         
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
-                
-    def finalise(self,df):
-        """
-        Finalise function, expected to be overloaded by children classes
-        """
-        ninitial = len(df)
-        df = df[~df['person_id'].isna()]
-        nfinal = len(df)
-        if nfinal < ninitial:
-            self.logger.error(f"{nfinal}/{ninitial} rows survived person_id NaN value filtering")
-            self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
-            self.logger.warning("If this is synthetic data... it's probably not a problem")
-            self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
 
-        return df
+    # @staticmethod
+    # def finalise(self,df):
+    #     """
+    #     Finalise function, expected to be overloaded by children classes
+    #     """
+    #     ninitial = len(df)
+    #     df = df[~df['person_id'].isna()]
+    #     nfinal = len(df)
+    #     if nfinal < ninitial:
+    #         self.logger.error(f"{nfinal}/{ninitial} rows survived person_id NaN value filtering")
+    #         self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
+    #         self.logger.warning("If this is synthetic data... it's probably not a problem")
+    #         self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
+
+    #     return df
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -121,90 +127,9 @@ class Base(object):
         #add objects to this class
         self.__dict__.update(objs)
 
-        
         #execute the define function that is likely to define the cdm fields based on inputs
         self = self.define(self)
 
-
-    def check_required(self,df):
-        """
-        Check if the columns in the input dataframe are required or not
-        If one is a required field, and all the values are NaN, raised an Exception
-
-        Args:
-           df (pandas.Dataframe): pandas dataframe to check
-
-        """
-
-        for col in df.columns:
-            _required = self.cdm.loc[col]['required']
-            self.logger.debug(f'checking if {col} is required')
-            if _required == 'Yes':
-                self.logger.debug(f'... it is required!')
-                is_all_null = df[col].isnull().all()
-                if is_all_null:
-                    self.logger.error(f"{col} is a required field in this cdm, but it hasn't been filled or is corrupted")
-                    raise FailedRequiredCheck(f"{col} has all NaN values, but it is a required field in the cdm") 
-        
-        
-    def format(self,df,raise_error=True):
-        """
-        Format the dataframe into the right output format i.e. int/str/datetime...
-
-        Args:
-           df (pandas.Dataframe): input dataframe
-           raise_error (bool): decide whether to raise an error or just null df
-        Return:
-           pandas.Dataframe: formatted pandas dataframe
-
-        """
-        #if the datatypes for this object haven't be defined, then cant do any formatting
-        #if not self.dtypes:
-        #    return df
-
-
-        #concepts = [
-        #    col
-        #    for col in df.columns
-        #    if 'concept_id' in col
-        #    and  df[col].dtype == 'object'
-        #    ]
-
-        #for col in concepts:
-        #    df = df.explode(col)
-        
-        
-        #loop over all columns (series) in the dataframe
-        for col in df.columns:
-            #extract the datatype associated to this colun
-            _type = self.cdm.loc[col]['type']
-
-            print (df[col])
-            exit(0)
-            
-            self.logger.debug(f'applying formatting to {_type} for field {col}')
-
-            #pull the function of how to convert the column and convert it
-            try:
-                convert_function = self.dtypes[_type]
-                df[col] = convert_function(df[col])
-            except KeyError:
-               raise 
-            except Exception as err:
-               self.logger.error(err)
-               self.logger.error(df[col])
-               self.logger.error(f'failed to convert {col} to {_type}')
-               self.logger.error(f'this is likely coming from the definition {self.define.__name__}')
-               self.logger.error('this has the following unique values...')
-               self.logger.error(df[col].unique())
-
-                
-               if raise_error:
-                   raise ConvertDataType(f'failed to convert {col} to {_type}')
-               else:
-                   df[col] = np.NaN
-            
-        return df
         
     def get_df(self):
         """
@@ -217,21 +142,25 @@ class Base(object):
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
+
         for field in self.fields:
             obj = getattr(self,field)
             series = obj.series
-            required = obj.required
-            dtype = obj.dtype
+            #required = obj.required
+            #dtype = obj.dtype
+            
             if series is None:
+                #if required:
+                #    self.logger.error(f"{field} is all null/none or has not been set/defined")
+                #    raise RequiredFieldIsNone(f"{field} is a required for {self.name}.")
                 continue
+            #rename the column to be the final destination field name
             series = series.rename(field)
-
-            convert_function = self.dtypes[dtype]
-            series = convert_function(series)
-            #series = series.sort_index()
+               
+            #register the new series
             dfs[field] = series
 
-        exit(0)
+
         #if there's none defined, dont do anything
         if len(dfs) == 0:
             return None
@@ -253,10 +182,18 @@ class Base(object):
         for field in missing_fields:
             df[field] = np.NaN
 
-
-
-            
         #simply order the columns 
         df = df[self.fields]
 
+        return df
+
+    @classmethod
+    def format(cls,df):
+        instance = cls()
+        for col in df.columns:
+            obj = getattr(instance,col)
+            dtype = obj.dtype
+            formatter_function = instance.dtypes[dtype]
+            df[col] = formatter_function(df[col])
+        
         return df

@@ -8,7 +8,6 @@ class ConditionOccurrence(Base):
     
     name = 'condition_occurrence'
     def __init__(self):
-        super().__init__(self.name)
         self.condition_occurrence_id       = DataType(dtype="INTEGER"     , required=True)
         self.person_id                     = DataType(dtype="INTEGER"     , required=True)
         self.condition_concept_id          = DataType(dtype="INTEGER"     , required=True)
@@ -25,8 +24,12 @@ class ConditionOccurrence(Base):
         self.condition_source_concept_id   = DataType(dtype="INTEGER"     , required=False)
         self.condition_status_source_value = DataType(dtype="VARCHAR(50)" , required=False)
         self.condition_status_concept_id   = DataType(dtype="INTEGER"     , required=False)
-    
-    def finalise(self,df):
+
+        super().__init__(self.name)
+        
+        
+    @classmethod
+    def finalise(cls,df):
         """
         Overloads the finalise method defined in the Base class.
         For condition_occurrence, the _id of the condition is often not set
@@ -35,12 +38,11 @@ class ConditionOccurrence(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-
-        df = super().finalise(df)
-        df = df.sort_values('person_id')
+        print ("in finalise")
         if df['condition_occurrence_id'].isnull().any():
             df['condition_occurrence_id'] = df.reset_index().index + 1
-            
+
+        print ('done ordering')
         return df
         
     def get_df(self):
@@ -55,10 +57,8 @@ class ConditionOccurrence(Base):
         """
 
         df = super().get_df()
-
         #make sure the concept_ids are numeric, otherwise set them to null
         df['condition_concept_id'] = pd.to_numeric(df['condition_concept_id'],errors='coerce')
-
         #require the condition_concept_id to be filled
         nulls = df['condition_concept_id'].isnull()
         if nulls.all():

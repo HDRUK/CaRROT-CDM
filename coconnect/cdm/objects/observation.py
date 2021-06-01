@@ -8,7 +8,6 @@ class Observation(Base):
     
     name = 'observation'
     def __init__(self):
-        super().__init__(self.name)
         self.observation_id                = DataType(dtype="INTEGER"     , required=True)
         self.person_id                     = DataType(dtype="INTEGER"     , required=True)
         self.observation_concept_id        = DataType(dtype="INTEGER"     , required=True)
@@ -28,8 +27,11 @@ class Observation(Base):
         self.unit_source_value             = DataType(dtype="VARCHAR(50)" , required=False)
         self.qualifier_source_value        = DataType(dtype="VARCHAR(50)" , required=False)
 
-        
-    def finalise(self,df):
+        super().__init__(self.name)
+
+
+    @classmethod
+    def finalise(cls,df):
         """
         Overloads the finalise method defined in the Base class.
 
@@ -40,13 +42,9 @@ class Observation(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-
-        df = super().finalise(df)
         df = df.sort_values('person_id')
         if df['observation_id'].isnull().any():
             df['observation_id'] = df.reset_index().index + 1
-
-            
         return df
         
     def get_df(self):

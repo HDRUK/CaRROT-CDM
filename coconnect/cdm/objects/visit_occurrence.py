@@ -8,7 +8,6 @@ class VisitOccurrence(Base):
     
     name = 'visit_occurrence'
     def __init__(self):
-        super().__init__(self.name)
         self.visit_occurrence_id           = DataType(dtype="INTEGER"     , required=True)
         self.person_id                     = DataType(dtype="INTEGER"     , required=True)
         self.visit_concept_id              = DataType(dtype="INTEGER"     , required=True)
@@ -26,8 +25,12 @@ class VisitOccurrence(Base):
         self.discharge_to_concept_id       = DataType(dtype="INTEGER"     , required=False)
         self.discharge_to_source_value     = DataType(dtype="VARCHAR(50)" , required=False)
         self.preceding_visit_occurrence_id = DataType(dtype="INTEGER"     , required=False)
-        
-    def finalise(self,df):
+
+        super().__init__(self.name)
+
+
+    @classmethod
+    def finalise(cls,df):
         """
         Overloads the finalise method defined in the Base class.
         For visit_occurrence, the _id of the visit is often not set
@@ -36,13 +39,9 @@ class VisitOccurrence(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-
-        df = super().finalise(df)
         df = df.sort_values('person_id')
         if df['visit_occurrence_id'].isnull().any():
             df['visit_occurrence_id'] = df.reset_index().index + 1
-
-            
         return df
         
     def get_df(self):

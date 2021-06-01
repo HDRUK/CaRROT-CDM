@@ -8,7 +8,6 @@ class Measurement(Base):
     
     name = 'measurement'
     def __init__(self):
-        super().__init__(self.name)
         self.measurement_id                = DataType(dtype="INTEGER"     , required=True)
         self.person_id                     = DataType(dtype="INTEGER"     , required=True)
         self.measurement_concept_id        = DataType(dtype="INTEGER"     , required=True)
@@ -29,8 +28,12 @@ class Measurement(Base):
         self.measurement_source_concept_id = DataType(dtype="INTEGER"     , required=False)
         self.unit_source_value             = DataType(dtype="VARCHAR(50)" , required=False)
         self.value_source_value            = DataType(dtype="VARCHAR(50)" , required=False)
-        
-    def finalise(self,df):
+
+        super().__init__(self.name)
+
+
+    @classmethod
+    def finalise(cls,df):
         """
         Overloads the finalise method defined in the Base class.
 
@@ -41,13 +44,9 @@ class Measurement(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-
-        df = super().finalise(df)
         df = df.sort_values('person_id')
         if df['measurement_id'].isnull().any():
             df['measurement_id'] = df.reset_index().index + 1
-
-            
         return df
         
     def get_df(self):

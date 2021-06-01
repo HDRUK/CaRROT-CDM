@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import json
 import copy
-import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
@@ -128,14 +127,11 @@ class CommonDataModel:
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
 
-        self.logger.info(f'Masking the person_id for {class_type}')
-        df_destination = self.mask_person_id(df_destination)
-        
         self.logger.info(f'Finalising {class_type}')
-        df_destination = objects[0].finalise(df_destination)
-        
-        self.logger.info(f'Formating the output for {class_type}')
-        df_destination = objects[0].format(df_destination,raise_error=False)
+        df_destination = class_type.finalise(df_destination)
+
+        self.logger.info(f'Formatting {class_type}')
+        df_destination = class_type.format(df_destination)
 
         return df_destination
 
