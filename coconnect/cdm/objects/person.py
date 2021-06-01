@@ -6,30 +6,33 @@ class Person(Base):
     """
     name = 'person'
     def __init__(self):
-        super().__init__(self.name)
+        self.person_id                   = DataType(dtype="INTEGER"     , required=True)
+        self.gender_concept_id           = DataType(dtype="INTEGER"     , required=True)
+        self.year_of_birth               = DataType(dtype="INTEGER"     , required=True)
+        self.month_of_birth              = DataType(dtype="INTEGER"     , required=False)
+        self.day_of_birth                = DataType(dtype="INTEGER"     , required=False)
+        self.birth_datetime              = DataType(dtype="DATETIME"    , required=False)
+        self.race_concept_id             = DataType(dtype="INTEGER"     , required=True)
+        self.ethnicity_concept_id        = DataType(dtype="INTEGER"     , required=True)
+        self.location_id                 = DataType(dtype="INTEGER"     , required=False)
+        self.provider_id                 = DataType(dtype="INTEGER"     , required=False)
+        self.care_site_id                = DataType(dtype="INTEGER"     , required=False)
+        self.person_source_value         = DataType(dtype="VARCHAR(50)" , required=False)
+        self.gender_source_value         = DataType(dtype="VARCHAR(50)" , required=False)
+        self.gender_source_concept_id    = DataType(dtype="INTEGER"     , required=False)
+        self.race_source_value           = DataType(dtype="VARCHAR(50)" , required=False)
+        self.race_source_concept_id      = DataType(dtype="INTEGER"     , required=False)
+        self.ethnicity_source_value      = DataType(dtype="VARCHAR(50)" , required=False)
+        self.ethnicity_source_concept_id = DataType(dtype="INTEGER"     , required=False)
 
-        self.person_id = None
-        self.gender_concept_id = None
-        self.year_of_birth = None
-        self.month_of_birth = None
-        self.day_of_birth = None
-        self.birth_datetime = None
-        self.race_concept_id = None
-        self.ethnicity_concept_id = None
-        self.location_id = None
-        self.provider_id = None
-        self.care_site_id = None
-        self.person_source_value = None
-        self.gender_source_value = None
-        self.gender_source_concept_id = None
-        self.race_source_value = None
-        self.race_source_concept_id = None
-        self.ethnicity_source_value = None
-        self.ethnicity_source_concept_id = None
+        super().__init__(self.name)
         
     def finalise(self,df):
+        """
+        Overload the finalise function here for any specifics for the person table
+        """
         df = super().finalise(df)
-        return df.sort_values('person_id')
+        return df
         
     def get_df(self,do_auto_conversion=False):
         """

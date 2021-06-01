@@ -16,11 +16,13 @@ class BadInputs(Exception):
     pass
 
 class DataType(object):
-    def __init__(self, series, dtype: str, required: bool):
-        self.series = series
+    def __init__(self, dtype: str, required: bool):
+        self.series = pd.Series([])
         self.dtype = dtype
         self.required = required
-        
+
+    def __assign__(self,series):
+        self.series = series
 
 class Base(object):
     """
@@ -39,37 +41,16 @@ class Base(object):
         #self.tools = OperationTools()
         self.logger = Logger(self.name)
         self.logger.debug("Initialised Class")
-        
-        #load the dir path of where this file is
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        #load the details of this cdm objects from the data files taken from OHDSI GitHub
-        # - set the table (e.g. person, condition_occurrence,...)  as the index
-        #   so that all values associated with the object (name) can be retrieved
-        # - then set the field (e.g. person_id, birth_datetime,,) to help with future lookups
-        # - just keep information on if the field is required (Yes/No) and what the datatype is (INTEGER,..)
-        self.cdm = pd.read_csv(f'{dir_path}/../../data/cdm/OMOP_CDM_{_version}.csv',encoding="ISO-8859-1")\
-                     .set_index('table')\
-                     .loc[self.name].set_index('field')[['required', 'type']]
 
-        self.cdm['is_source'] = self.cdm.index.str.endswith("_source_value")
+        self.fields = [
+            item
+            for item in dir(self)
+            if isinstance(getattr(self,item),DataType)
+        ]
         
-        #extract all the fields (destination_fields) associated with this cdm object
-        self.fields = self.cdm.index.values
-        
-        #create new attributes for all the fields in the CDM
-        for field in self.fields:
-            #extract the datatype
-            _type = self.cdm.loc[field]['type']
-            #extract if it is required to be filled or not
-            _required = self.cdm.loc[field]['required']
-            self.logger.debug(f'setting up the field {field} -- {_type} -- Required: {_required}')
-            #initialise the field with value None
-            setattr(self,field,None)
-         
-            
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
-
+                
     def finalise(self,df):
         """
         Finalise function, expected to be overloaded by children classes
@@ -219,8 +200,7 @@ class Base(object):
         #each object is a pandas series
         dfs = {}
         for key in self.fields:
-            series = getattr(self,key)
-                        
+            series = getattr(self,key).series
             if series is None:
                 continue
             series = series.rename(key)

@@ -27,7 +27,8 @@ def apply_rules(cdm,obj,rules):
             else:
                 series.values[:] = term_mapping
 
-        obj[destination_field] = series
+        obj[destination_field].series = series
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
