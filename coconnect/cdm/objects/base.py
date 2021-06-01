@@ -17,12 +17,12 @@ class BadInputs(Exception):
 
 class DataType(object):
     def __init__(self, dtype: str, required: bool):
-        self.series = pd.Series([])
+        self.series = None#pd.Series([])
         self.dtype = dtype
         self.required = required
-
-    def __assign__(self,series):
-        self.series = series
+        
+    #def __assign__(self,series):
+    #    self.series = series
 
 class Base(object):
     """
@@ -38,7 +38,6 @@ class Base(object):
            None
         """
         self.name = _type
-        #self.tools = OperationTools()
         self.logger = Logger(self.name)
         self.logger.debug("Initialised Class")
 
