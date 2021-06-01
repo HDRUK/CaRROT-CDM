@@ -33,8 +33,8 @@ init = Template(r'''
         {% endfor %} 
 '''
 
-rule = Template(r'''self.{{ destination_field }} = self.inputs["{{ source_table }}"]["{{ source_field }}"]''')
-operation = Template(r'''self.{{ destination_field }} = self.tools.{{ operation }}(self.{{ destination_field }})''')
+rule = Template(r'''self.{{ destination_field }}.series = self.inputs["{{ source_table }}"]["{{ source_field }}"]''')
+operation = Template(r'''self.{{ destination_field }}.series = self.tools.{{ operation }}(self.{{ destination_field }}.series)''')
 
 obj = Template(r'''
     @define_{{ object_name }}
