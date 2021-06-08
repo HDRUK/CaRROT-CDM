@@ -264,3 +264,37 @@ def salt(length):
     click.echo(salt)
 
 generate.add_command(salt,"salt")
+
+
+@click.command(help="generate scan report json from input data")
+@click.argument("inputs",
+                nargs=-1)
+def report(inputs):
+    import pandas as pd
+    import os
+    import json
+
+    m_ntop = 10
+
+    data = []
+    for fname in inputs:
+        table_name = os.path.basename(fname)
+        df = pd.read_csv(fname)
+        column_names = df.columns.tolist()
+
+        fields = []
+        for col in column_names:
+            series = df[col].value_counts(normalize=True).rename('frequency').round(4)
+            if len(series)>=m_ntop:
+                series = series.iloc[:m_ntop]
+
+            frame = series.to_frame()
+            values = frame.rename_axis('value').reset_index().to_dict(orient='records')
+            fields.append({'field':col,'values':values})
+            
+        data.append({'table':table_name,'fields':fields})
+
+    print (json.dumps(data,indent=6))
+            
+generate.add_command(report,"report")
+
