@@ -53,9 +53,9 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
+      - run: co-connect-tools
       - run: mkdir tests
       - run: cd tests
-      - run: ls ../
       - run: ls ../scripts/
       - run: python ../scripts/simple.py -i ../coconnect/data/test/inputs/*.csv --rules ../coconnect/data/test/rules/rules_14June2021.json -o output_test/
       - run: |
