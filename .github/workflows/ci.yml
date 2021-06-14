@@ -53,11 +53,8 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - run: ls
-      - run: ls scripts/
-      - run: mkdir tests && cd tests
-      - run: pwd
-      - run: ls
+      - run: mkdir tests
+      - run: cd tests
       - run: python ../scripts/simple.py -i ../coconnect/data/test/inputs/*.csv --rules ../coconnect/data/test/rules/rules_14June2021.json -o output_test/
       - run: |
           if [[ -z $(coconnect map diff output_test/person.csv ../coconnect/data/test/expected_outputs/person.csv) ]];
