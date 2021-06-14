@@ -39,31 +39,27 @@ jobs:
           name: outputs
           path: output_data
           retention-days: 1
-  # unit_test_2:
-  #   runs-on: ubuntu-latest
-  #   if: "!contains(github.event.head_commit.message, '[ci skip]')"
-  #   needs: build
-  #   steps:
-  #     - uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.6.8
-  #     - uses: actions/checkout@v2
-  #     - run: ls .
-  #     - name: Install setuptools
-  #       run: pip3 install setuptools
-  #     - name: Install co-connect-tools
-  #       run:  pip3 install -e .
-  #     - run: coconnect --help
-  #     - run: coconnect map list
-  #     - run: coconnect map show example/sample_config/lion_structural_mapping.json
-  #     - run: coconnect map make --name Lion  example/sample_config/lion_structural_mapping.json
-  #     - run: coconnect map list
-  #     - run: coconnect map run --name Lion example/sample_input_data/*.csv
-  #     - uses: actions/upload-artifact@v2
-  #       with:
-  #         name: outputs
-  #         path: output_data
-  #         retention-days: 1
+  unit_test_2:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - run: ls .
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
+      - run: mkdir tests && cd tests
+      - run: python ../scripts/simple.py -i ../coconnect/data/test/inputs/*.csv --rules ../coconnect/data/test/rules/rules_14June2021.json -o output_test/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: test
+          path: tests
+          retention-days: 1
   pypi:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
