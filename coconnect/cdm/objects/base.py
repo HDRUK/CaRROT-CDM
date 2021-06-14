@@ -19,10 +19,11 @@ class BadInputs(Exception):
     pass
 
 class DataType(object):
-    def __init__(self, dtype: str, required: bool):
+    def __init__(self, dtype: str, required: bool, pk=False):
         self.series = None
         self.dtype = dtype
         self.required = required
+        self.pk = pk
 
 class DataFormatter(collections.OrderedDict):
     def __init__(self):
@@ -58,34 +59,28 @@ class Base(object):
 
         self.dtypes = DataFormatter()
 
-        self.fields = [
+        self.fields = self.get_field_names()
+
+        if len(self.fields) == 0:
+            raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
+
+        #print a check to see what cdm objects have been initialised
+        self.logger.debug(self.get_destination_fields())
+
+    def get_field_names(self):
+        return [
             item
             for item in self.__dict__.keys()
             if isinstance(getattr(self,item),DataType)
         ]
 
-        if len(self.fields) == 0:
-            raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
+    def get_ordering(self):
+        return [
+            field
+            for field in self.fields
+            if getattr(self,field).pk == True
+        ]
         
-        #print a check to see what cdm objects have been initialised
-        self.logger.debug(self.get_destination_fields())
-
-    # @staticmethod
-    # def finalise(self,df):
-    #     """
-    #     Finalise function, expected to be overloaded by children classes
-    #     """
-    #     ninitial = len(df)
-    #     df = df[~df['person_id'].isna()]
-    #     nfinal = len(df)
-    #     if nfinal < ninitial:
-    #         self.logger.error(f"{nfinal}/{ninitial} rows survived person_id NaN value filtering")
-    #         self.logger.error(f"{100*(ninitial-nfinal)/ninitial:.2f}% of person_ids in this table are not present in the person table.")
-    #         self.logger.warning("If this is synthetic data... it's probably not a problem")
-    #         self.logger.warning(f"Check that you have the right person_id field mapped for {self.name}")
-
-    #     return df
-
     def __getitem__(self, key):
         return getattr(self, key)
 
@@ -146,20 +141,16 @@ class Base(object):
         for field in self.fields:
             obj = getattr(self,field)
             series = obj.series
-            #required = obj.required
-            #dtype = obj.dtype
-            
             if series is None:
                 #if required:
                 #    self.logger.error(f"{field} is all null/none or has not been set/defined")
                 #    raise RequiredFieldIsNone(f"{field} is a required for {self.name}.")
                 continue
+
             #rename the column to be the final destination field name
             series = series.rename(field)
-               
             #register the new series
             dfs[field] = series
-
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:
@@ -185,15 +176,42 @@ class Base(object):
         #simply order the columns 
         df = df[self.fields]
 
+        df = self.finalise(df)
+        df = self.format(df)
+
+        
         return df
 
-    @classmethod
-    def format(cls,df):
-        instance = cls()
+    def format(self,df):
         for col in df.columns:
-            obj = getattr(instance,col)
+            obj = getattr(self,col)
             dtype = obj.dtype
-            formatter_function = instance.dtypes[dtype]
+            formatter_function = self.dtypes[dtype]
             df[col] = formatter_function(df[col])
         
         return df
+
+    def finalise(self,df):
+        """
+        Finalise function, expected to be overloaded by children classes
+        """
+        
+        required_fields = [
+            field
+            for field in self.get_field_names()
+            if getattr(self,field).required == True
+        ]
+
+        for field in required_fields:
+            nbefore = len(df)
+            df = df[~df[field].isna()]
+            nafter = len(df)
+
+            ndiff = nbefore - nafter
+            if ndiff>0:
+                self.logger.warning(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
+
+        df = df.sort_values(self.get_ordering())
+        
+        return df
+

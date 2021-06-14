@@ -6,7 +6,7 @@ class Person(Base):
     """
     name = 'person'
     def __init__(self):
-        self.person_id                   = DataType(dtype="INTEGER"     , required=True)
+        self.person_id                   = DataType(dtype="INTEGER"     , required=True , pk=True)
         self.gender_concept_id           = DataType(dtype="INTEGER"     , required=True)
         self.year_of_birth               = DataType(dtype="INTEGER"     , required=False)
         self.month_of_birth              = DataType(dtype="INTEGER"     , required=False)
@@ -24,15 +24,15 @@ class Person(Base):
         self.race_source_concept_id      = DataType(dtype="INTEGER"     , required=False)
         self.ethnicity_source_value      = DataType(dtype="VARCHAR(50)" , required=False)
         self.ethnicity_source_concept_id = DataType(dtype="INTEGER"     , required=False)
-
+        
         super().__init__(self.name)
 
-    @classmethod
-    def finalise(cls,df):
+    def finalise(self,df):
         """
         Overload the finalise function here for any specifics for the person table
         """
-        df = df.sort_values('person_id')
+        df = super().finalise(df)
+        #df = df.sort_values('person_id')
         return df
 
 

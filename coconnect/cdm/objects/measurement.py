@@ -8,13 +8,13 @@ class Measurement(Base):
     
     name = 'measurement'
     def __init__(self):
-        self.measurement_id                = DataType(dtype="INTEGER"     , required=True)
+        self.measurement_id                = DataType(dtype="INTEGER"     , required=True , pk=True)
         self.person_id                     = DataType(dtype="INTEGER"     , required=True)
         self.measurement_concept_id        = DataType(dtype="INTEGER"     , required=True)
-        self.measurement_date              = DataType(dtype="DATE"        , required=True)
-        self.measurement_datetime          = DataType(dtype="DATETIME"    , required=False)
+        self.measurement_date              = DataType(dtype="DATE"        , required=False)
+        self.measurement_datetime          = DataType(dtype="DATETIME"    , required=True)
         self.measurement_time              = DataType(dtype="VARCHAR(10)" , required=False)
-        self.measurement_type_concept_id   = DataType(dtype="INTEGER"     , required=True)
+        self.measurement_type_concept_id   = DataType(dtype="INTEGER"     , required=False)
         self.operator_concept_id           = DataType(dtype="INTEGER"     , required=False)
         self.value_as_number               = DataType(dtype="FLOAT"       , required=False)
         self.value_as_concept_id           = DataType(dtype="INTEGER"     , required=False)
@@ -32,8 +32,7 @@ class Measurement(Base):
         super().__init__(self.name)
 
 
-    @classmethod
-    def finalise(cls,df):
+    def finalise(self,df):
         """
         Overloads the finalise method defined in the Base class.
 
@@ -44,9 +43,17 @@ class Measurement(Base):
         Returns:
           pandas.Dataframe : finalised pandas dataframe
         """
-        df = df.sort_values('person_id')
+        #if the _id is all null, give them a temporary index
+        #so that all rows are not removed when performing the check on
+        #the required rows being filled 
         if df['measurement_id'].isnull().any():
             df['measurement_id'] = df.reset_index().index + 1
+            
+        df = super().finalise(df)
+        #since the above finalise() will drop some rows, reset the index again
+        #this just resets the _ids to be 1,2,3,4,5 instead of 1,2,5,6,8,10...
+        df['measurement_id'] = df.reset_index().index + 1
+
         return df
         
     def get_df(self):

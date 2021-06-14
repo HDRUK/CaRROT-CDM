@@ -120,18 +120,18 @@ class CommonDataModel:
             if len(df) == 0:
                 self.logger.warning(f".. {i}/{len(objects)}  no outputs were found ")
                 continue
-
+            
             dfs.append(df)
 
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
+        #df_destination = self.mask_person_id(df_destination)
 
-        self.logger.info(f'Finalising {class_type}')
-        df_destination = class_type.finalise(df_destination)
-
-        self.logger.info(f'Formatting {class_type}')
-        df_destination = class_type.format(df_destination)
+        primary_column = df_destination.columns[0]
+        if primary_column != 'person_id':
+            df_destination[primary_column] = df_destination.reset_index().index + 1
+        
 
         return df_destination
 
@@ -155,6 +155,8 @@ class CommonDataModel:
             output_folder = self.output_folder
         
         self._df_map = {}
+        #this could be looped but it's important for the Person table
+        #to be mapped first, due to the person_id masking
         self._df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')
 
