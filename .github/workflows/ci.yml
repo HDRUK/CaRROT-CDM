@@ -53,7 +53,7 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - run: co-connect-tools
+      - run: cd co-connect-tools
       - run: mkdir tests
       - run: cd tests
       - run: ls ../scripts/
