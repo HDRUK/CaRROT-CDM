@@ -132,9 +132,6 @@ class CommonDataModel:
             dfs.append(df)
             logs[obj.name] = obj._meta
 
-        print (json.dumps(logs,indent=6))
-        exit(0)
-
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
@@ -143,7 +140,8 @@ class CommonDataModel:
         primary_column = df_destination.columns[0]
         if primary_column != 'person_id':
             df_destination[primary_column] = df_destination.reset_index().index + 1
-        
+        else:
+            df_destination = df_destination.sort_values(primary_column)
 
         return df_destination
 

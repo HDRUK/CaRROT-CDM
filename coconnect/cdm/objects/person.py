@@ -32,7 +32,7 @@ class Person(Base):
         Overload the finalise function here for any specifics for the person table
         """
         df = super().finalise(df)
-        #df = df.sort_values('person_id')
+        df = df.sort_values('person_id')
         return df
 
 
