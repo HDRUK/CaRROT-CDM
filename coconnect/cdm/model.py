@@ -140,8 +140,8 @@ class CommonDataModel:
         primary_column = df_destination.columns[0]
         if primary_column != 'person_id':
             df_destination[primary_column] = df_destination.reset_index().index + 1
-        else:
-            df_destination = df_destination.sort_values(primary_column)
+        #else:
+        #    df_destination = df_destination.sort_values(primary_column)
 
         return df_destination
 

@@ -1,3 +1,4 @@
+import pandas as pd
 import inspect
 import os
 import click
@@ -10,6 +11,37 @@ import coconnect.tools as tools
 @click.group()
 def map():
     pass
+
+@click.command(help="Detect differences in either inputs or output csv files")
+@click.argument("file1")
+@click.argument("file2")
+def diff(file1,file2):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+
+    exact_match = df1.equals(df2)
+    if exact_match:
+        return
+
+    df = pd.concat([df1,df2]).drop_duplicates(keep=False)
+    if len(df) > 0:
+        print (" ======== Differing Rows ========== ")
+        print (df)
+        m = df1.merge(df2, on=df.columns[0], how='outer', suffixes=['', '_'], indicator=True)[['_merge']]
+        m = m[~m['_merge'].str.contains('both')]
+        file1 = file1.split('/')[-1]
+        file2 = file2.split('/')[-1]
+        
+        m['_merge'] = m['_merge'].map({'left_only':file1,'right_only':file2})
+        m = m.rename(columns={'_merge':'Only Contained Within'})
+        m.index.name = 'Row Number'
+        print (m.reset_index().to_dict(orient='records'))
+
+    else:
+        print (" ======= Rows are likely in a different order ====== ")
+        for i in range(len(df1)):
+            if not (df1.iloc[i] == df2.iloc[i]).any():
+                print ('Row',i,'is in a different location')
 
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
@@ -169,3 +201,4 @@ map.add_command(display,"display")
 map.add_command(make_class,"make")
 map.add_command(list_classes,"list")
 map.add_command(run,"run")
+map.add_command(diff,"diff")
