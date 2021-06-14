@@ -4,7 +4,6 @@ import coloredlogs
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
 
 
-
 class Logger(logging.Logger):
     def __init__(self,name):
         super().__init__(name)

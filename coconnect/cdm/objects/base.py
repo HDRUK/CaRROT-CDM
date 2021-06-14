@@ -54,11 +54,10 @@ class Base(object):
            None
         """
         self.name = _type
+        self._meta = {}
         self.logger = Logger(self.name)
-        self.logger.debug("Initialised Class")
 
         self.dtypes = DataFormatter()
-
         self.fields = self.get_field_names()
 
         if len(self.fields) == 0:
@@ -169,6 +168,10 @@ class Base(object):
 
         #find which fields in the cdm havent been defined
         missing_fields = set(self.fields) - set(df.columns)
+
+        self._meta['defined_columns'] = df.columns.tolist()
+        self._meta['undefined_columns'] = list(missing_fields)
+                
         #set these to a nan/null series
         for field in missing_fields:
             df[field] = np.NaN
@@ -201,7 +204,7 @@ class Base(object):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
-
+        self._meta['required_fields'] = {}
         for field in required_fields:
             nbefore = len(df)
             df = df[~df[field].isna()]
@@ -210,6 +213,14 @@ class Base(object):
             ndiff = nbefore - nafter
             if ndiff>0:
                 self.logger.warning(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
+            self._meta['required_fields'][field] = {
+                'before':nbefore,
+                'after':nafter
+            }
+            #if 'concept_id' in field:
+            #    values = df[field].unique().tolist()
+            #    self._meta['required_fields'][field]['concept_values'] = values
+
 
         df = df.sort_values(self.get_ordering())
         

@@ -49,4 +49,15 @@ class Person(Base):
            pandas.Dataframe: output dataframe
         """
         df = super().get_df()
+
+        if self.automatically_generate_missing_rules == True:
+            if df['year_of_birth'].isnull().all():
+                df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
+                
+            if df['month_of_birth'].isnull().all():
+                df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
+                
+            if df['day_of_birth'].isnull().all():
+                df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
+        
         return df

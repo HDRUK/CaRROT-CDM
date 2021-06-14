@@ -31,6 +31,8 @@ class CommonDataModel:
         name = self.__class__.__name__
         if 'name' in kwargs:
             name = kwargs['name']
+
+        self.debug_level = 2
             
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
@@ -56,7 +58,12 @@ class CommonDataModel:
         #register opereation tools
         self.tools = OperationTools()
 
-        #self.__dict__.update(self.__class__.__dict__)
+        #allow rules to be generated automatically or not
+        self.automatically_generate_missing_rules = False
+        if 'automatically_generate_missing_rules' in kwargs:
+            do_auto = bool(kwargs['automatically_generate_missing_rules'])
+            self.logger.info(f"Setting automatic rule generation to '{do_auto}'")
+            self.automatically_generate_missing_rules = do_auto
 
         self.person_id_masker = None
         self.omop = {}
@@ -112,6 +119,7 @@ class CommonDataModel:
         #execute them all
         dfs = []
         self.logger.info(f"working on {class_type}")
+        logs = {}
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df()
@@ -122,6 +130,10 @@ class CommonDataModel:
                 continue
             
             dfs.append(df)
+            logs[obj.name] = obj._meta
+
+        print (json.dumps(logs,indent=6))
+        exit(0)
 
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
