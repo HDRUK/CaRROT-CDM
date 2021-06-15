@@ -1,6 +1,6 @@
 import argparse
 import json
-from coconnect.cdm import CommonDataModel
+from coconnect.cdm import CommonDataModel, get_cdm_class
 from coconnect.cdm import Person, ConditionOccurrence, Measurement, Observation
 from coconnect.tools import load_csv
 
@@ -111,7 +111,7 @@ def main():
             #Example:
             # destination_field : person
             # obj : Person()
-            obj = cdm.get_cdm_class(destination_table)
+            obj = get_cdm_class(destination_table)()
             #set the name of the object
             obj.set_name(f"{destination_table}_{i}")
             #call the apply_rules function to setup how to modify the inputs

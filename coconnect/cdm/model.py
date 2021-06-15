@@ -7,7 +7,6 @@ import copy
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
-from .objects import _cdm_object_map
 
 class NoInputFiles(Exception):
     pass
@@ -92,12 +91,6 @@ class CommonDataModel:
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
         
-    def get_cdm_class(self,class_type):
-        if class_type in _cdm_object_map:
-            return _cdm_object_map[class_type]()
-
-        raise NotImplemented(f"Not able to handling mapping for {class_type} yet")
-    
     def get_objs(self,destination_table):
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
