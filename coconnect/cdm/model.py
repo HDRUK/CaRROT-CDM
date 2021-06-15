@@ -41,7 +41,6 @@ class CommonDataModel:
 
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
-
             
         #register opereation tools
         self.tools = OperationTools()
@@ -53,8 +52,31 @@ class CommonDataModel:
             self.logger.info(f"Setting automatic rule generation to '{do_auto}'")
             self.automatically_generate_missing_rules = do_auto
 
+        #define a person_id masker, if the person_id are to be masked
         self.person_id_masker = None
+
+        #stores the final pandas dataframe for each CDM object
+        # {
+        #   'person':pandas.DataFrame,
+        #   'measurement':pandas.DataFrame.
+        #   ....
+        #}
         self.__df_map = {}
+
+        #stores the invididual objects associated to this model
+        # {
+        #     'observation':
+        #     {
+        #         'observation_0': <coconnect.cdm.objects.observation.Observation object 0x000>,
+        #         'observation_1': <coconnect.cdm.objects.observation.Observation object 0x001>,
+        #     },
+        #     'measurement':
+        #     {
+        #         'measurement_0': <coconnect.cdm.objects.measurement.Measurement object 0x000>,
+        #         ...
+        #     }
+        #     ...
+        # }
         self.__objects = {}
 
 
@@ -89,6 +111,8 @@ class CommonDataModel:
             raise Exception(f"Object called {obj.name} already exists")
 
         self.__objects[obj._type][obj.name] = obj
+        print (self.__objects)
+        exit(0)
         self.logger.info(f"Added {obj.name} of type {obj._type}")
         
     def get_objs(self,destination_table):

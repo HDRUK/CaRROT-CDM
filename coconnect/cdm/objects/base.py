@@ -66,6 +66,7 @@ class Base(object):
 
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
+        self.__df = None
 
     def get_field_names(self):
         return [
@@ -126,14 +127,17 @@ class Base(object):
         self = self.define(self)
 
         
-    def get_df(self):
+    def get_df(self,force_rebuild=False):
         """
         Retrieve a dataframe from the current object
 
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
-
+        #if the dataframe has already been built.. just return it
+        if not self.__df == None and not force_rebuild:
+            return self.__df 
+        
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
@@ -183,7 +187,8 @@ class Base(object):
         df = self.finalise(df)
         df = self.format(df)
 
-        
+        #register the df
+        self.__df = df
         return df
 
     def format(self,df):
