@@ -54,6 +54,7 @@ class Base(object):
            None
         """
         self.name = _type
+        self._type = _type
         self._meta = {}
         self.logger = Logger(self.name)
 

@@ -55,29 +55,44 @@ class CommonDataModel:
             self.automatically_generate_missing_rules = do_auto
 
         self.person_id_masker = None
-        self.omop = {}
+        self.__df_map = {}
+        self.__objects = {}
 
 
+    def __getitem__(self,key):
+        return self.__df_map[key]
+
+    def __setitem__(self,key,obj):
+        self.__df_map[key] = obj
+    
         
     def add(self,obj):
-        if obj.name not in self.__dict__.keys():
-            setattr(self,obj.name,obj)
-        else:
+        if obj._type not in self.__objects:
+            self.__objects[obj._type] = {}
+            
+        if obj.name in self.__objects[obj._type].keys():
             raise Exception(f"Object called {obj.name} already exists")
 
+        self.__objects[obj._type][obj.name] = obj
+        self.logger.info(f"Added {obj.name} of type {obj._type}")
+        
     def get_cdm_class(self,class_type):
         if class_type in _cdm_object_map:
             return _cdm_object_map[class_type]()
 
         raise NotImplemented(f"Not able to handling mapping for {class_type} yet")
     
-    def get_objs(self,class_type):
-        self.logger.debug(f"looking for {class_type}")
-        return  [
-            getattr(self,x)
-            for x in dir(self)
-            if isinstance(getattr(self,x),class_type)
+    def get_objs(self,destination_table):
+        self.logger.debug(f"looking for {destination_table}")
+        if destination_table not in self.__objects.keys():
+            self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
+            raise Exception("Something wrong!")
+
+        return [
+            obj
+            for obj in self.__objects[destination_table].values()
         ]
+
     
     def mask_person_id(self,df):
         if 'person_id' in df.columns:
@@ -93,46 +108,33 @@ class CommonDataModel:
         return df
         
     def process(self,output_folder='output_data/'):
-        
+
+        execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+
+        for destination_table in execution_order:
+            self[destination_table] = self.process_table(destination_table)
+            self.logger.info(f'finalised {destination_table}')
+
         if not self.output_folder is None:
             output_folder = self.output_folder
-        
-        self.omop = {}
-        #this could be looped but it's important for the Person table
-        #to be mapped first, due to the person_id masking
-        self.omop[Person.name] = self.run_cdm(Person)
-        self.logger.info(f'finalised {Person.name}')
-
-        self.omop[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
-        self.logger.info(f'finalised {ConditionOccurrence.name}')
-
-        self.omop[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
-        self.logger.info(f'finalised {VisitOccurrence.name}')
-
-        self.omop[Measurement.name] = self.run_cdm(Measurement)
-        self.logger.info(f'finalised {Measurement.name}')
-
-        self.omop[Observation.name] = self.run_cdm(Observation)
-        self.logger.info(f'finalised {Observation.name}')
-
-        self.save_to_file(self.omop,output_folder)
+        self.save_to_file(output_folder)
 
         
         
-    def run_cdm(self,class_type):
-        objects = self.get_objs(class_type)
+    def process_table(self,destination_table):
+        objects = self.get_objs(destination_table)
         nobjects = len(objects)
         extra = ""
         if nobjects>1:
             extra="s"
-        self.logger.info(f"for {class_type.name}: found {nobjects} object{extra}")
+        self.logger.info(f"for {destination_table}: found {nobjects} object{extra}")
         
         if len(objects) == 0:
             return
         
         #execute them all
         dfs = []
-        self.logger.info(f"working on {class_type}")
+        self.logger.info(f"working on {destination_table}")
         logs = {}
         for i,obj in enumerate(objects):
             obj.execute(self)
@@ -147,7 +149,7 @@ class CommonDataModel:
             logs[obj.name] = obj._meta
 
         #merge together
-        self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
+        self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         df_destination = pd.concat(dfs,ignore_index=True)
         #df_destination = self.mask_person_id(df_destination)
 
@@ -160,8 +162,8 @@ class CommonDataModel:
         return df_destination
 
 
-    def save_to_file(self,df_map,f_out):
-        for name,df in df_map.items():
+    def save_to_file(self,f_out):
+        for name,df in self.__df_map.items():
             if df is None:
                 continue
             fname = f'{f_out}/{name}.csv'
