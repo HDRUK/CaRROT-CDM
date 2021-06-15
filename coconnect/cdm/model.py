@@ -85,7 +85,7 @@ class CommonDataModel:
         self.logs = {
             'meta':{
                 'created_by': getpass.getuser(),
-                'created_at': strftime("%Y-%m-%d_%H:%M:%S", gmtime()),
+                'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
                 'output_folder':os.path.abspath(self.output_folder)
             }
