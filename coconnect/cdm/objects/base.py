@@ -54,6 +54,7 @@ class Base(object):
            None
         """
         self.name = _type
+        self._type = _type
         self._meta = {}
         self.logger = Logger(self.name)
 
@@ -65,6 +66,7 @@ class Base(object):
 
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
+        self.__df = None
 
     def get_field_names(self):
         return [
@@ -94,7 +96,7 @@ class Base(object):
         """
         define function, expected to be overloaded by the user defining the object
         """
-        return self
+        pass
 
     def get_destination_fields(self):
         """
@@ -121,18 +123,27 @@ class Base(object):
         #add objects to this class
         self.__dict__.update(objs)
 
-        #execute the define function that is likely to define the cdm fields based on inputs
-        self = self.define(self)
+        #execute the define function
+        #the default define() does nothing
+        #this is only executed if the CDM has been build via decorators
+        #or define functions have been specified for this object
+        # it will build the inputs from these functions
+        self.define(self)
 
+        #build the dataframe for this object
+        _ = self.get_df()
         
-    def get_df(self):
+    def get_df(self,force_rebuild=False):
         """
         Retrieve a dataframe from the current object
 
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
-
+        #if the dataframe has already been built.. just return it
+        if not self.__df is None and not force_rebuild:
+            return self.__df 
+        
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
@@ -182,7 +193,8 @@ class Base(object):
         df = self.finalise(df)
         df = self.format(df)
 
-        
+        #register the df
+        self.__df = df
         return df
 
     def format(self,df):
