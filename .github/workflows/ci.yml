@@ -57,12 +57,15 @@ jobs:
       - run: mkdir tests/
       - run: python scripts/simple.py -i coconnect/data/test/inputs/*.csv --rules coconnect/data/test/rules/rules_14June2021.json -o tests/
       - run: |
-          if [[ -z $(coconnect map diff tests/person.csv coconnect/data/test/expected_outputs/person.csv) ]];
-          then
-              echo "nothing found"
-          else
-              echo "something found"
-          fi
+          for filename in tests/*.csv; do
+               fname=${filename##*/}
+               if [[ -z $(coconnect map diff $filename coconnect/data/test/expected_outputs/$fname) ]];
+               then
+                  echo "$fname is good"
+               else
+                  echo "something found"
+               fi
+          done
 
       - uses: actions/upload-artifact@v2
         with:

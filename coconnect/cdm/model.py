@@ -7,15 +7,9 @@ import copy
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
+from .objects import _cdm_object_map
 
 
-#lookup for name to class, e.g. "person" : Person
-_classes = {
-    x.name: x
-    for x in [Person, ConditionOccurrence,
-              VisitOccurrence, Measurement,
-              Observation]
-}
 
 class NoInputFiles(Exception):
     pass
@@ -92,8 +86,8 @@ class CommonDataModel:
             raise Exception(f"Object called {obj.name} already exists")
 
     def get_cdm_class(self,class_type):
-        if class_type in _classes:
-            return _classes[class_type]()
+        if class_type in _cdm_object_map:
+            return _cdm_object_map[class_type]()
 
         raise NotImplemented(f"Not able to handling mapping for {class_type} yet")
     
