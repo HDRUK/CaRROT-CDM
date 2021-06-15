@@ -120,7 +120,7 @@ def main():
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
     cdm.process()
-    print (cdm.keys())
+    print ('Finished Producing',cdm.keys())
     
 if __name__ == "__main__":
     main()

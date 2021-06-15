@@ -145,6 +145,8 @@ class CommonDataModel:
         },indent=6)
         self.logger.info(f"Number of objects to process for each table...\n{count_map}")
 
+    def keys(self):
+        return self.__df_map.keys()
         
     def process(self,output_folder='output_data/'):
 
