@@ -63,7 +63,9 @@ jobs:
                then
                   echo "$fname is good"
                else
-                  echo "something found"
+                  echo "$fname failed!"
+                  coconnect map diff $filename coconnect/data/test/expected_outputs/$fname
+                  exit(0)
                fi
           done
 
