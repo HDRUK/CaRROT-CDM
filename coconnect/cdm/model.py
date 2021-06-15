@@ -113,7 +113,7 @@ class CommonDataModel:
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
         
-    def get_objs(self,destination_table):
+    def get_objects(self,destination_table):
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -151,7 +151,7 @@ class CommonDataModel:
         self.save_to_file(output_folder)
         
     def process_table(self,destination_table):
-        objects = self.get_objs(destination_table)
+        objects = self.get_objects(destination_table)
         nobjects = len(objects)
         extra = ""
         if nobjects>1:
