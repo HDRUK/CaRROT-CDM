@@ -9,8 +9,6 @@ from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
 from .objects import _cdm_object_map
 
-
-
 class NoInputFiles(Exception):
     pass
 
@@ -18,7 +16,6 @@ class CommonDataModel:
 
     inputs = None
     output_folder = "output_data/"
-
     
     def __init__(self,**kwargs):
 
@@ -62,21 +59,6 @@ class CommonDataModel:
 
 
         
-    def set_indexing(self,index_map,strict_check=False):
-        if self.inputs == None:
-            raise NoInputFiles('Trying to indexing before any inputs have been setup')
-        
-        for key,index in index_map.items():
-            if key not in self.inputs:
-                self.logger.warning(f"trying to set index '{index}' for '{key}' but this has not been loaded as an inputs!")
-                continue
-
-            if index not in self.inputs[key].columns:
-                self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
-                continue
-                
-            self.inputs[key].index = self.inputs[key][index].rename('index') 
-
     def add(self,obj):
         if obj.name not in self.__dict__.keys():
             setattr(self,obj.name,obj)
@@ -97,6 +79,46 @@ class CommonDataModel:
             if isinstance(getattr(self,x),class_type)
         ]
     
+    def mask_person_id(self,df):
+        if 'person_id' in df.columns:
+            #if masker has not been defined, define it
+            if self.person_id_masker is None:
+                self.person_id_masker = {
+                    x:i+1
+                    for i,x in enumerate(df['person_id'].unique())
+                }
+            #apply the masking
+            df['person_id'] = df['person_id'].map(self.person_id_masker)
+            self.logger.info(f"Just masked person_id")
+        return df
+        
+    def process(self,output_folder='output_data/'):
+        
+        if not self.output_folder is None:
+            output_folder = self.output_folder
+        
+        self.omop = {}
+        #this could be looped but it's important for the Person table
+        #to be mapped first, due to the person_id masking
+        self.omop[Person.name] = self.run_cdm(Person)
+        self.logger.info(f'finalised {Person.name}')
+
+        self.omop[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
+        self.logger.info(f'finalised {ConditionOccurrence.name}')
+
+        self.omop[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
+        self.logger.info(f'finalised {VisitOccurrence.name}')
+
+        self.omop[Measurement.name] = self.run_cdm(Measurement)
+        self.logger.info(f'finalised {Measurement.name}')
+
+        self.omop[Observation.name] = self.run_cdm(Observation)
+        self.logger.info(f'finalised {Observation.name}')
+
+        self.save_to_file(self.omop,output_folder)
+
+        
+        
     def run_cdm(self,class_type):
         objects = self.get_objs(class_type)
         nobjects = len(objects)
@@ -138,48 +160,6 @@ class CommonDataModel:
         return df_destination
 
 
-    def mask_person_id(self,df):
-        if 'person_id' in df.columns:
-            #if masker has not been defined, define it
-            if self.person_id_masker is None:
-                self.person_id_masker = {
-                    x:i+1
-                    for i,x in enumerate(df['person_id'].unique())
-                }
-            #apply the masking
-            df['person_id'] = df['person_id'].map(self.person_id_masker)
-            self.logger.info(f"Just masked person_id")
-        return df
-        
-    def process(self,output_folder='output_data/'):
-        
-        if not self.output_folder is None:
-            output_folder = self.output_folder
-        
-        self._df_map = {}
-        #this could be looped but it's important for the Person table
-        #to be mapped first, due to the person_id masking
-        self._df_map[Person.name] = self.run_cdm(Person)
-        self.logger.info(f'finalised {Person.name}')
-
-        self._df_map[ConditionOccurrence.name] = self.run_cdm(ConditionOccurrence)
-        self.logger.info(f'finalised {ConditionOccurrence.name}')
-
-        self._df_map[VisitOccurrence.name] = self.run_cdm(VisitOccurrence)
-        self.logger.info(f'finalised {VisitOccurrence.name}')
-
-        self._df_map[Measurement.name] = self.run_cdm(Measurement)
-        self.logger.info(f'finalised {Measurement.name}')
-
-        self._df_map[Observation.name] = self.run_cdm(Observation)
-        self.logger.info(f'finalised {Observation.name}')
-
-        self.save_to_file(self._df_map,output_folder)
-
-        #register output
-        self.omop = self._df_map
-        
-        
     def save_to_file(self,df_map,f_out):
         for name,df in df_map.items():
             if df is None:
@@ -194,3 +174,17 @@ class CommonDataModel:
             self.logger.info(df.dropna(axis=1,how='all'))
         
 
+    def set_indexing(self,index_map,strict_check=False):
+        if self.inputs == None:
+            raise NoInputFiles('Trying to indexing before any inputs have been setup')
+        
+        for key,index in index_map.items():
+            if key not in self.inputs:
+                self.logger.warning(f"trying to set index '{index}' for '{key}' but this has not been loaded as an inputs!")
+                continue
+
+            if index not in self.inputs[key].columns:
+                self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
+                continue
+                
+            self.inputs[key].index = self.inputs[key][index].rename('index') 
