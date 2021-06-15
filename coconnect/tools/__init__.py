@@ -63,7 +63,7 @@ def get_classes(format=False):
 
 
 
-def load_csv(_map,nrows=None,load_path=""):
+def load_csv(_map,nrows=None,lower_col_names=True,load_path=""):
 
     for key,obj in _map.items():
         fields = None
@@ -76,7 +76,9 @@ def load_csv(_map,nrows=None,load_path=""):
         df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
         for col in df.columns:
             df[col].fname = fname
-        df.columns = df.columns.str.lower()
+
+        if lower_col_names:
+            df.columns = df.columns.str.lower()
 
         #filter on only the fields we need
         if fields is not None:

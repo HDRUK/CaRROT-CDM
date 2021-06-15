@@ -3,39 +3,16 @@ import pandas as pd
 import numpy as np
 import json
 import copy
-import collections
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
+from .objects import _cdm_object_map
 
 
-#lookup for name to class, e.g. "person" : Person
-_classes = {
-    x.name: x
-    for x in [Person, ConditionOccurrence,
-              VisitOccurrence, Measurement,
-              Observation]
-}
 
 class NoInputFiles(Exception):
     pass
-
-
-class CommonDataModelTypes(collections.OrderedDict):
-    def __init__(self):
-        super().__init__()
-        self['INTEGER'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['FLOAT'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
-        self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-        self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
-        self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
-        self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
-        self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-        self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
-    
 
 class CommonDataModel:
 
@@ -48,11 +25,11 @@ class CommonDataModel:
         name = self.__class__.__name__
         if 'name' in kwargs:
             name = kwargs['name']
+
+        self.debug_level = 2
             
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
-
-        self.dtypes = CommonDataModelTypes()
 
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
@@ -75,7 +52,12 @@ class CommonDataModel:
         #register opereation tools
         self.tools = OperationTools()
 
-        #self.__dict__.update(self.__class__.__dict__)
+        #allow rules to be generated automatically or not
+        self.automatically_generate_missing_rules = False
+        if 'automatically_generate_missing_rules' in kwargs:
+            do_auto = bool(kwargs['automatically_generate_missing_rules'])
+            self.logger.info(f"Setting automatic rule generation to '{do_auto}'")
+            self.automatically_generate_missing_rules = do_auto
 
         self.person_id_masker = None
         self.omop = {}
@@ -97,10 +79,17 @@ class CommonDataModel:
                 
             self.inputs[key].index = self.inputs[key][index].rename('index') 
 
+    def add(self,obj):
+        if obj.name not in self.__dict__.keys():
+            setattr(self,obj.name,obj)
+        else:
+            raise Exception(f"Object called {obj.name} already exists")
 
     def get_cdm_class(self,class_type):
-        if class_type in _classes:
-            return _classes[class_type]()
+        if class_type in _cdm_object_map:
+            return _cdm_object_map[class_type]()
+
+        raise NotImplemented(f"Not able to handling mapping for {class_type} yet")
     
     def get_objs(self,class_type):
         self.logger.debug(f"looking for {class_type}")
@@ -124,6 +113,7 @@ class CommonDataModel:
         #execute them all
         dfs = []
         self.logger.info(f"working on {class_type}")
+        logs = {}
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df()
@@ -132,21 +122,20 @@ class CommonDataModel:
             if len(df) == 0:
                 self.logger.warning(f".. {i}/{len(objects)}  no outputs were found ")
                 continue
-
+            
             dfs.append(df)
+            logs[obj.name] = obj._meta
 
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {class_type}')
         df_destination = pd.concat(dfs,ignore_index=True)
+        #df_destination = self.mask_person_id(df_destination)
 
-        self.logger.info(f'Masking the person_id for {class_type}')
-        df_destination = self.mask_person_id(df_destination)
-        
-        self.logger.info(f'Finalising {class_type}')
-        df_destination = objects[0].finalise(df_destination)
-        
-        self.logger.info(f'Formating the output for {class_type}')
-        df_destination = objects[0].format(df_destination,raise_error=False)
+        primary_column = df_destination.columns[0]
+        if primary_column != 'person_id':
+            df_destination[primary_column] = df_destination.reset_index().index + 1
+        else:
+            df_destination = df_destination.sort_values(primary_column)
 
         return df_destination
 
@@ -170,6 +159,8 @@ class CommonDataModel:
             output_folder = self.output_folder
         
         self._df_map = {}
+        #this could be looped but it's important for the Person table
+        #to be mapped first, due to the person_id masking
         self._df_map[Person.name] = self.run_cdm(Person)
         self.logger.info(f'finalised {Person.name}')
 
@@ -198,7 +189,7 @@ class CommonDataModel:
             fname = f'{f_out}/{name}.csv'
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
-                os.mkdir(f'{f_out}')
+                os.makedirs(f'{f_out}')
             self.logger.info(f'saving {name} to {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,index=True)

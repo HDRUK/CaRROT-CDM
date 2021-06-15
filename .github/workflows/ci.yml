@@ -16,7 +16,20 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: coconnect --help
-      - run: coconnect map list
+  unit_test_1:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - run: ls .
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
       - run: coconnect map show example/sample_config/lion_structural_mapping.json
       - run: coconnect map make --name Lion  example/sample_config/lion_structural_mapping.json
       - run: coconnect map list
@@ -25,6 +38,41 @@ jobs:
         with:
           name: outputs
           path: output_data
+          retention-days: 1
+  unit_test_2:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - run: ls .
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
+      - run: ls
+      - run: mkdir tests/
+      - run: python scripts/simple.py -i coconnect/data/test/inputs/*.csv --rules coconnect/data/test/rules/rules_14June2021.json -o tests/
+      - run: |
+          for filename in tests/*.csv; do
+               fname=${filename##*/}
+               if [[ -z $(coconnect map diff $filename coconnect/data/test/expected_outputs/$fname) ]];
+               then
+                  echo "$fname is good"
+               else
+                  echo "$fname failed!"
+                  coconnect map diff $filename coconnect/data/test/expected_outputs/$fname
+                  exit
+               fi
+          done
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: test
+          path: tests
           retention-days: 1
   pypi:
     if: startsWith(github.ref, 'refs/tags/')

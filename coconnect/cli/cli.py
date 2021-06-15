@@ -1,5 +1,6 @@
 from .subcommands.map import map
 from .subcommands.find import find
+from .subcommands.generate import generate
 
 import click
 import json
@@ -15,6 +16,7 @@ def coconnect(loglevel):
 
 coconnect.add_command(map, "map")
 coconnect.add_command(find, "find")
+coconnect.add_command(generate, "generate")
 
 
 if __name__ == "__main__":
