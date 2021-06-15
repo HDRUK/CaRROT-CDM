@@ -158,6 +158,9 @@ class CommonDataModel:
 
     def keys(self):
         return self.__df_map.keys()
+
+    def objects(self):
+        return self.__objects
         
     def process(self,output_folder='output_data/'):
 
