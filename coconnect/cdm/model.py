@@ -8,7 +8,7 @@ from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation
+from .objects import Base
 
 class NoInputFiles(Exception):
     pass
@@ -81,6 +81,18 @@ class CommonDataModel:
         # }
         self.__objects = {}
 
+        #check if objects have already been registered with this class
+        #via the decorator methods
+        registered_objects = [
+            getattr(self,name)
+            for name in dir(self)
+            if isinstance(getattr(self,name),Base)
+        ]
+        for obj in registered_objects:
+            if obj._type not in self.__objects:
+                self.__objects[obj._type] = {}
+            self.__objects[obj._type][obj.name] = obj
+        
         #bookkeep some logs
         self.logs = {
             'meta':{
@@ -168,6 +180,7 @@ class CommonDataModel:
         #only thing that matters is to execute the person table first
         # - this is if we want to mask the person_ids and need to save a record of
         #   the link between the unmasked and masked
+
         execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
 
         self.logger.info(f"Starting processing in order: {execution_order}")

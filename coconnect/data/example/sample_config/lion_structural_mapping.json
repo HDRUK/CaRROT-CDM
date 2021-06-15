@@ -31,8 +31,8 @@
                               "source_table": "demo.csv",
                               "source_field": "gender",
                               "term_mapping": {
-                                    "F": [8532,1234],
-                                    "M": [8507,4321]
+                                    "F": 8532,
+                                    "M": 8507
                               }
                         },
                         "gender_source_concept_id": {

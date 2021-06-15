@@ -96,7 +96,7 @@ class Base(object):
         """
         define function, expected to be overloaded by the user defining the object
         """
-        return self
+        pass
 
     def get_destination_fields(self):
         """
@@ -123,8 +123,12 @@ class Base(object):
         #add objects to this class
         self.__dict__.update(objs)
 
-        #execute the define function that is likely to define the cdm fields based on inputs
-        self = self.define(self)
+        #execute the define function
+        #the default define() does nothing
+        #this is only executed if the CDM has been build via decorators
+        #or define functions have been specified for this object
+        # it will build the inputs from these functions
+        self.define(self)
 
         #build the dataframe for this object
         _ = self.get_df()
