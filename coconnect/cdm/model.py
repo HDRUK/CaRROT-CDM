@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import json
 import copy
+import getpass
+from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
@@ -79,7 +81,16 @@ class CommonDataModel:
         # }
         self.__objects = {}
 
-
+        #bookkeep some logs
+        self.logs = {
+            'meta':{
+                'created_by': getpass.getuser(),
+                'created_at': strftime("%Y-%m-%d_%H:%M:%S", gmtime()),
+                'dataset':name,
+                'output_folder':os.path.abspath(self.output_folder)
+            }
+        }
+        
     def __getitem__(self,key):
         """
         Ability lookup processed objects from the CDM
@@ -166,7 +177,9 @@ class CommonDataModel:
         if not self.output_folder is None:
             output_folder = self.output_folder
         self.save_to_file(output_folder)
-        
+
+        self.save_logs(output_folder)
+                
     def process_table(self,destination_table):
         objects = self.get_objects(destination_table)
         nobjects = len(objects)
@@ -213,10 +226,24 @@ class CommonDataModel:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
 
+        #book the metadata logs
+        self.logs[destination_table] = logs
+        
+            
         #return the finalised full dataframe for this table
         return df_destination
 
+    def save_logs(self,f_out):
+        f_out = f'{f_out}/logs/'
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
 
+        date = self.logs['meta']['created_at']
+        fname = f'{f_out}/{date}.json'
+        json.dump(self.logs,open(fname,'w'),indent=6)
+        self.logger.info(f'saved a log file to {fname}')
+    
     def save_to_file(self,f_out):
         for name,df in self.__df_map.items():
             if df is None:
