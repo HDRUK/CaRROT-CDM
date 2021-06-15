@@ -111,8 +111,6 @@ class CommonDataModel:
             raise Exception(f"Object called {obj.name} already exists")
 
         self.__objects[obj._type][obj.name] = obj
-        print (self.__objects)
-        exit(0)
         self.logger.info(f"Added {obj.name} of type {obj._type}")
         
     def get_objs(self,destination_table):

@@ -126,6 +126,8 @@ class Base(object):
         #execute the define function that is likely to define the cdm fields based on inputs
         self = self.define(self)
 
+        #build the dataframe for this object
+        _ = self.get_df()
         
     def get_df(self,force_rebuild=False):
         """
@@ -135,7 +137,7 @@ class Base(object):
            pandas.Dataframe: extracted dataframe of the cdm object
         """
         #if the dataframe has already been built.. just return it
-        if not self.__df == None and not force_rebuild:
+        if not self.__df is None and not force_rebuild:
             return self.__df 
         
         #get a dict of all series
