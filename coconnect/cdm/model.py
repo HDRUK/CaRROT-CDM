@@ -137,11 +137,26 @@ class CommonDataModel:
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
         return df
+
+    def count_objects(self):
+        count_map = json.dumps({
+            key: len(obj.keys())
+            for key,obj in self.__objects.items()
+        },indent=6)
+        self.logger.info(f"Number of objects to process for each table...\n{count_map}")
+
         
     def process(self,output_folder='output_data/'):
 
+        #determine the order to execute tables in
+        #only thing that matters is to execute the person table first
+        # - this is if we want to mask the person_ids and need to save a record of
+        #   the link between the unmasked and masked
         execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
 
+        self.logger.info(f"Starting processing in order: {execution_order}")
+        self.count_objects()
+        
         for destination_table in execution_order:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
@@ -180,14 +195,23 @@ class CommonDataModel:
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         df_destination = pd.concat(dfs,ignore_index=True)
+
+        #! this section of code may need some work ...
+        #person_id masking turned off... assume we dont need this (?)
         #df_destination = self.mask_person_id(df_destination)
 
+        #get the primary columnn
+        #this will be <table_name>_id: person_id, observation_id, measurement_id...
         primary_column = df_destination.columns[0]
+        #if it's not the person_id
         if primary_column != 'person_id':
+            #create an index from 1-N 
             df_destination[primary_column] = df_destination.reset_index().index + 1
         else:
+            #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
 
+        #return the finalised full dataframe for this table
         return df_destination
 
 
