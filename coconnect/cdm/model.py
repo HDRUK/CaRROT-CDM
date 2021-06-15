@@ -60,7 +60,23 @@ class CommonDataModel:
 
 
     def __getitem__(self,key):
-        return self.__df_map[key]
+        """
+        Ability lookup processed objects from the CDM
+        Example:
+            cdm = CommonDataModel()
+            ...
+            cdm.process()
+            ...
+            person = cdm['person']
+        Args:
+            key (str): The name of the cdm table to be returned
+        Returns:
+            pandas.DataFrame if a processed object is found, otherwise returns None
+        """
+        if key not in self.__df_map.keys():
+            return None
+        else:
+            return self.__df_map[key]
 
     def __setitem__(self,key,obj):
         self.__df_map[key] = obj
@@ -118,8 +134,6 @@ class CommonDataModel:
         if not self.output_folder is None:
             output_folder = self.output_folder
         self.save_to_file(output_folder)
-
-        
         
     def process_table(self,destination_table):
         objects = self.get_objs(destination_table)
