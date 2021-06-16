@@ -113,6 +113,7 @@ Markdown format can be obtained for convenience:
 ```
 $ coconnect display dataframe --markdown --drop-na test/person.csv
 ```
+
 |    |   person_id |   gender_concept_id | birth_datetime      | gender_source_value   |   gender_source_concept_id |
 |---:|------------:|--------------------:|:--------------------|:----------------------|---------------------------:|
 |  0 |         101 |                8507 | 1951-12-25 00:00:00 | M                     |                       8507 |
