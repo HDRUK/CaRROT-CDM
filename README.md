@@ -49,9 +49,33 @@ click
 
 The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `process_rules.py`
 
+### Setup 
+
+To run this example, obtain the location of the coconnect data folder, and set this as an environment variable for ease.
 ```
 export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
 ```
+
+### Exexcute
+
+The example dataset and associated mapping rules can be run with the simple script `etlcdm.py`:
+```bash
+etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o test/
+```
+
+### Inspecting the Output
+
+`.csv` files are created for each CDM table, e.g. `person.csv`. Additionally logs are created and stored in the sub-folder `logs/`.
+```
+$ tree test/
+test/
+├── condition_occurrence.csv
+├── logs
+│   └── 2021-06-16T100657.json
+├── observation.csv
+└── person.csv
+```
+
 
 
 ## Command Line Interface <a name="cli"></a>
