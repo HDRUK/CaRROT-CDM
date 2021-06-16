@@ -22,7 +22,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/CO-CONNECT/co-connect-tools",
-    scripts = ['scripts/process_rules.py'],
+    scripts = ['scripts/etlcdm.py'],
     entry_points = {
         'console_scripts':[
             'etl2cdm=coconnect.cli.etl2cdm:main',

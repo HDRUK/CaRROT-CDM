@@ -24,7 +24,7 @@ class FieldNotFoundError(Exception):
     pass
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='ETL-CDM: transform a dataset into a CommonDataModel.')
     parser.add_argument('--rules', dest='rules',
                         required=True,
                         help='input .json file')
