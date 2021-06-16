@@ -6,11 +6,6 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
-      - name: setup env variable
-        run: echo $COCONNECT_DATA_FOLDER
-        env:
-          COCONNECT_DATA_FOLDER: ${{ coconnect info data_folder }}
-
       - uses: actions/setup-python@v2
         with:
           python-version: 3.6.8
@@ -58,11 +53,9 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - name: setup env variable
-        run: echo $COCONNECT_DATA_FOLDER
-        env:
-          COCONNECT_DATA_FOLDER: ${{ coconnect info data_folder }}
-      - run: etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/
+      - run: |
+          COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
+          etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/
       - run: |
           for filename in tests/*.csv; do
                fname=${filename##*/}
