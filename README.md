@@ -76,6 +76,38 @@ test/
 └── person.csv
 ```
 
+A convience command exists to be able to display the output dataframe to the command-line:
+```
+$ coconnect display dataframe test/person.csv 
+   person_id  gender_concept_id  ...  ethnicity_source_value  ethnicity_source_concept_id
+0        101               8507  ...                     NaN                          NaN
+1        102               8507  ...                     NaN                          NaN
+2        103               8532  ...                     NaN                          NaN
+3        104               8532  ...                     NaN                          NaN
+4        105               8532  ...                     NaN                          NaN
+5        106               8507  ...                     NaN                          NaN
+6        107               8532  ...                     NaN                          NaN
+7        108               8507  ...                     NaN                          NaN
+8        109               8532  ...                     NaN                          NaN
+9        110               8532  ...                     NaN                          NaN
+
+[10 rows x 18 columns]
+```
+This can also be used with the option `--drop-na` to just display those columns which have none-NaN values
+```
+$ coconnect display dataframe --drop-na test/person.csv 
+   person_id  gender_concept_id       birth_datetime gender_source_value  gender_source_concept_id
+0        101               8507  1951-12-25 00:00:00                   M                      8507
+1        102               8507  1981-11-19 00:00:00                   M                      8507
+2        103               8532  1997-05-11 00:00:00                   F                      8532
+3        104               8532  1975-06-07 00:00:00                   F                      8532
+4        105               8532  1976-04-23 00:00:00                   F                      8532
+5        106               8507  1966-09-29 00:00:00                   M                      8507
+6        107               8532  1956-11-12 00:00:00                   F                      8532
+7        108               8507  1985-03-01 00:00:00                   M                      8507
+8        109               8532  1950-10-31 00:00:00                   F                      8532
+9        110               8532  1993-09-07 00:00:00                   F                      8532
+```
 
 
 ## Command Line Interface <a name="cli"></a>

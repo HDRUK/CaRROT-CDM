@@ -39,7 +39,7 @@ def dataframe(fname,drop_na):
     import pandas 
     df = pandas.read_csv(fname)
     if drop_na:
-        df = df.dropna(axis=1)
+        df = df.dropna(axis=1,how='all')
     print (df)
     
 display.add_command(dataframe,"dataframe")
