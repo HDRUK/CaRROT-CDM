@@ -28,7 +28,7 @@ setuptools.setup(
     },
     packages=setuptools.find_packages(),
     install_requires=required,
-    package_data={'coconnect': ['data/cdm/*','data/example/*/*']},
+    package_data={'coconnect': ['data/cdm/*','data/example/*/*','data/test/*/*']},
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
