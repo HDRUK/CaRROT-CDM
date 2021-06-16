@@ -23,7 +23,7 @@ def data_folder():
     import os
     import coconnect
     _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
-    data_dir = f"{_dir}/data/"
+    data_dir = f"{_dir}/data"
     print (data_dir)
     
 info.add_command(data_folder,'data_folder')
