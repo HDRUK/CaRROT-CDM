@@ -20,4 +20,4 @@ __cdm_object_map = {
 def get_cdm_class(key):
     return __cdm_object_map[key]
 
-from .base import Base
+from .common import DestinationTable

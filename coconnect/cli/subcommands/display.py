@@ -2,7 +2,7 @@ import click
 import pandas
 import coconnect.tools as tools
 
-@click.group(help='Helps for displaying various types of data and files')
+@click.group(help='Commands for displaying various types of data and files.')
 def display():
     pass
 

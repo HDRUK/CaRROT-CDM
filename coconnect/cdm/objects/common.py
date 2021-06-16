@@ -18,12 +18,6 @@ class FailedRequiredCheck(Exception):
 class BadInputs(Exception):
     pass
 
-class DataType(object):
-    def __init__(self, dtype: str, required: bool, pk=False):
-        self.series = None
-        self.dtype = dtype
-        self.required = required
-        self.pk = pk
 
 class DataFormatter(collections.OrderedDict):
     def __init__(self):
@@ -39,14 +33,21 @@ class DataFormatter(collections.OrderedDict):
         self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
         self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
-        
-class Base(object):
+
+class DestinationField(object):
+    def __init__(self, dtype: str, required: bool, pk=False):
+        self.series = None
+        self.dtype = dtype
+        self.required = required
+        self.pk = pk
+
+class DestinationTable(object):
     """
-    Common object that all CDM objects inherit from
+    Common object that all CDM objects (tables) inherit from
     """
     def __init__(self,_type,_version='v5_3_1'):
         """
-        Initialise the CDM Base Object class
+        Initialise the CDM DestinationTable Object class
         Args:
            _type (str): the name of the object being initialsed, e.g. "person"
            _version (str): the CDM version, see https://github.com/OHDSI/CommonDataModel/tags
@@ -72,7 +73,7 @@ class Base(object):
         return [
             item
             for item in self.__dict__.keys()
-            if isinstance(getattr(self,item),DataType)
+            if isinstance(getattr(self,item),DestinationField)
         ]
 
     def get_ordering(self):

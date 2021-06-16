@@ -8,7 +8,7 @@ import coconnect
 import coconnect.tools as tools
 
     
-@click.group()
+@click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
 def map():
     pass
 

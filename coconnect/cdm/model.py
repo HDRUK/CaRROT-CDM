@@ -8,7 +8,7 @@ from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
-from .objects import Base
+from .objects import DestinationTable
 
 class NoInputFiles(Exception):
     pass
@@ -86,7 +86,7 @@ class CommonDataModel:
         registered_objects = [
             getattr(self,name)
             for name in dir(self)
-            if isinstance(getattr(self,name),Base)
+            if isinstance(getattr(self,name),DestinationTable)
         ]
         for obj in registered_objects:
             if obj._type not in self.__objects:
