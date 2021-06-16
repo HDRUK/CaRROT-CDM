@@ -1,38 +1,38 @@
 import pandas as pd
-from .base import Base, DataType
+from .common import DestinationTable, DestinationField
 
-class Observation(Base):
+class Observation(DestinationTable):
     """
     CDM Observation object class
     """
     
     name = 'observation'
     def __init__(self):
-        self.observation_id                = DataType(dtype="INTEGER"     , required=True , pk=True)
-        self.person_id                     = DataType(dtype="INTEGER"     , required=True)
-        self.observation_concept_id        = DataType(dtype="INTEGER"     , required=True)
-        self.observation_date              = DataType(dtype="DATE"        , required=False)
-        self.observation_datetime          = DataType(dtype="DATETIME"    , required=True)
-        self.observation_type_concept_id   = DataType(dtype="INTEGER"     , required=False)
-        self.value_as_number               = DataType(dtype="FLOAT"       , required=False)
-        self.value_as_string               = DataType(dtype="VARCHAR(60)" , required=False)
-        self.value_as_concept_id           = DataType(dtype="INTEGER"     , required=False)
-        self.qualifier_concept_id          = DataType(dtype="INTEGER"     , required=False)
-        self.unit_concept_id               = DataType(dtype="INTEGER"     , required=False)
-        self.provider_id                   = DataType(dtype="INTEGER"     , required=False)
-        self.visit_occurrence_id           = DataType(dtype="INTEGER"     , required=False)
-        self.visit_detail_id               = DataType(dtype="INTEGER"     , required=False)
-        self.observation_source_value      = DataType(dtype="VARCHAR(50)" , required=False)
-        self.observation_source_concept_id = DataType(dtype="INTEGER"     , required=False)
-        self.unit_source_value             = DataType(dtype="VARCHAR(50)" , required=False)
-        self.qualifier_source_value        = DataType(dtype="VARCHAR(50)" , required=False)
+        self.observation_id                = DestinationField(dtype="INTEGER"     , required=True , pk=True)
+        self.person_id                     = DestinationField(dtype="INTEGER"     , required=True)
+        self.observation_concept_id        = DestinationField(dtype="INTEGER"     , required=True)
+        self.observation_date              = DestinationField(dtype="DATE"        , required=False)
+        self.observation_datetime          = DestinationField(dtype="DATETIME"    , required=True)
+        self.observation_type_concept_id   = DestinationField(dtype="INTEGER"     , required=False)
+        self.value_as_number               = DestinationField(dtype="FLOAT"       , required=False)
+        self.value_as_string               = DestinationField(dtype="VARCHAR(60)" , required=False)
+        self.value_as_concept_id           = DestinationField(dtype="INTEGER"     , required=False)
+        self.qualifier_concept_id          = DestinationField(dtype="INTEGER"     , required=False)
+        self.unit_concept_id               = DestinationField(dtype="INTEGER"     , required=False)
+        self.provider_id                   = DestinationField(dtype="INTEGER"     , required=False)
+        self.visit_occurrence_id           = DestinationField(dtype="INTEGER"     , required=False)
+        self.visit_detail_id               = DestinationField(dtype="INTEGER"     , required=False)
+        self.observation_source_value      = DestinationField(dtype="VARCHAR(50)" , required=False)
+        self.observation_source_concept_id = DestinationField(dtype="INTEGER"     , required=False)
+        self.unit_source_value             = DestinationField(dtype="VARCHAR(50)" , required=False)
+        self.qualifier_source_value        = DestinationField(dtype="VARCHAR(50)" , required=False)
 
         super().__init__(self.name)
 
 
     def finalise(self,df):
         """
-        Overloads the finalise method defined in the Base class.
+        Overloads the finalise method defined in the DestinationTable class.
 
         For observation, the _id of the observation is often not set
 

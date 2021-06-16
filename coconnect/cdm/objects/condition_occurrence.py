@@ -1,36 +1,36 @@
 import pandas as pd
-from .base import Base, DataType
+from .common import Base, DestinationField
 
-class ConditionOccurrence(Base):
+class ConditionOccurrence(DestinationTable):
     """
     CDM Condition Occurrence object class
     """
     
     name = 'condition_occurrence'
     def __init__(self):
-        self.condition_occurrence_id       = DataType(dtype="INTEGER"     , required=True , pk=True)
-        self.person_id                     = DataType(dtype="INTEGER"     , required=True)
-        self.condition_concept_id          = DataType(dtype="INTEGER"     , required=True)
-        self.condition_start_date          = DataType(dtype="DATE"        , required=False)
-        self.condition_start_datetime      = DataType(dtype="DATETIME"    , required=True)
-        self.condition_end_date            = DataType(dtype="DATE"        , required=False)
-        self.condition_end_datetime        = DataType(dtype="DATETIME"    , required=False)
-        self.condition_type_concept_id     = DataType(dtype="INTEGER"     , required=False)
-        self.stop_reason                   = DataType(dtype="VARCHAR(20)" , required=False)
-        self.provider_id                   = DataType(dtype="INTEGER"     , required=False)
-        self.visit_occurrence_id           = DataType(dtype="INTEGER"     , required=False)
-        self.visit_detail_id               = DataType(dtype="INTEGER"     , required=False)
-        self.condition_source_value        = DataType(dtype="VARCHAR(50)" , required=False)
-        self.condition_source_concept_id   = DataType(dtype="INTEGER"     , required=False)
-        self.condition_status_source_value = DataType(dtype="VARCHAR(50)" , required=False)
-        self.condition_status_concept_id   = DataType(dtype="INTEGER"     , required=False)
+        self.condition_occurrence_id       = DestinationField(dtype="INTEGER"     , required=True , pk=True)
+        self.person_id                     = DestinationField(dtype="INTEGER"     , required=True)
+        self.condition_concept_id          = DestinationField(dtype="INTEGER"     , required=True)
+        self.condition_start_date          = DestinationField(dtype="DATE"        , required=False)
+        self.condition_start_datetime      = DestinationField(dtype="DATETIME"    , required=True)
+        self.condition_end_date            = DestinationField(dtype="DATE"        , required=False)
+        self.condition_end_datetime        = DestinationField(dtype="DATETIME"    , required=False)
+        self.condition_type_concept_id     = DestinationField(dtype="INTEGER"     , required=False)
+        self.stop_reason                   = DestinationField(dtype="VARCHAR(20)" , required=False)
+        self.provider_id                   = DestinationField(dtype="INTEGER"     , required=False)
+        self.visit_occurrence_id           = DestinationField(dtype="INTEGER"     , required=False)
+        self.visit_detail_id               = DestinationField(dtype="INTEGER"     , required=False)
+        self.condition_source_value        = DestinationField(dtype="VARCHAR(50)" , required=False)
+        self.condition_source_concept_id   = DestinationField(dtype="INTEGER"     , required=False)
+        self.condition_status_source_value = DestinationField(dtype="VARCHAR(50)" , required=False)
+        self.condition_status_concept_id   = DestinationField(dtype="INTEGER"     , required=False)
         
         super().__init__(self.name)
         
         
     def finalise(self,df):
         """
-        Overloads the finalise method defined in the Base class.
+        Overloads the finalise method defined in the DestinationTable class.
         For condition_occurrence, the _id of the condition is often not set
         Therefore if the series is null, then we just make an incremental index for the _id
 
