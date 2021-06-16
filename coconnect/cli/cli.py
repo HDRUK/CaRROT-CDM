@@ -27,8 +27,26 @@ def data_folder():
     print (data_dir)
     
 info.add_command(data_folder,'data_folder')
+
+@click.group()
+def display():
+    pass
+
+@click.command(help="Display a dataframe")
+@click.argument('fname')
+@click.option('--drop-na',is_flag=True)
+def dataframe(fname,drop_na):
+    import pandas 
+    df = pandas.read_csv(fname)
+    if drop_na:
+        df = df.dropna(axis=1)
+    print (df)
     
+display.add_command(dataframe,"dataframe")
+
+
 coconnect.add_command(info, "info")
+coconnect.add_command(display, "display")
 coconnect.add_command(map, "map")
 coconnect.add_command(find, "find")
 coconnect.add_command(generate, "generate")
