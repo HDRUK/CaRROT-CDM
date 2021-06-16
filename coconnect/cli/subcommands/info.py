@@ -2,7 +2,7 @@ import click
 import os
 import coconnect
 
-@click.group(help='helpful commands to find information about the package')
+@click.group(help='Commands to find information about the package.')
 def info():
     pass
 

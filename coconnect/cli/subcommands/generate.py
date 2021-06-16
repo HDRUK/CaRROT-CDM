@@ -3,7 +3,7 @@ import click
 import coconnect
 import pandas as pd
     
-@click.group()
+@click.group(help='Commands to generate helpful files.')
 def generate():
     pass
 
