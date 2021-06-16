@@ -4,7 +4,7 @@ Welcome to our repo for `python` tools used by/with the CO-CONNECT project
 
 ### Table of Contents
 1. [Installing](#installing)
-1. [Quick Start](#quick)
+1. [ETL Quick Start](#quick)
 1. [CLI](#cli)
 
 
@@ -45,17 +45,68 @@ graphviz
 click
 ```
 
+## ETL Quick Start <a name="quick"></a>
 
-## Quick Start <a name="quick"></a>
+The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `process_rules.py`
 
-Example:
+### Setup 
+
+To run this example, obtain the location of the coconnect data folder, and set this as an environment variable for ease.
 ```
-coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
+export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
 ```
 
-To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
+### Exexcute
+
+The example dataset and associated mapping rules can be run with the simple script `etlcdm.py`:
 ```bash
-coconnect map run --name <NAME> --rules <RULES.json> <INPUTFILE 1> <INPUTFILE 2> ....
+etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o test/
+```
+
+### Inspecting the Output
+
+`.csv` files are created for each CDM table, e.g. `person.csv`. Additionally logs are created and stored in the sub-folder `logs/`.
+```
+$ tree test/
+test/
+├── condition_occurrence.csv
+├── logs
+│   └── 2021-06-16T100657.json
+├── observation.csv
+└── person.csv
+```
+
+A convience command exists to be able to display the output dataframe to the command-line:
+```
+$ coconnect display dataframe test/person.csv 
+   person_id  gender_concept_id  ...  ethnicity_source_value  ethnicity_source_concept_id
+0        101               8507  ...                     NaN                          NaN
+1        102               8507  ...                     NaN                          NaN
+2        103               8532  ...                     NaN                          NaN
+3        104               8532  ...                     NaN                          NaN
+4        105               8532  ...                     NaN                          NaN
+5        106               8507  ...                     NaN                          NaN
+6        107               8532  ...                     NaN                          NaN
+7        108               8507  ...                     NaN                          NaN
+8        109               8532  ...                     NaN                          NaN
+9        110               8532  ...                     NaN                          NaN
+
+[10 rows x 18 columns]
+```
+This can also be used with the option `--drop-na` to just display those columns which have none-NaN values
+```
+$ coconnect display dataframe --drop-na test/person.csv 
+   person_id  gender_concept_id       birth_datetime gender_source_value  gender_source_concept_id
+0        101               8507  1951-12-25 00:00:00                   M                      8507
+1        102               8507  1981-11-19 00:00:00                   M                      8507
+2        103               8532  1997-05-11 00:00:00                   F                      8532
+3        104               8532  1975-06-07 00:00:00                   F                      8532
+4        105               8532  1976-04-23 00:00:00                   F                      8532
+5        106               8507  1966-09-29 00:00:00                   M                      8507
+6        107               8532  1956-11-12 00:00:00                   F                      8532
+7        108               8507  1985-03-01 00:00:00                   M                      8507
+8        109               8532  1950-10-31 00:00:00                   F                      8532
+9        110               8532  1993-09-07 00:00:00                   F                      8532
 ```
 
 
@@ -188,4 +239,19 @@ person_id                                    ...
 ```
 
 Outputs are saved in the folder `output_data`
+
+
+### All in One
+
+In one command, all the above steps can be executed as such:
+
+Example:
+```
+coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
+```
+
+To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
+```bash
+coconnect map run --name <NAME> --rules <RULES.json> <INPUTFILE 1> <INPUTFILE 2> ....
+```
 
