@@ -18,10 +18,6 @@ from coconnect.tools import (
     apply_rules
 )
 
-class TableNotFoundError(Exception):
-    pass
-class FieldNotFoundError(Exception):
-    pass
 
 def main():
     parser = argparse.ArgumentParser(description='ETL-CDM: transform a dataset into a CommonDataModel.')

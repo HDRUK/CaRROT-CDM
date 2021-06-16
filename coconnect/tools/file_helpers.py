@@ -39,3 +39,19 @@ def load_csv(_map,nrows=None,lower_col_names=True,load_path=""):
         
         _map[key] = df 
     return _map
+
+
+def get_file_map_from_dir(_dir):
+    if not os.path.isdir(_dir):
+        _dir = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),'..','data',_dir)
+        )
+
+    _map = {}
+    for fname in glob.glob(f"{_dir}/*.csv"):
+        key = fname.split("/")[-1]
+        _map[key] = fname
+    
+    return _map
+ 
