@@ -73,7 +73,7 @@ class DestinationTable(object):
         return [
             item
             for item in self.__dict__.keys()
-            if isinstance(getattr(self,item),DataType)
+            if isinstance(getattr(self,item),DestinationField)
         ]
 
     def get_ordering(self):

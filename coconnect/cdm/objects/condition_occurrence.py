@@ -1,5 +1,5 @@
 import pandas as pd
-from .common import Base, DestinationField
+from .common import DestinationTable, DestinationField
 
 class ConditionOccurrence(DestinationTable):
     """
