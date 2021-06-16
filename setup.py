@@ -23,9 +23,7 @@ setuptools.setup(
     scripts = ['scripts/etlcdm.py'],
     entry_points = {
         'console_scripts':[
-            'etl2cdm=coconnect.cli.etl2cdm:main',
             'coconnect=coconnect.cli.cli:coconnect',
-            #'process_rules=coconnect.cli.process_rules:main',
         ],
     },
     packages=setuptools.find_packages(),
