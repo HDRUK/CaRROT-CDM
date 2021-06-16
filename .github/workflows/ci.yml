@@ -85,8 +85,9 @@ jobs:
       - run: pip3 install wheel
       - uses: actions/checkout@v2
       - run:  |
-         echo ${GITHUB_REF#refs/*/} >> version.txt
-         cat version.txt 
+         echo "__version__ = '${GITHUB_REF#refs/*/}'" >> coconnect/_version.py
+         cat coconnect/_version.py
+         exit
          python3 setup.py sdist bdist_wheel
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
