@@ -22,10 +22,12 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/CO-CONNECT/co-connect-tools",
+    scripts = ['scripts/process_rules.py'],
     entry_points = {
         'console_scripts':[
             'etl2cdm=coconnect.cli.etl2cdm:main',
-            'coconnect=coconnect.cli.cli:coconnect'
+            'coconnect=coconnect.cli.cli:coconnect',
+            #'process_rules=coconnect.cli.process_rules:main',
         ],
     },
     packages=setuptools.find_packages(),

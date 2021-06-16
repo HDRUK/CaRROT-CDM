@@ -4,7 +4,7 @@ Welcome to our repo for `python` tools used by/with the CO-CONNECT project
 
 ### Table of Contents
 1. [Installing](#installing)
-1. [Quick Start](#quick)
+1. [ETL Quick Start](#quick)
 1. [CLI](#cli)
 
 
@@ -45,17 +45,12 @@ graphviz
 click
 ```
 
+## ETL Quick Start <a name="quick"></a>
 
-## Quick Start <a name="quick"></a>
+The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `process_rules.py`
 
-Example:
 ```
-coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
-```
-
-To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
-```bash
-coconnect map run --name <NAME> --rules <RULES.json> <INPUTFILE 1> <INPUTFILE 2> ....
+export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
 ```
 
 
@@ -188,4 +183,19 @@ person_id                                    ...
 ```
 
 Outputs are saved in the folder `output_data`
+
+
+### All in One
+
+In one command, all the above steps can be executed as such:
+
+Example:
+```
+coconnect map run --name Lion --rules example/sample_config/lion_structural_mapping.json  example/sample_input_data/*.csv
+```
+
+To run in one command, supply the name of the dataset (e.g. Panther), the rules `json` file that has been obtained from mapping-pipeline and then all the input files to run on.
+```bash
+coconnect map run --name <NAME> --rules <RULES.json> <INPUTFILE 1> <INPUTFILE 2> ....
+```
 
