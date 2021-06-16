@@ -1,36 +1,25 @@
 import coconnect
-from types import SimpleNamespace
 import pandas as pd
 import os
 import json
 import glob
 import inspect
-from .dag import *
+
 from . import extract
+from .dag import make_dag
+
+from .file_helpers import (
+    load_json,
+    load_csv
+)
+
 
 _DEBUG = False
 
 def set_debug(value):
     global _DEBUG
     _DEBUG = value
-
-def load_json(f_in):
-    try:
-        data = json.load(open(f_in))
-    except FileNotFoundError as err:
-        try:
-            data_dir = os.path.abspath(
-                os.path.join(
-                    os.path.dirname(__file__),'..','data')
-                )
-            data =  json.load(open(f'{data_dir}/{f_in}'))
-        except FileNotFoundError:
-            raise FileNotFoundError(err)
-
-    return data
-
-
-
+    
 def get_classes(format=False):
     import time
     from coconnect.cdm import classes
@@ -57,34 +46,6 @@ def get_classes(format=False):
     else:
         return retval
 
-
-
-
-
-def load_csv(_map,nrows=None,lower_col_names=True,load_path=""):
-
-    for key,obj in _map.items():
-        fields = None
-        if isinstance(obj,str):
-            fname = obj
-        else:
-            fname = obj['file']
-            fields = obj['fields']
-
-        df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
-        for col in df.columns:
-            df[col].fname = fname
-
-        if lower_col_names:
-            df.columns = df.columns.str.lower()
-
-        #filter on only the fields we need
-        if fields is not None:
-            df = df[fields]
-        
-        _map[key] = df 
-    return _map
-
 def get_file_map_from_dir(_dir):
     if not os.path.isdir(_dir):
         _dir = os.path.abspath(
@@ -98,9 +59,6 @@ def get_file_map_from_dir(_dir):
         _map[key] = fname
     
     return _map
-
-def to_name_space(_map):
-    return SimpleNamespace(**_map)
 
 def get_source_field(table,name):
     if name not in table:
@@ -122,8 +80,6 @@ def get_source_table(inputs,name):
             raise TableNotFoundError(f"Cannot find {name} in inputs. Options are {inputs.keys()}")
     inputs[name].name = name
     return inputs[name]
-
-
 
 def apply_rules(cdm,obj,rules):
     for destination_field,rule in rules.items():
