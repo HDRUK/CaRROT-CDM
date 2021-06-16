@@ -34,7 +34,7 @@ $ pip install -e .
 ```
 
 ### Installing via yum
-Package dependancies are located in `requirements.txt`, which need to be installed if you are building from source without pip:
+Package dependencies are located in `requirements.txt`, which need to be installed if you are building from source without pip:
 ```bash
 $ cat requirements.txt 
 numpy
@@ -56,7 +56,7 @@ To run this example, obtain the location of the coconnect data folder, and set t
 export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
 ```
 
-### Exexcute
+### Execute
 
 The example dataset and associated mapping rules can be run with the simple script `etlcdm.py`:
 ```bash
@@ -76,7 +76,7 @@ test/
 └── person.csv
 ```
 
-A convience command exists to be able to display the output dataframe to the command-line:
+A convenience command exists to be able to display the output dataframe to the command-line:
 ```
 $ coconnect display dataframe test/person.csv 
    person_id  gender_concept_id  ...  ethnicity_source_value  ethnicity_source_concept_id
@@ -108,6 +108,24 @@ $ coconnect display dataframe --drop-na test/person.csv
 8        109               8532  1950-10-31 00:00:00                   F                      8532
 9        110               8532  1993-09-07 00:00:00                   F                      8532
 ```
+
+Markdown format can be obtained for convenience:
+```
+$ coconnect display dataframe --markdown --drop-na test/person.csv
+```
+|    |   person_id |   gender_concept_id | birth_datetime      | gender_source_value   |   gender_source_concept_id |
+|---:|------------:|--------------------:|:--------------------|:----------------------|---------------------------:|
+|  0 |         101 |                8507 | 1951-12-25 00:00:00 | M                     |                       8507 |
+|  1 |         102 |                8507 | 1981-11-19 00:00:00 | M                     |                       8507 |
+|  2 |         103 |                8532 | 1997-05-11 00:00:00 | F                     |                       8532 |
+|  3 |         104 |                8532 | 1975-06-07 00:00:00 | F                     |                       8532 |
+|  4 |         105 |                8532 | 1976-04-23 00:00:00 | F                     |                       8532 |
+|  5 |         106 |                8507 | 1966-09-29 00:00:00 | M                     |                       8507 |
+|  6 |         107 |                8532 | 1956-11-12 00:00:00 | F                     |                       8532 |
+|  7 |         108 |                8507 | 1985-03-01 00:00:00 | M                     |                       8507 |
+|  8 |         109 |                8532 | 1950-10-31 00:00:00 | F                     |                       8532 |
+|  9 |         110 |                8532 | 1993-09-07 00:00:00 | F                     |                       8532 |
+
 
 
 ## Command Line Interface <a name="cli"></a>
@@ -169,7 +187,7 @@ To display this `json` as a `dag` you can run:
 $ coconnect map display example/sample_config/lion_structural_mapping.json 
 ```
 
-The next step is to create a `.py` configuration file from this input `json`. The tool automatically registers these files, to see registred files, you can run:
+The next step is to create a `.py` configuration file from this input `json`. The tool automatically registers these files, to see registered files, you can run:
 ```
 $ coconnect map list
 {}
