@@ -7,11 +7,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-version = '0.0.0'
-if os.path.exists('version.txt'):
-    with open('version.txt') as f:
-        version = f.read()
 
+from coconnect import _version
+version = _version.__version__
     
 setuptools.setup(
     name="co-connect-tools", 

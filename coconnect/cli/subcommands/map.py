@@ -49,11 +49,6 @@ def show(rules):
     data = tools.load_json(rules)
     print (json.dumps(data,indent=6))
 
-@click.command(help="Display the OMOP mapping json as a DAG")
-@click.argument("rules")
-def display(rules):
-    data = tools.load_json(rules)
-    tools.make_dag(data['cdm'],render=True) 
 
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
@@ -197,7 +192,6 @@ def run(ctx,
         
     
 map.add_command(show,"show")
-map.add_command(display,"display")
 map.add_command(make_class,"make")
 map.add_command(list_classes,"list")
 map.add_command(run,"run")
