@@ -14,6 +14,7 @@ from coconnect.cdm import (
 
 from coconnect.tools import (
     load_csv,
+    load_json,
     apply_rules
 )
 
@@ -37,8 +38,7 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.rules) as rules_file:
-        config = json.load(rules_file)
+    config = load_json(args.rules)
 
     inputs = load_csv(
         {

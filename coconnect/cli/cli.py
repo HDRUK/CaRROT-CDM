@@ -14,6 +14,21 @@ def coconnect(loglevel):
     logging.basicConfig(level=getattr(logging, loglevel), format=LOGFORMAT)
 
 
+@click.group()
+def info():
+    pass
+
+@click.command(help="Get the data folder location")
+def data_folder():
+    import os
+    import coconnect
+    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    data_dir = f"{_dir}/data/"
+    print (data_dir)
+    
+info.add_command(data_folder,'data_folder')
+    
+coconnect.add_command(info, "info")
 coconnect.add_command(map, "map")
 coconnect.add_command(find, "find")
 coconnect.add_command(generate, "generate")
