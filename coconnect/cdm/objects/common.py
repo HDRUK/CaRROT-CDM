@@ -47,7 +47,7 @@ class DestinationTable(object):
     """
     def __init__(self,_type,_version='v5_3_1'):
         """
-        Initialise the CDM Base Object class
+        Initialise the CDM DestinationTable Object class
         Args:
            _type (str): the name of the object being initialsed, e.g. "person"
            _version (str): the CDM version, see https://github.com/OHDSI/CommonDataModel/tags
