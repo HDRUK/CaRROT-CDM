@@ -8,7 +8,7 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 
-from coconnect import _version
+import coconnect._version as _version
 version = _version.__version__
     
 setuptools.setup(
