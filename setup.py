@@ -1,5 +1,6 @@
 import setuptools
 import os
+import sys
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -8,8 +9,9 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 
-import coconnect._version as _version
-version = _version.__version__
+sys.path.append("coconnect/")
+from _version import __version__ as version
+
     
 setuptools.setup(
     name="co-connect-tools", 
