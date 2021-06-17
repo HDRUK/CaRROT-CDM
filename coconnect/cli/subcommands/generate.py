@@ -28,7 +28,7 @@ def cdm(table,version):
     for index,row in cdm.iterrows():
         required = row['required'] == "Yes"
         dtype = row['type']
-        string = f'self.{index} = DataType(dtype="{dtype}", required={required})'
+        string = f'self.{index} = DestinationField(dtype="{dtype}", required={required})'
         print (string)
     
 generate.add_command(cdm,"cdm")
