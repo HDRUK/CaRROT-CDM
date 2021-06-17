@@ -43,11 +43,32 @@ coloredlogs
 Jinja2
 graphviz
 click
+sqlalchemy
+tabulate
 ```
 
 ## ETL Quick Start <a name="quick"></a>
 
-The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `process_rules.py`
+The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `etlcdm.py`:
+
+After installing the package you should be able to execute the command line script
+```
+$ etlcdm.py --help
+usage: etlcdm.py [-h] --rules RULES --out-dir OUT_DIR --inputs INPUTS [INPUTS ...]
+
+ETL-CDM: transform a dataset into a CommonDataModel.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --rules RULES         input .json file
+  --out-dir OUT_DIR, -o OUT_DIR
+                        name of the output folder
+  --inputs INPUTS [INPUTS ...], -i INPUTS [INPUTS ...]
+                        input csv files
+```
+
+
+
 
 ### Setup 
 
