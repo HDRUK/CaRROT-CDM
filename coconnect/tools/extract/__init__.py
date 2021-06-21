@@ -104,3 +104,4 @@ def make_class(data,
         os.unlink(fname_dst)
         
     os.symlink(fname, fname_dst)
+    

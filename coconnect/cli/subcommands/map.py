@@ -60,7 +60,18 @@ def make_class(name,rules):
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
     print (json.dumps(tools.get_classes(),indent=6))
-        
+
+@click.command(help="remove a registered class")
+@click.pass_context
+@click.argument("name")
+def remove_class(ctx,name):
+    classes = tools.get_classes()
+    if name not in classes:
+        print (f"{name} is not a registered class")
+        ctx.invoke(list_classes)
+    else:
+        _class = classes[name]
+        os.unlink(_class['sympath'])
 
 @click.command(help="Perform OMOP Mapping")
 @click.option("--name",
@@ -162,5 +173,6 @@ def run(ctx,
     
 map.add_command(make_class,"make")
 map.add_command(list_classes,"list")
+map.add_command(remove_class,"remove")
 map.add_command(run,"run")
 map.add_command(diff,"diff")
