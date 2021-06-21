@@ -2,6 +2,48 @@ import os
 import json
 import pandas as pd
 
+class InputData:
+    def __init__(self,chunksize):
+        self.chunksize = chunksize
+        self.__file_readers = {}
+        self.__dataframe = {}
+
+    def all(self):
+        return {
+            key:self[key]
+            for key in self.keys()
+        }
+        
+    def keys(self):
+        return self.__file_readers.keys()
+
+    def next(self):
+        check = {}
+        for key in self.keys():
+            try:
+                self.get_df(key)
+            except StopIteration:
+                self.__dataframe[key] = pd.DataFrame(columns = self.__dataframe[key].columns)
+                
+            check[key] = self.__dataframe[key].empty
+
+        if all([x==True for x in check.values()]):
+            raise StopIteration("all input files have been used now")
+                        
+    def get_df(self,key):
+        self.__dataframe[key] = self.__file_readers[key].get_chunk(self.chunksize)
+
+    def __getitem__(self,key):
+        if key not in self.__dataframe.keys():
+            self.get_df(key)
+        return self.__dataframe[key]
+        
+    def __setitem__(self,key,obj):
+        self.__file_readers[key] = obj
+        
+    
+    
+
 def load_json(f_in):
     try:
         data = json.load(open(f_in))
@@ -18,7 +60,7 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,nrows=None,skiprows=None,lower_col_names=False,load_path="",rules=None):
+def load_csv(_map,chunksize=None,lower_col_names=False,load_path="",rules=None):
 
     if rules is not None:
         rules = load_json(rules)
@@ -35,7 +77,11 @@ def load_csv(_map,nrows=None,skiprows=None,lower_col_names=False,load_path="",ru
         }
         
 
-    
+    if chunksize == None:
+        retval = {}
+    else:
+        retval = InputData(chunksize)
+        
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):
@@ -44,19 +90,16 @@ def load_csv(_map,nrows=None,skiprows=None,lower_col_names=False,load_path="",ru
             fname = obj['file']
             fields = obj['fields']
 
-        df = pd.read_csv(load_path+fname,nrows=nrows,skiprows=skiprows,dtype=str)
-        for col in df.columns:
-            df[col].fname = fname
+        df = pd.read_csv(load_path+fname,chunksize=chunksize,dtype=str,usecols=fields)
 
-        if lower_col_names:
-            df.columns = df.columns.str.lower()
+        if isinstance(df,pd.DataFrame):
+            #this should be removed
+            if lower_col_names:
+                df.columns = df.columns.str.lower()
 
-        #filter on only the fields we need
-        if fields is not None:
-            df = df[fields]
-        
-        _map[key] = df 
-    return _map
+        retval[key] = df
+
+    return retval
 
 
 def get_file_map_from_dir(_dir):

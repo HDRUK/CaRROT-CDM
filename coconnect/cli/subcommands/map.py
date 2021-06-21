@@ -103,6 +103,10 @@ def run(ctx,
         ctx.invoke(make_class,name=name,rules=rules)
         ctx.invoke(list_classes)
 
+        
+    if type != 'csv':
+        raise NotImplementedError("Can only handle inputs that are .csv so far")
+        
     
     #check if exists
     if any('*' in x for x in inputs):
@@ -128,17 +132,7 @@ def run(ctx,
         for x in inputs
     }
 
-        
-    if type == 'csv':
-        inputs = tools.load_csv(inputs,rules=rules)
-    else:
-        raise NotImplementedError("Can only handle inputs that are .csv so far")
 
-
-    #print (number_of_rows_per_chunk)
-    #print (inputs)
-    #exit(0)
-    
     available_classes = tools.get_classes()
     if name not in available_classes:
         raise KeyError(f"cannot find config for {name}")
@@ -149,17 +143,21 @@ def run(ctx,
         for m in inspect.getmembers(module, inspect.isclass)
         if m[1].__module__ == module.__name__
     ]
+    #should only be running one class anyway
+    defined_class = defined_classes[0]
 
     
     if output_folder is None:
         output_folder = os.getcwd()+'/output_data/'
 
-    
-    for defined_class in defined_classes:
-        cls = getattr(module,defined_class)
-        c = cls(inputs=inputs,
-                output_folder=output_folder)
-        c.process()
+        
+    inputs = tools.load_csv(inputs,rules=rules,chunksize=number_of_rows_per_chunk)
+    cls = getattr(module,defined_class)
+    c = cls(inputs=inputs,
+            output_folder=output_folder)
+    c.set_chunk_size(number_of_rows_per_chunk)
+    c.process()
+
         
     
 map.add_command(make_class,"make")

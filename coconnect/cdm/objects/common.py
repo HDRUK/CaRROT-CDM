@@ -134,7 +134,7 @@ class DestinationTable(object):
         #build the dataframe for this object
         _ = self.get_df()
         
-    def get_df(self,force_rebuild=False):
+    def get_df(self,force_rebuild=True):
         """
         Retrieve a dataframe from the current object
 

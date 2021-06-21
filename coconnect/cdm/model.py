@@ -8,10 +8,14 @@ from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
+from coconnect.tools.file_helpers import InputData
+
 from .objects import DestinationTable
+
 
 class NoInputFiles(Exception):
     pass
+
 
 class CommonDataModel:
 
@@ -29,21 +33,31 @@ class CommonDataModel:
 
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
-        
+
+            
         if 'inputs' in kwargs:
             inputs = kwargs['inputs']
+            chunked_inputs = False
             if not isinstance(inputs,dict):
-                self.logger.error(inputs)
-                raise NoInputFiles("setting up inputs that are not a dict!!")
+                if not isinstance(inputs,InputData):
+                    self.logger.error(inputs)
+                    raise NoInputFiles("setting up inputs that are not a dict!!")
+                else:
+                    chunked_inputs = True
+                    self.logger.warning("You are running with chunked inputs!")
 
             if not self.inputs is None:
                 self.logger.waring("overwriting inputs")
 
             self.inputs = inputs
+            self.chunked_inputs = chunked_inputs
 
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
-            
+
+
+        self.chunksize = None
+        
         #register opereation tools
         self.tools = OperationTools()
 
@@ -176,6 +190,9 @@ class CommonDataModel:
         
     def process(self,output_folder='output_data/'):
 
+        if not self.output_folder is None:
+            output_folder = self.output_folder
+        
         #determine the order to execute tables in
         #only thing that matters is to execute the person table first
         # - this is if we want to mask the person_ids and need to save a record of
@@ -185,16 +202,40 @@ class CommonDataModel:
 
         self.logger.info(f"Starting processing in order: {execution_order}")
         self.count_objects()
-        
-        for destination_table in execution_order:
-            self[destination_table] = self.process_table(destination_table)
-            self.logger.info(f'finalised {destination_table}')
 
-        if not self.output_folder is None:
-            output_folder = self.output_folder
-        self.save_to_file(output_folder)
+        if isinstance(self.inputs,InputData):
+            i=0
+            while True:
+                for destination_table in execution_order:
+                    self[destination_table] = self.process_table(destination_table)
+                    print (self[destination_table])
+                self.logger.info(f'finalised {destination_table} on iteration {i}')
 
-        self.save_logs(output_folder)
+                mode = 'w'
+                if i>0:
+                    mode='a'
+                    
+                self.save_to_file(output_folder,mode=mode)
+                self.save_logs(output_folder)
+                
+                try:
+                    self.inputs.next()
+                except StopIteration:
+                    break
+
+                print (self.inputs.keys())
+                print (self.inputs.all())
+
+                i+=1
+
+
+        else:
+            for destination_table in execution_order:
+                self[destination_table] = self.process_table(destination_table)
+                self.logger.info(f'finalised {destination_table}')
+
+            self.save_to_file(output_folder)
+            self.save_logs(output_folder)
                 
     def process_table(self,destination_table):
         objects = self.get_objects(destination_table)
@@ -223,6 +264,9 @@ class CommonDataModel:
             dfs.append(df)
             logs[obj.name] = obj._meta
 
+        if len(dfs) == 0:
+            return None
+            
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         df_destination = pd.concat(dfs,ignore_index=True)
@@ -260,7 +304,11 @@ class CommonDataModel:
         json.dump(self.logs,open(fname,'w'),indent=6)
         self.logger.info(f'saved a log file to {fname}')
     
-    def save_to_file(self,f_out):
+    def save_to_file(self,f_out,mode='w'):
+        header=True
+        if mode == 'a':
+            header = False
+            
         for name,df in self.__df_map.items():
             if df is None:
                 continue
@@ -270,10 +318,14 @@ class CommonDataModel:
                 os.makedirs(f'{f_out}')
             self.logger.info(f'saving {name} to {fname}')
             df.set_index(df.columns[0],inplace=True)
-            df.to_csv(fname,index=True)
+            df.to_csv(fname,mode=mode,header=header,index=True)
             self.logger.info(df.dropna(axis=1,how='all'))
-        
 
+        self.logger.info("finished save to file")
+
+    def set_chunk_size(self,value:int):
+        self.chunksize = value
+        
     def set_indexing(self,index_map,strict_check=False):
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')
