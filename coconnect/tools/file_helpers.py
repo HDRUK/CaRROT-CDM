@@ -18,7 +18,24 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,nrows=None,lower_col_names=True,load_path=""):
+def load_csv(_map,nrows=None,skiprows=None,lower_col_names=False,load_path="",rules=None):
+
+    if rules is not None:
+        rules = load_json(rules)
+        source_map = get_mapped_fields_from_rules(rules)
+        
+        #reduce the mapping of inputs, if we dont need them all
+        _map = {
+            k: {
+                'file':v,
+                'fields':source_map[k]
+            }
+            for k,v in _map.items()
+            if k in source_map
+        }
+        
+
+    
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):
@@ -27,7 +44,7 @@ def load_csv(_map,nrows=None,lower_col_names=True,load_path=""):
             fname = obj['file']
             fields = obj['fields']
 
-        df = pd.read_csv(load_path+fname,nrows=nrows,dtype=str)
+        df = pd.read_csv(load_path+fname,nrows=nrows,skiprows=skiprows,dtype=str)
         for col in df.columns:
             df[col].fname = fname
 
@@ -56,3 +73,26 @@ def get_file_map_from_dir(_dir):
     
     return _map
  
+
+def get_mapped_fields_from_rules(rules):
+    #extract a tuple of source tables and source fields
+    sources = [
+        (x['source_table'],x['source_field'])
+        for cdm_obj_set in rules['cdm'].values()
+        for cdm_obj in cdm_obj_set
+        for x in cdm_obj.values()
+    ]
+    
+    source_map = {}
+    for (table,field) in sources:
+        if table not in source_map:
+            source_map[table] = []
+        source_map[table].append(field)
+            
+    source_map = {
+        k:list(set(v))
+        for k,v in source_map.items()
+    }
+
+    return source_map
+    

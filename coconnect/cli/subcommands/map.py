@@ -88,13 +88,17 @@ def list_classes():
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
+@click.option("-n","--number-of-rows-per-chunk",
+              default=None,
+              type=int,
+              help="choose to chunk running the data into nrows")
 @click.argument("inputs",
                 nargs=-1)
 @click.pass_context
 def run(ctx,
         name,rules,inputs,output_folder,
-        strip_name,drop_csv_from_name,type):
-
+        strip_name,drop_csv_from_name,type,number_of_rows_per_chunk):
+    
     if not rules is None:
         ctx.invoke(make_class,name=name,rules=rules)
         ctx.invoke(list_classes)
@@ -113,55 +117,28 @@ def run(ctx,
                 new_inputs.append(x)
         inputs = new_inputs
 
-    source_map = None
-    if rules is not None:
-        config = tools.load_json(rules)['cdm']
-        #extract a tuple of source tables and source fields
-        sources = [
-            (x['source_table'],x['source_field'])
-            for cdm_obj_set in config.values()
-            for cdm_obj in cdm_obj_set
-            for x in cdm_obj.values()
-        ]
-
-        source_map = {}
-        for (table,field) in sources:
-            if table not in source_map:
-                source_map[table] = []
-            source_map[table].append(field)
-
-        source_map = {
-            k:list(set(v))
-            for k,v in source_map.items()
-        }
-
-
+    #clean the names, if specified 
     inputs = {
         (
-            x.split("/")[-1][:strip_name].lower()
+            x.split("/")[-1][:strip_name]
             if drop_csv_from_name is False
             else
-            x.split("/")[-1][:strip_name].lower().replace('.csv','')
+            x.split("/")[-1][:strip_name].replace('.csv','')
         ):x
         for x in inputs
     }
 
-    fields = None
-    #reduce the mapping of inputs, if we dont need them all
-    if source_map is not None:
-        inputs = {
-            k: {
-                'file':v,
-                'fields':source_map[k]
-            }
-            for k,v in inputs.items()
-            if k in source_map
-        }
+        
     if type == 'csv':
-        inputs = tools.load_csv(inputs)
+        inputs = tools.load_csv(inputs,rules=rules)
     else:
         raise NotImplementedError("Can only handle inputs that are .csv so far")
-        
+
+
+    #print (number_of_rows_per_chunk)
+    #print (inputs)
+    #exit(0)
+    
     available_classes = tools.get_classes()
     if name not in available_classes:
         raise KeyError(f"cannot find config for {name}")
