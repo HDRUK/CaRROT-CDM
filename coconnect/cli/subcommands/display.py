@@ -25,7 +25,15 @@ def dag(rules):
     data = tools.load_json(rules)
     tools.make_dag(data['cdm'],render=True) 
 
+
+@click.command(help="Show the OMOP mapping json")
+@click.argument("rules")
+def json(rules):
+    data = tools.load_json(rules)
+    print (json.dumps(data,indent=6))
+
     
 display.add_command(dataframe,"dataframe")
 display.add_command(dag,"dag")
+display.add_command(json,"json")
 

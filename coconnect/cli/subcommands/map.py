@@ -43,12 +43,6 @@ def diff(file1,file2):
             if not (df1.iloc[i] == df2.iloc[i]).any():
                 print ('Row',i,'is in a different location')
 
-@click.command(help="Show the OMOP mapping json")
-@click.argument("rules")
-def show(rules):
-    data = tools.load_json(rules)
-    print (json.dumps(data,indent=6))
-
 
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
@@ -191,7 +185,6 @@ def run(ctx,
         c.process()
         
     
-map.add_command(show,"show")
 map.add_command(make_class,"make")
 map.add_command(list_classes,"list")
 map.add_command(run,"run")
