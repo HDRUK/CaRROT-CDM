@@ -8,6 +8,8 @@ from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
+from coconnect.tools.profiling import Profiler
+
 from coconnect.tools.file_helpers import InputData
 
 from .objects import DestinationTable
@@ -23,7 +25,6 @@ class CommonDataModel:
     output_folder = "output_data/"
     
     def __init__(self,**kwargs):
-
         name = self.__class__.__name__
         if 'name' in kwargs:
             name = kwargs['name']
@@ -31,9 +32,11 @@ class CommonDataModel:
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
+        self.profiler = Profiler(name=name)
+        self.profiler.start()
+        
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
-
             
         if 'inputs' in kwargs:
             inputs = kwargs['inputs']
@@ -54,7 +57,6 @@ class CommonDataModel:
 
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
-
 
         self.chunksize = None
         
@@ -116,6 +118,22 @@ class CommonDataModel:
                 'output_folder':os.path.abspath(self.output_folder)
             }
         }
+
+    def __del__(self):
+        self.profiler.stop()
+        df_profile = self.profiler.get_df()
+        f_out = self.output_folder
+        f_out = f'{f_out}/logs/'
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+            
+        date = self.logs['meta']['created_at']
+        fname = f'{f_out}/statistics_{date}.csv'
+        df_profile.to_csv(fname)
+        self.logger.info(f"Writen the memory/cpu statistics to {fname}")
+        self.logger.info("Finished")
+
         
     def __getitem__(self,key):
         """
@@ -323,7 +341,7 @@ class CommonDataModel:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,mode=mode,header=header,index=True)
-            self.logger.info(df.dropna(axis=1,how='all'))
+            self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
 

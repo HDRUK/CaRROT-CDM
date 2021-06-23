@@ -7,7 +7,7 @@ import glob
 import coconnect
 import coconnect.tools as tools
 
-    
+
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
 def map():
     pass
@@ -115,11 +115,10 @@ def run(ctx,
         strip_name,drop_csv_from_name,type,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
-    
+
     if not rules is None:
         ctx.invoke(make_class,name=name,rules=rules)
         ctx.invoke(list_classes)
-
         
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
@@ -167,16 +166,17 @@ def run(ctx,
     if output_folder is None:
         output_folder = os.getcwd()+'/output_data/'
 
-        
     inputs = tools.load_csv(inputs,rules=rules,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
+
     cls = getattr(module,defined_class)
     c = cls(inputs=inputs,
             output_folder=output_folder)
     c.set_chunk_size(number_of_rows_per_chunk)
     c.process()
-
+    
+    
         
     
 map.add_command(make_class,"make")

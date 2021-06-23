@@ -18,6 +18,20 @@ def dataframe(fname,drop_na,markdown):
         df = df.to_markdown()
     print (df)
 
+@click.command(help="plot from a csv file")
+@click.argument('fname')
+@click.option('-y',required=True,multiple=True)
+@click.option('-x',required=True)
+def plot(fname,x,y):
+    
+    import matplotlib.pyplot as plt
+    df = pandas.read_csv(fname)
+    fig,ax = plt.subplots(len(y),figsize=(14,7))
+    for i,_y in enumerate(y):
+        ax[i].set_ylabel(_y)
+        df.plot(x=x,y=_y,ax=ax[i])
+    plt.show()
+
 
 @click.command(help="Display the OMOP mapping json as a DAG")
 @click.argument("rules")
@@ -36,4 +50,5 @@ def json(rules):
 display.add_command(dataframe,"dataframe")
 display.add_command(dag,"dag")
 display.add_command(json,"json")
+display.add_command(plot,"plot")
 
