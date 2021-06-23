@@ -8,10 +8,16 @@ from time import gmtime, strftime
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
+from coconnect.tools.profiling import Profiler
+
+from coconnect.tools.file_helpers import InputData
+
 from .objects import DestinationTable
+
 
 class NoInputFiles(Exception):
     pass
+
 
 class CommonDataModel:
 
@@ -19,7 +25,6 @@ class CommonDataModel:
     output_folder = "output_data/"
     
     def __init__(self,**kwargs):
-
         name = self.__class__.__name__
         if 'name' in kwargs:
             name = kwargs['name']
@@ -27,23 +32,34 @@ class CommonDataModel:
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
+        self.profiler = Profiler(name=name)
+        self.profiler.start()
+        
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
-        
+            
         if 'inputs' in kwargs:
             inputs = kwargs['inputs']
+            chunked_inputs = False
             if not isinstance(inputs,dict):
-                self.logger.error(inputs)
-                raise NoInputFiles("setting up inputs that are not a dict!!")
+                if not isinstance(inputs,InputData):
+                    self.logger.error(inputs)
+                    raise NoInputFiles("setting up inputs that are not a dict!!")
+                else:
+                    chunked_inputs = True
+                    self.logger.warning("You are running with chunked inputs!")
 
             if not self.inputs is None:
                 self.logger.waring("overwriting inputs")
 
             self.inputs = inputs
+            self.chunked_inputs = chunked_inputs
 
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
-            
+
+        self.chunksize = None
+        
         #register opereation tools
         self.tools = OperationTools()
 
@@ -102,6 +118,22 @@ class CommonDataModel:
                 'output_folder':os.path.abspath(self.output_folder)
             }
         }
+
+    def __del__(self):
+        self.profiler.stop()
+        df_profile = self.profiler.get_df()
+        f_out = self.output_folder
+        f_out = f'{f_out}/logs/'
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+            
+        date = self.logs['meta']['created_at']
+        fname = f'{f_out}/statistics_{date}.csv'
+        df_profile.to_csv(fname)
+        self.logger.info(f"Writen the memory/cpu statistics to {fname}")
+        self.logger.info("Finished")
+
         
     def __getitem__(self,key):
         """
@@ -173,29 +205,50 @@ class CommonDataModel:
 
     def objects(self):
         return self.__objects
-        
-    def process(self,output_folder='output_data/'):
 
+    def process_chunked_data(self):
+        i=0
+        while True:
+            for destination_table in self.execution_order:
+                self[destination_table] = self.process_table(destination_table)
+                self.logger.info(f'finalised {destination_table} on iteration {i}')
+                
+            mode = 'w'
+            if i>0:
+                mode='a'
+                
+            self.save_to_file(mode=mode)
+            self.save_logs(extra=f'_slice_{i}')
+            i+=1
+            
+            try:
+                self.inputs.next()
+            except StopIteration:
+                break
+
+    def process_flat_data(self):
+        for destination_table in self.execution_order:
+            self[destination_table] = self.process_table(destination_table)
+            self.logger.info(f'finalised {destination_table}')
+
+        self.save_to_file()
+        self.save_logs()
+                
+    def process(self):
         #determine the order to execute tables in
         #only thing that matters is to execute the person table first
         # - this is if we want to mask the person_ids and need to save a record of
         #   the link between the unmasked and masked
-
-        execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-
-        self.logger.info(f"Starting processing in order: {execution_order}")
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
-        
-        for destination_table in execution_order:
-            self[destination_table] = self.process_table(destination_table)
-            self.logger.info(f'finalised {destination_table}')
 
-        if not self.output_folder is None:
-            output_folder = self.output_folder
-        self.save_to_file(output_folder)
-
-        self.save_logs(output_folder)
-                
+        #switch to process the data in chunks or not
+        if isinstance(self.inputs,InputData):
+            self.process_chunked_data()
+        else:
+            self.process_flat_data()
+            
     def process_table(self,destination_table):
         objects = self.get_objects(destination_table)
         nobjects = len(objects)
@@ -213,7 +266,7 @@ class CommonDataModel:
         logs = {}
         for i,obj in enumerate(objects):
             obj.execute(self)
-            df = obj.get_df()
+            df = obj.get_df(force_rebuild=False)
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:
@@ -223,9 +276,15 @@ class CommonDataModel:
             dfs.append(df)
             logs[obj.name] = obj._meta
 
+        if len(dfs) == 0:
+            return None
+            
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
-        df_destination = pd.concat(dfs,ignore_index=True)
+        if len(dfs) == 1:
+            df_destination = dfs[0]
+        else:
+            df_destination = pd.concat(dfs,ignore_index=True)
 
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
@@ -249,18 +308,26 @@ class CommonDataModel:
         #return the finalised full dataframe for this table
         return df_destination
 
-    def save_logs(self,f_out):
+    def save_logs(self,f_out=None,extra=""):
+        if f_out == None:
+            f_out = self.output_folder
         f_out = f'{f_out}/logs/'
         if not os.path.exists(f'{f_out}'):
             self.logger.info(f'making output folder {f_out}')
             os.makedirs(f'{f_out}')
 
         date = self.logs['meta']['created_at']
-        fname = f'{f_out}/{date}.json'
+        fname = f'{f_out}/{date}{extra}.json'
         json.dump(self.logs,open(fname,'w'),indent=6)
         self.logger.info(f'saved a log file to {fname}')
     
-    def save_to_file(self,f_out):
+    def save_to_file(self,f_out=None,mode='w'):
+        if f_out == None:
+            f_out = self.output_folder
+        header=True
+        if mode == 'a':
+            header = False
+            
         for name,df in self.__df_map.items():
             if df is None:
                 continue
@@ -268,12 +335,19 @@ class CommonDataModel:
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
                 os.makedirs(f'{f_out}')
-            self.logger.info(f'saving {name} to {fname}')
+            if mode == 'w':
+                self.logger.info(f'saving {name} to {fname}')
+            else:
+                self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
-            df.to_csv(fname,index=True)
-            self.logger.info(df.dropna(axis=1,how='all'))
-        
+            df.to_csv(fname,mode=mode,header=header,index=True)
+            self.logger.debug(df.dropna(axis=1,how='all'))
 
+        self.logger.info("finished save to file")
+
+    def set_chunk_size(self,value:int):
+        self.chunksize = value
+        
     def set_indexing(self,index_map,strict_check=False):
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')

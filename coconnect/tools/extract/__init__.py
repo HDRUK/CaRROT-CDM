@@ -53,7 +53,9 @@ def make_class(data,
             map_rules.append('# --- insert term mapping --- ')
             #find term mapping
             for destination_field,source in sorted(obj.items()):
-                term_mapping = source['term_mapping']
+                term_mapping = None
+                if 'term_mapping' in source:
+                    term_mapping = source['term_mapping']
 
                 
                 if term_mapping:
@@ -102,3 +104,4 @@ def make_class(data,
         os.unlink(fname_dst)
         
     os.symlink(fname, fname_dst)
+    

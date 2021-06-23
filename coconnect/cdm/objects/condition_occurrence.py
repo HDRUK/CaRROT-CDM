@@ -50,7 +50,7 @@ class ConditionOccurrence(DestinationTable):
         df['condition_occurrence_id'] = df.reset_index().index + 1
         return df
         
-    def get_df(self):
+    def get_df(self,**kwargs):
         """
         Overload/append the creation of the dataframe, specifically for the condition_occurrence objects
         * condition_concept_id is required to be not null
@@ -61,7 +61,7 @@ class ConditionOccurrence(DestinationTable):
            pandas.Dataframe: output dataframe
         """
 
-        df = super().get_df()
+        df = super().get_df(**kwargs)
         #make sure the concept_ids are numeric, otherwise set them to null
         df['condition_concept_id'] = pd.to_numeric(df['condition_concept_id'],errors='coerce')
         #require the condition_concept_id to be filled

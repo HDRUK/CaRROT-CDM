@@ -15,6 +15,9 @@ class ConvertDataType(Exception):
 class FailedRequiredCheck(Exception):
     pass
 
+class FormattingError(Exception):
+    pass
+
 class BadInputs(Exception):
     pass
 
@@ -134,7 +137,7 @@ class DestinationTable(object):
         #build the dataframe for this object
         _ = self.get_df()
         
-    def get_df(self,force_rebuild=False):
+    def get_df(self,force_rebuild=True):
         """
         Retrieve a dataframe from the current object
 
@@ -203,8 +206,14 @@ class DestinationTable(object):
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
+            
             df[col] = formatter_function(df[col])
-        
+
+            #if col in self.required_fields and len(df[df[col].isna()])>0:
+            #    self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
+            #    raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
+                
+            
         return df
 
     def finalise(self,df):
@@ -217,12 +226,15 @@ class DestinationTable(object):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
+        self.required_fields = required_fields
+        
         self._meta['required_fields'] = {}
         for field in required_fields:
             nbefore = len(df)
+
             df = df[~df[field].isna()]
             nafter = len(df)
-
+            
             ndiff = nbefore - nafter
             if ndiff>0:
                 self.logger.warning(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")

@@ -40,7 +40,7 @@ def main():
 
     inputs = load_csv(
         {
-            x.split("/")[-1].lower():x
+            x.split("/")[-1]:x
             for x in args.inputs
         }
     )

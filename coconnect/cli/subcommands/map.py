@@ -7,7 +7,7 @@ import glob
 import coconnect
 import coconnect.tools as tools
 
-    
+
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
 def map():
     pass
@@ -43,12 +43,6 @@ def diff(file1,file2):
             if not (df1.iloc[i] == df2.iloc[i]).any():
                 print ('Row',i,'is in a different location')
 
-@click.command(help="Show the OMOP mapping json")
-@click.argument("rules")
-def show(rules):
-    data = tools.load_json(rules)
-    print (json.dumps(data,indent=6))
-
 
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
@@ -66,7 +60,18 @@ def make_class(name,rules):
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
     print (json.dumps(tools.get_classes(),indent=6))
-        
+
+@click.command(help="remove a registered class")
+@click.pass_context
+@click.argument("name")
+def remove_class(ctx,name):
+    classes = tools.get_classes()
+    if name not in classes:
+        print (f"{name} is not a registered class")
+        ctx.invoke(list_classes)
+    else:
+        _class = classes[name]
+        os.unlink(_class['sympath'])
 
 @click.command(help="Perform OMOP Mapping")
 @click.option("--name",
@@ -94,17 +99,30 @@ def list_classes():
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
+@click.option("-nc","--number-of-rows-per-chunk",
+              default=None,
+              type=int,
+              help="choose to chunk running the data into nrows")
+@click.option("-np","--number-of-rows-to-process",
+              default=None,
+              type=int,
+              help="the total number of rows to process")
 @click.argument("inputs",
                 nargs=-1)
 @click.pass_context
 def run(ctx,
         name,rules,inputs,output_folder,
-        strip_name,drop_csv_from_name,type):
+        strip_name,drop_csv_from_name,type,
+        number_of_rows_per_chunk,
+        number_of_rows_to_process):
 
     if not rules is None:
         ctx.invoke(make_class,name=name,rules=rules)
         ctx.invoke(list_classes)
-
+        
+    if type != 'csv':
+        raise NotImplementedError("Can only handle inputs that are .csv so far")
+        
     
     #check if exists
     if any('*' in x for x in inputs):
@@ -119,55 +137,18 @@ def run(ctx,
                 new_inputs.append(x)
         inputs = new_inputs
 
-    source_map = None
-    if rules is not None:
-        config = tools.load_json(rules)['cdm']
-        #extract a tuple of source tables and source fields
-        sources = [
-            (x['source_table'],x['source_field'])
-            for cdm_obj_set in config.values()
-            for cdm_obj in cdm_obj_set
-            for x in cdm_obj.values()
-        ]
-
-        source_map = {}
-        for (table,field) in sources:
-            if table not in source_map:
-                source_map[table] = []
-            source_map[table].append(field)
-
-        source_map = {
-            k:list(set(v))
-            for k,v in source_map.items()
-        }
-
-
+    #clean the names, if specified 
     inputs = {
         (
-            x.split("/")[-1][:strip_name].lower()
+            x.split("/")[-1][:strip_name]
             if drop_csv_from_name is False
             else
-            x.split("/")[-1][:strip_name].lower().replace('.csv','')
+            x.split("/")[-1][:strip_name].replace('.csv','')
         ):x
         for x in inputs
     }
 
-    fields = None
-    #reduce the mapping of inputs, if we dont need them all
-    if source_map is not None:
-        inputs = {
-            k: {
-                'file':v,
-                'fields':source_map[k]
-            }
-            for k,v in inputs.items()
-            if k in source_map
-        }
-    if type == 'csv':
-        inputs = tools.load_csv(inputs)
-    else:
-        raise NotImplementedError("Can only handle inputs that are .csv so far")
-        
+
     available_classes = tools.get_classes()
     if name not in available_classes:
         raise KeyError(f"cannot find config for {name}")
@@ -178,21 +159,28 @@ def run(ctx,
         for m in inspect.getmembers(module, inspect.isclass)
         if m[1].__module__ == module.__name__
     ]
+    #should only be running one class anyway
+    defined_class = defined_classes[0]
 
     
     if output_folder is None:
         output_folder = os.getcwd()+'/output_data/'
 
+    inputs = tools.load_csv(inputs,rules=rules,
+                            chunksize=number_of_rows_per_chunk,
+                            nrows=number_of_rows_to_process)
+
+    cls = getattr(module,defined_class)
+    c = cls(inputs=inputs,
+            output_folder=output_folder)
+    c.set_chunk_size(number_of_rows_per_chunk)
+    c.process()
     
-    for defined_class in defined_classes:
-        cls = getattr(module,defined_class)
-        c = cls(inputs=inputs,
-                output_folder=output_folder)
-        c.process()
+    
         
     
-map.add_command(show,"show")
 map.add_command(make_class,"make")
 map.add_command(list_classes,"list")
+map.add_command(remove_class,"remove")
 map.add_command(run,"run")
 map.add_command(diff,"diff")

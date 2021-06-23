@@ -56,7 +56,7 @@ class Measurement(DestinationTable):
 
         return df
         
-    def get_df(self):
+    def get_df(self,**kwargs):
         """
         Overload/append the creation of the dataframe, specifically for the measurement objects
         * measurement_concept_id is required to be not null
@@ -67,7 +67,7 @@ class Measurement(DestinationTable):
            pandas.Dataframe: output dataframe
         """
 
-        df = super().get_df()
+        df = super().get_df(**kwargs)
 
         #make sure the concept_ids are numeric, otherwise set them to null
         df['measurement_concept_id'] = pd.to_numeric(df['measurement_concept_id'],errors='coerce')
