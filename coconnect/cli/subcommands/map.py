@@ -99,16 +99,22 @@ def remove_class(ctx,name):
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
-@click.option("-n","--number-of-rows-per-chunk",
+@click.option("-nc","--number-of-rows-per-chunk",
               default=None,
               type=int,
               help="choose to chunk running the data into nrows")
+@click.option("-np","--number-of-rows-to-process",
+              default=None,
+              type=int,
+              help="the total number of rows to process")
 @click.argument("inputs",
                 nargs=-1)
 @click.pass_context
 def run(ctx,
         name,rules,inputs,output_folder,
-        strip_name,drop_csv_from_name,type,number_of_rows_per_chunk):
+        strip_name,drop_csv_from_name,type,
+        number_of_rows_per_chunk,
+        number_of_rows_to_process):
     
     if not rules is None:
         ctx.invoke(make_class,name=name,rules=rules)
@@ -162,7 +168,9 @@ def run(ctx,
         output_folder = os.getcwd()+'/output_data/'
 
         
-    inputs = tools.load_csv(inputs,rules=rules,chunksize=number_of_rows_per_chunk)
+    inputs = tools.load_csv(inputs,rules=rules,
+                            chunksize=number_of_rows_per_chunk,
+                            nrows=number_of_rows_to_process)
     cls = getattr(module,defined_class)
     c = cls(inputs=inputs,
             output_folder=output_folder)

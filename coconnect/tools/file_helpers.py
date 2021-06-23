@@ -60,7 +60,7 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,lower_col_names=False,load_path="",rules=None):
+def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
 
     if rules is not None:
         rules = load_json(rules)
@@ -90,7 +90,7 @@ def load_csv(_map,chunksize=None,lower_col_names=False,load_path="",rules=None):
             fname = obj['file']
             fields = obj['fields']
 
-        df = pd.read_csv(load_path+fname,chunksize=chunksize,dtype=str,usecols=fields)
+        df = pd.read_csv(load_path+fname,chunksize=chunksize,nrows=nrows,dtype=str,usecols=fields)
 
         if isinstance(df,pd.DataFrame):
             #this should be removed
