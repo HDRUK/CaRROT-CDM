@@ -263,7 +263,10 @@ class CommonDataModel:
             
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
-        df_destination = pd.concat(dfs,ignore_index=True)
+        if len(dfs) == 1:
+            df_destination = dfs[0]
+        else:
+            df_destination = pd.concat(dfs,ignore_index=True)
 
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
