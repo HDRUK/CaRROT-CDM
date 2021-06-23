@@ -35,7 +35,7 @@ class Person(DestinationTable):
         return df
 
 
-    def get_df(self):
+    def get_df(self,**kwargs):
         """
         Overload/append the creation of the dataframe, specifically for the person objects
         * year_of_birth is automatically converted to a year (int)
@@ -47,7 +47,7 @@ class Person(DestinationTable):
         Returns:
            pandas.Dataframe: output dataframe
         """
-        df = super().get_df()
+        df = super().get_df(**kwargs)
 
         if self.automatically_generate_missing_rules == True:
             if df['year_of_birth'].isnull().all():

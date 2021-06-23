@@ -248,7 +248,7 @@ class CommonDataModel:
         logs = {}
         for i,obj in enumerate(objects):
             obj.execute(self)
-            df = obj.get_df()
+            df = obj.get_df(force_rebuild=False)
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:
