@@ -1,5 +1,6 @@
 import click
 import pandas
+import json
 import coconnect.tools as tools
 
 @click.group(help='Commands for displaying various types of data and files.')
@@ -47,13 +48,13 @@ def dag(rules):
 
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
-def json(rules):
+def print_json(rules):
     data = tools.load_json(rules)
     print (json.dumps(data,indent=6))
 
     
 display.add_command(dataframe,"dataframe")
 display.add_command(dag,"dag")
-display.add_command(json,"json")
+display.add_command(print_json,"json")
 display.add_command(plot,"plot")
 
