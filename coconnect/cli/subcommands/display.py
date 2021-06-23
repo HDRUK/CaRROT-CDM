@@ -19,17 +19,22 @@ def dataframe(fname,drop_na,markdown):
     print (df)
 
 @click.command(help="plot from a csv file")
-@click.argument('fname')
+@click.argument('fnames',nargs=-1)
 @click.option('-y',required=True,multiple=True)
 @click.option('-x',required=True)
-def plot(fname,x,y):
-    
+def plot(fnames,x,y):
     import matplotlib.pyplot as plt
-    df = pandas.read_csv(fname)
     fig,ax = plt.subplots(len(y),figsize=(14,7))
+
+    dfs = {
+        fname:pandas.read_csv(fname)
+        for fname in fnames
+    }
+    
     for i,_y in enumerate(y):
         ax[i].set_ylabel(_y)
-        df.plot(x=x,y=_y,ax=ax[i])
+        for fname in fnames:
+            dfs[fname].plot(x=x,y=_y,ax=ax[i],label=fname)
     plt.show()
 
 
