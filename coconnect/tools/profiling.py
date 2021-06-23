@@ -50,6 +50,10 @@ class Profiler:
         
     def track(self):
         while self._stop == False:
+
+            #print  (self.py,self.py.status(),self.py.is_running())
+            #print (dir(self.py))
+            
             memory = self.py.memory_info()[0]/2.**30
             cpu = self.py.cpu_percent() / self.cpu_count
             current_time = time.time() - self.init_time

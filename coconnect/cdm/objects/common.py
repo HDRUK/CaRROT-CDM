@@ -209,9 +209,9 @@ class DestinationTable(object):
             
             df[col] = formatter_function(df[col])
 
-            if col in self.required_fields and len(df[df[col].isna()])>0:
-                self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
-                raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
+            #if col in self.required_fields and len(df[df[col].isna()])>0:
+            #    self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
+            #    raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
                 
             
         return df
