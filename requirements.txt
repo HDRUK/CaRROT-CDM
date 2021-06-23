@@ -6,3 +6,4 @@ graphviz
 click
 sqlalchemy
 tabulate
+psutil
