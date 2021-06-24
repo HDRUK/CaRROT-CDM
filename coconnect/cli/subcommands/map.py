@@ -96,6 +96,9 @@ def remove_class(ctx,name):
 @click.option("--drop-csv-from-name",
               is_flag=True,
               help="handy tool to drop .csv. from the key name, may be needed with whiterabbit")
+@click.option("--use-profiler",
+              is_flag=True,
+              help="turn on saving statistics for profiling CPU and memory usage")
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
@@ -112,7 +115,8 @@ def remove_class(ctx,name):
 @click.pass_context
 def run(ctx,
         name,rules,inputs,output_folder,
-        strip_name,drop_csv_from_name,type,
+        strip_name,drop_csv_from_name,
+        type,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
 
@@ -172,7 +176,8 @@ def run(ctx,
 
     cls = getattr(module,defined_class)
     c = cls(inputs=inputs,
-            output_folder=output_folder)
+            output_folder=output_folder,
+            use_profiler=use_profiler)
     c.set_chunk_size(number_of_rows_per_chunk)
     c.process()
     

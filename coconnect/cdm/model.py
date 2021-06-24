@@ -32,8 +32,11 @@ class CommonDataModel:
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
-        self.profiler = Profiler(name=name)
-        self.profiler.start()
+        self.profiler = None
+        if 'use_profiler' in kwargs:
+            if kwargs['use_profiler']:
+                self.profiler = Profiler(name=name)
+                self.profiler.start()
         
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
@@ -120,19 +123,20 @@ class CommonDataModel:
         }
 
     def __del__(self):
-        self.profiler.stop()
-        df_profile = self.profiler.get_df()
-        f_out = self.output_folder
-        f_out = f'{f_out}/logs/'
-        if not os.path.exists(f'{f_out}'):
-            self.logger.info(f'making output folder {f_out}')
-            os.makedirs(f'{f_out}')
-            
-        date = self.logs['meta']['created_at']
-        fname = f'{f_out}/statistics_{date}.csv'
-        df_profile.to_csv(fname)
-        self.logger.info(f"Writen the memory/cpu statistics to {fname}")
-        self.logger.info("Finished")
+        if self.profiler:
+            self.profiler.stop()
+            df_profile = self.profiler.get_df()
+            f_out = self.output_folder
+            f_out = f'{f_out}/logs/'
+            if not os.path.exists(f'{f_out}'):
+                self.logger.info(f'making output folder {f_out}')
+                os.makedirs(f'{f_out}')
+                
+            date = self.logs['meta']['created_at']
+            fname = f'{f_out}/statistics_{date}.csv'
+            df_profile.to_csv(fname)
+            self.logger.info(f"Writen the memory/cpu statistics to {fname}")
+            self.logger.info("Finished")
 
         
     def __getitem__(self,key):
