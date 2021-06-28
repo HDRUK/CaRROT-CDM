@@ -55,7 +55,24 @@ def diff(file1,file2):
 def make_class(name,rules):
     data = tools.load_json(rules)
     tools.extract.make_class(data,name)
+
+
+@click.command(help="flattern a rules json file")
+@click.argument("rules")
+def flatten(rules):
+    data = tools.load_json(rules)
+    objects = data['cdm']
+    for destination_table,rule_set in objects.items():
+        #print (rule_set)
+        df = pd.DataFrame.from_records(rule_set).T
+        #print (df.iloc[1])
+        #print (df.iloc[1][1])
+        print (df.iloc[1])
+        print (df.iloc[1].apply(pd.Series))
+        print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
         
+        exit(0)
+
     
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
@@ -189,3 +206,4 @@ map.add_command(list_classes,"list")
 map.add_command(remove_class,"remove")
 map.add_command(run,"run")
 map.add_command(diff,"diff")
+map.add_command(flatten,"flatten")
