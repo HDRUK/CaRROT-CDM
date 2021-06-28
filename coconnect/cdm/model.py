@@ -28,7 +28,7 @@ class CommonDataModel:
         name = self.__class__.__name__
         if 'name' in kwargs:
             name = kwargs['name']
-
+            
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("CommonDataModel created")
 
