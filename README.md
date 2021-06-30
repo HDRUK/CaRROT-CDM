@@ -81,7 +81,7 @@ export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
 
 The example dataset and associated mapping rules can be run with the simple script `etlcdm.py`:
 ```bash
-etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o test/
+etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_30June2021.json -o test/
 ```
 
 ### Inspecting the Output
