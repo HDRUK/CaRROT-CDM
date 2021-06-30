@@ -23,6 +23,11 @@ Or to be even safer:
 ```
 $ python3 -m pip install co-connect-tools
 ```
+To install for a local user, for example if you do not have root permissions, you can do:
+```
+$ pip3 install co-connect-tools --user 
+```
+
 
 ### From Source
 
