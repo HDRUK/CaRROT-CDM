@@ -55,7 +55,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/
+          etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_30June2021.json -o tests/
       - run: |
           for filename in tests/*.csv; do
                fname=${filename##*/}
