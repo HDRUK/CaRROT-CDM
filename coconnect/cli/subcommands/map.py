@@ -174,7 +174,7 @@ def run(ctx,
     available_classes = tools.get_classes()
     if name not in available_classes:
         raise KeyError(f"cannot find config for {name}")
-
+    
     module = __import__(available_classes[name]['module'],fromlist=[name])
     defined_classes = [
         m[0]
