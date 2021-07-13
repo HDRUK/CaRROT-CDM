@@ -1,5 +1,6 @@
 import coconnect
 import os
+import sys
 import json
 import glob
 import inspect
@@ -27,6 +28,35 @@ def set_debug(value):
     _DEBUG = value
     
 def get_classes(format=False):
+
+    if config_folder:= os.environ.get('COCONNECT_CONFIG_FOLDER'):
+        sys.path.append(config_folder)
+        files = [x for x in os.listdir(config_folder) if x.endswith(".py") and not x.startswith('__')]
+        retval = {}
+        for fname in files:
+            print (fname)
+            mname = fname.split(".")[0]
+            print (mname)
+            exit(0)
+            continue
+            module = __import__(mname,fromlist=[fname])
+            path = os.path.join(config_folder,fname)
+            defined_classes = {
+                m[0]: {
+                    'module':m[1].__module__,
+                    'path': path  if not os.path.islink(path) else os.readlink(path),
+                    'sympath': path,
+                    'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(config_folder,fname))))
+                }
+                for m in inspect.getmembers(module, inspect.isclass)
+                if m[1].__module__ == module.__name__
+            }
+            print (defined_classes)
+        exit(0)
+        
+    return get_classes_from_tool(format=format)
+    
+def get_classes_from_tool(format=format):
     import time
     from coconnect.cdm import classes
     _dir = os.path.dirname(classes.__file__)

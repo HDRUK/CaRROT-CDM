@@ -54,7 +54,8 @@ def diff(file1,file2):
 #              help="")
 def make_class(name,rules):
     data = tools.load_json(rules)
-    tools.extract.make_class(data,name)
+    fname = tools.extract.make_class(data,name)
+    tools.extract.register_class(fname)
 
 
 @click.command(help="flattern a rules json file")
