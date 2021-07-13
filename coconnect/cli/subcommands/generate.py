@@ -2,7 +2,11 @@ import os
 import click
 import coconnect
 import pandas as pd
-    
+import requests
+
+class MissingToken(Exception):
+    pass
+
 @click.group(help='Commands to generate helpful files.')
 def generate():
     pass
@@ -13,6 +17,26 @@ def generate():
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
 def synthetic(report,number_of_events,output_directory,fill_column_with_values):
+    token = os.environ.get("COCONNECT_TOKEN")
+    if token == None:
+        raise MissingToken("you must set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+
+    api_url =  "https://ccom.azurewebsites.net/api/"
+    headers = {
+        "Content-type": "application/json",
+        "charset": "utf-8",
+        "Authorization": f"Token {token}"
+    }
+
+    test = "scanreportvaluesfilter/?scan_report_table=410"
+
+    response = requests.get(
+        f"{api_url}{test}", headers=headers
+    )
+    print (response)
+    print (response.json())
+    
+    exit(0)
     dfs = pd.read_excel(report,sheet_name=None)
     sheets_to_process = list(dfs.keys())[2:-1]
 
