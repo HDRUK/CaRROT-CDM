@@ -49,15 +49,18 @@ def diff(file1,file2):
               required=True,
               help="give the name of the dataset, this will be the name of the .py class file created")
 @click.argument("rules")
-#@click.option("--",
-#              is_flag=True,
-#              help="")
 def make_class(name,rules):
     data = tools.load_json(rules)
     fname = tools.extract.make_class(data,name)
-    tools.extract.register_class(fname)
+    return fname
 
+@click.command(help="Register a python class with the tool")
+@click.argument("pyconfig")
+def register_class(pyconfig):
+    pyconfig = os.path.abspath(pyconfig)
+    tools.extract.register_class(pyconfig)
 
+    
 @click.command(help="flattern a rules json file")
 @click.argument("rules")
 def flatten(rules):
@@ -139,7 +142,8 @@ def run(ctx,
         number_of_rows_to_process):
 
     if not rules is None:
-        ctx.invoke(make_class,name=name,rules=rules)
+        pyconfig = ctx.invoke(make_class,name=name,rules=rules)
+        ctx.invoke(register_class,pyconfig=pyconfig)
         ctx.invoke(list_classes)
         
     if type != 'csv':
@@ -203,6 +207,7 @@ def run(ctx,
         
     
 map.add_command(make_class,"make")
+map.add_command(register_class,"register")
 map.add_command(list_classes,"list")
 map.add_command(remove_class,"remove")
 map.add_command(run,"run")
