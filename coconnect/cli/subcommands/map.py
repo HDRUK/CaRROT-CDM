@@ -48,10 +48,17 @@ def diff(file1,file2):
 @click.option("--name",
               required=True,
               help="give the name of the dataset, this will be the name of the .py class file created")
+@click.option("--register",
+              is_flag=True,
+              help="also register the python config with the tool")
 @click.argument("rules")
-def make_class(name,rules):
+@click.pass_context
+
+def make_class(ctx,name,rules,register):
     data = tools.load_json(rules)
     fname = tools.extract.make_class(data,name)
+    if register:
+        ctx.invoke(register_class,pyconfig=fname)
     return fname
 
 @click.command(help="Register a python class with the tool")
