@@ -74,13 +74,30 @@ def flatten(rules):
     data = tools.load_json(rules)
     objects = data['cdm']
     for destination_table,rule_set in objects.items():
+        if len(rule_set) < 2: continue
         #print (rule_set)
         df = pd.DataFrame.from_records(rule_set).T
+
+        #for name in df.index:
+        #    print (name,len(df.loc[name]))
+
+        df = df.loc['condition_concept_id'].apply(pd.Series)
+
+
+        def merge(s):
+            if s == 'term_mapping':
+                print ('hiya')
+                return {k:v for a in s for k,v in a.items()}
+        
+        print (df.groupby('source_field').agg(merge))
+            
         #print (df.iloc[1])
         #print (df.iloc[1][1])
-        print (df.iloc[1])
-        print (df.iloc[1].apply(pd.Series))
-        print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
+        #print (df)
+        #print (df.iloc[0])
+        #print (df.iloc[0].name)
+        #print (df.iloc[0].apply(pd.Series))
+        #print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
         
         exit(0)
 

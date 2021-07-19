@@ -59,10 +59,16 @@ def get_classes_from_tool(format=format):
     files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
     retval = {}
     for fname in files:
+        path = os.path.join(_dir,fname)
         mname = fname.split(".")[0]
         mname = '.'.join([classes.__name__, mname])
+        if os.path.islink(path):
+            link = os.readlink(path)
+            if os.path.isfile(link) == False:
+                os.unlink(path)
+                continue
+            
         module = __import__(mname,fromlist=[fname])
-        path = os.path.join(_dir,fname)
         defined_classes = {
             m[0]: {
                 'module':m[1].__module__,
