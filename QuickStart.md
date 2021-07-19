@@ -1,7 +1,7 @@
 
-# Transforming data to CDM
+## Transforming data to CDM
 
-## 1. Install the co-connect-tools python package
+### 1. Install the co-connect-tools python package
 
 This package runs with `python` versions `>=3.6`, the easiest way to install is via pip:
 ```
@@ -18,10 +18,10 @@ $ python3 -m pip install -e .
 ```
 
 !!! note
-   If you have trouble with `pip` hanging on installing dependencies, try to install also using the argument `--no-cache-dir`. Also make sure that you have updated `pip` via `pip3 install --upgrade pip`.
+    If you have trouble with `pip` hanging on installing dependencies, try to install also using the argument `--no-cache-dir`. Also make sure that you have updated `pip` via `pip3 install --upgrade pip`.
 
 
-## 2. Checking the package
+### 2. Checking the package
 
 
 To verify the package is installed you can test the following information commands:
@@ -34,13 +34,13 @@ $ coconnect info install_folder
 
 ```
 
-## 3. Gather inputs
+### 3. Gather inputs
 
 To run the transformation to CDM you will need:
 1. Input Data
 2. `json` file containing the so-called mapping rules
 
-### File checks
+#### File checks
 
 Input data is expected in `csv` format.
 
@@ -57,7 +57,7 @@ With your `json` file for the rules, you can quickly check the tool is able to r
 $ coconnect display json rules.json
 ```
 
-## 4. Run the tool
+### 4. Run the tool
 ```
 $ coconnect map run --name <Name> --rules <.json file for rules> <csv files>
 ```
@@ -66,7 +66,7 @@ E.g.:
 $ coconnect map run --name TestData --rules rules.json data/*.csv
 ```
 
-## 5. Check the output
+### 5. Check the output
 
 By default, mapped `csv` files are created in the folder `output_data` within your current working directory.
 !!! note
@@ -92,11 +92,11 @@ $ coconnect display dataframe --drop-na output_data/condition_occurrence.csv
 4                            5         44                312437  ...    2020-04-10 00:00:00                      1                       312437
 ```
 
-# Common Problems
+## Common Problems
 
 The following documents common error messages and FAQs.
 
-## Why do I get a `KeyError` message about my input data?
+### Why do I get a `KeyError` message about my input data?
 
 You may see a look up error like this, when running the tool:
 ```
