@@ -97,11 +97,15 @@ def make_class(data,
     with open(fname,'w') as f:
         f.write(source_code)
 
+    return fname
+    
+def register_class(fname):
+    name = fname.split("/")[-1]
     #register the file within coconnect/classes so it can be imported
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
-    fname_dst =  f'{save_dir}/{name}.py'
+    fname_dst =  f'{save_dir}/{name}'
     if os.path.isfile(fname_dst):
         os.unlink(fname_dst)
-        
+    print (f"Registering file, creating a symlink to {fname_dst}")
     os.symlink(fname, fname_dst)
-    
+
