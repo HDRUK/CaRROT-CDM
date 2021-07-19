@@ -11,32 +11,48 @@ class MissingToken(Exception):
 def generate():
     pass
 
-@click.command(help="generate synthetic data from a ScanReport")
-@click.argument("report")
+@click.group(help='Commands to generate synthetic data.')
+def synthetic():
+    pass
+
+@click.command(help="generate synthetic data from a ScanReport ID from CCOM")
+@click.argument("report_id")
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
-def synthetic(report,number_of_events,output_directory,fill_column_with_values):
-    token = os.environ.get("COCONNECT_TOKEN")
+@click.option("--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+def ccom(report_id,number_of_events,output_directory,fill_column_with_values,token):
+    token = os.environ.get("COCONNECT_TOKEN") or token
     if token == None:
-        raise MissingToken("you must set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+        raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
 
-    api_url =  "https://ccom.azurewebsites.net/api/"
     headers = {
         "Content-type": "application/json",
         "charset": "utf-8",
         "Authorization": f"Token {token}"
     }
-
-    test = "scanreportvaluesfilter/?scan_report_table=410"
+    url = f"https://ccom.azurewebsites.net/api/scanreporttablesfilter/?scan_report={report_id}"
 
     response = requests.get(
-        f"{api_url}{test}", headers=headers
+        url, headers=headers
     )
-    print (response)
-    print (response.json())
+    tables = {
+        table['name']:table['id']
+        for table in response.json()
+        }
+
+    for name,_id in tables.items():
+        print (name,_id)
+        url = f"https://ccom.azurewebsites.net/api/scanreportvaluesfilter/?scan_report_table={_id}&fields=value,frequency"
+        print (url)
+
     
-    exit(0)
+@click.command(help="generate synthetic data from a ScanReport xlsx file")
+@click.argument("report")
+@click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
+@click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
+@click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
+def xlsx(report,number_of_events,output_directory,fill_column_with_values):
     dfs = pd.read_excel(report,sheet_name=None)
     sheets_to_process = list(dfs.keys())[2:-1]
 
@@ -83,6 +99,12 @@ def synthetic(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
+synthetic.add_command(xlsx,"xlsx")
+synthetic.add_command(ccom,"ccom")
+generate.add_command(synthetic,"synthetic")
+
+
+        
 @click.command(help="generate a python configuration for the given table")
 @click.argument("table")
 @click.argument("version")
@@ -108,4 +130,3 @@ def cdm(table,version):
         print (string)
     
 generate.add_command(cdm,"cdm")
-generate.add_command(synthetic,"synthetic")
