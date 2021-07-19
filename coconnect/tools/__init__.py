@@ -1,8 +1,10 @@
 import coconnect
 import os
+import sys
 import json
 import glob
 import inspect
+import time
 
 from . import extract
 from .dag import make_dag
@@ -27,16 +29,46 @@ def set_debug(value):
     _DEBUG = value
     
 def get_classes(format=False):
-    import time
+
+    retval = get_classes_from_tool(format=format)
+
+    config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
+    if config_folder is not None:
+        sys.path.append(config_folder)
+        files = [x for x in os.listdir(config_folder) if x.endswith(".py") and not x.startswith('__')]
+        for fname in files:
+            mname = fname.split(".")[0]
+            module = __import__(mname,fromlist=[fname])
+            path = os.path.join(config_folder,fname)
+            defined_classes = {
+                m[0]: {
+                    'module':m[1].__module__,
+                    'path': path,
+                    'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(config_folder,fname))))
+                }
+                for m in inspect.getmembers(module, inspect.isclass)
+                if m[1].__module__ == module.__name__
+            }
+            retval.update(defined_classes)
+                
+    return retval
+    
+def get_classes_from_tool(format=format):
     from coconnect.cdm import classes
     _dir = os.path.dirname(classes.__file__)
     files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
     retval = {}
     for fname in files:
+        path = os.path.join(_dir,fname)
         mname = fname.split(".")[0]
         mname = '.'.join([classes.__name__, mname])
+        if os.path.islink(path):
+            link = os.readlink(path)
+            if os.path.isfile(link) == False:
+                os.unlink(path)
+                continue
+            
         module = __import__(mname,fromlist=[fname])
-        path = os.path.join(_dir,fname)
         defined_classes = {
             m[0]: {
                 'module':m[1].__module__,

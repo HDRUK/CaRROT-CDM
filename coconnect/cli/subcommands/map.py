@@ -48,28 +48,56 @@ def diff(file1,file2):
 @click.option("--name",
               required=True,
               help="give the name of the dataset, this will be the name of the .py class file created")
+@click.option("--register",
+              is_flag=True,
+              help="also register the python config with the tool")
 @click.argument("rules")
-#@click.option("--",
-#              is_flag=True,
-#              help="")
-def make_class(name,rules):
+@click.pass_context
+
+def make_class(ctx,name,rules,register):
     data = tools.load_json(rules)
-    tools.extract.make_class(data,name)
+    fname = tools.extract.make_class(data,name)
+    if register:
+        ctx.invoke(register_class,pyconfig=fname)
+    return fname
 
+@click.command(help="Register a python class with the tool")
+@click.argument("pyconfig")
+def register_class(pyconfig):
+    pyconfig = os.path.abspath(pyconfig)
+    tools.extract.register_class(pyconfig)
 
+    
 @click.command(help="flattern a rules json file")
 @click.argument("rules")
 def flatten(rules):
     data = tools.load_json(rules)
     objects = data['cdm']
     for destination_table,rule_set in objects.items():
+        if len(rule_set) < 2: continue
         #print (rule_set)
         df = pd.DataFrame.from_records(rule_set).T
+
+        #for name in df.index:
+        #    print (name,len(df.loc[name]))
+
+        df = df.loc['condition_concept_id'].apply(pd.Series)
+
+
+        def merge(s):
+            if s == 'term_mapping':
+                print ('hiya')
+                return {k:v for a in s for k,v in a.items()}
+        
+        print (df.groupby('source_field').agg(merge))
+            
         #print (df.iloc[1])
         #print (df.iloc[1][1])
-        print (df.iloc[1])
-        print (df.iloc[1].apply(pd.Series))
-        print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
+        #print (df)
+        #print (df.iloc[0])
+        #print (df.iloc[0].name)
+        #print (df.iloc[0].apply(pd.Series))
+        #print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
         
         exit(0)
 
@@ -138,7 +166,8 @@ def run(ctx,
         number_of_rows_to_process):
 
     if not rules is None:
-        ctx.invoke(make_class,name=name,rules=rules)
+        pyconfig = ctx.invoke(make_class,name=name,rules=rules)
+        ctx.invoke(register_class,pyconfig=pyconfig)
         ctx.invoke(list_classes)
         
     if type != 'csv':
@@ -173,7 +202,7 @@ def run(ctx,
     available_classes = tools.get_classes()
     if name not in available_classes:
         raise KeyError(f"cannot find config for {name}")
-
+    
     module = __import__(available_classes[name]['module'],fromlist=[name])
     defined_classes = [
         m[0]
@@ -202,6 +231,7 @@ def run(ctx,
         
     
 map.add_command(make_class,"make")
+map.add_command(register_class,"register")
 map.add_command(list_classes,"list")
 map.add_command(remove_class,"remove")
 map.add_command(run,"run")
