@@ -8,12 +8,17 @@ This package runs with `python` versions `>=3.6`, the easiest way to install is 
 $ python3 -m pip install co-connect-tools
 ```
 
+!!! warning
+    The tool is stable on (latest) Unix releases such as MacOS, Ubuntu, Centos. If you are using Windows, you may encounter problems.
+
+
 If you are struggling to install from `pip` due to permissions, you can install as a user via:
 ```
 $  python3 -m pip install co-connect-tools --user
 ```
-Or, you can download the source code from (https://github.com/CO-CONNECT/co-connect-tools/tags)[https://github.com/CO-CONNECT/co-connect-tools/tags], unpack and install as a local package:
+Or, you can download the source code from [https://github.com/CO-CONNECT/co-connect-tools/tags](https://github.com/CO-CONNECT/co-connect-tools/tags), unpack and install as a local package:
 ```
+$ cd < downloaded source code folder >
 $ python3 -m pip install -e . 
 ```
 
