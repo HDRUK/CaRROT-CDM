@@ -16,35 +16,54 @@ def synthetic():
     pass
 
 @click.command(help="generate synthetic data from a ScanReport ID from CCOM")
-@click.argument("report_id")
+@click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
-@click.option("--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
-def ccom(report_id,number_of_events,output_directory,fill_column_with_values,token):
+@click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("-u","--url",help="url endpoint for the CCOM website to ping",
+              type=str,
+              default="https://ccom.azurewebsites.net")
+def ccom(report_id,number_of_events,output_directory,
+         fill_column_with_values,token,
+         url):
     token = os.environ.get("COCONNECT_TOKEN") or token
     if token == None:
         raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
 
     headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
         "Content-type": "application/json",
         "charset": "utf-8",
         "Authorization": f"Token {token}"
     }
-    url = f"https://ccom.azurewebsites.net/api/scanreporttablesfilter/?scan_report={report_id}"
 
     response = requests.get(
-        url, headers=headers
+        f"{url}/api/scanreporttablesfilter/?scan_report={report_id}",
+        headers=headers
     )
+    if response.status_code != 200:
+        print ('failed to get a response')
+        print (response.json())
+        exit(0)
+        
     tables = {
         table['name']:table['id']
         for table in response.json()
         }
 
     for name,_id in tables.items():
-        print (name,_id)
-        url = f"https://ccom.azurewebsites.net/api/scanreportvaluesfilter/?scan_report_table={_id}&fields=value,frequency"
-        print (url)
+        url = f"{url}/api/scanreportvaluesfilter/?scan_report_table={_id}"#&fields=value,frequency"
+        print (name,url)
+        response = requests.get(
+            url, headers=headers,
+            allow_redirects=True,
+            timeout=2000,
+        )
+        print (response.json())
+        break
+ 
+        
 
     
 @click.command(help="generate synthetic data from a ScanReport xlsx file")
