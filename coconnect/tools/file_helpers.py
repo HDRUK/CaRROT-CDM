@@ -86,9 +86,6 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-        print (_map.keys())
-        exit(0)
-        
 
     if chunksize == None:
         retval = {}
