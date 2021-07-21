@@ -3,12 +3,17 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        #, windows-latest]
+        python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6.8
+          python-version:  ${{ matrix.python-version }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
@@ -17,7 +22,12 @@ jobs:
         run:  pip3 install -e .
       - run: coconnect --help
   unit_test_1:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        #, windows-latest]
+        python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
@@ -40,7 +50,12 @@ jobs:
           path: output_data
           retention-days: 1
   unit_test_2:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        #, windows-latest]
+        python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
