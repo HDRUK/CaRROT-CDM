@@ -108,10 +108,11 @@ jobs:
           coconnect info data_folder > temp.txt
       - run: |
           type temp.txt
-          dir<temp.txt
       - run: |
           set /p COCONNECT_DATA_FOLDER=<temp.txt
           echo %COCONNECT_DATA_FOLDER%
+      - run: |
+          dir  %COCONNECT_DATA_FOLDER% 
       - run: |
           etlcdm.py -i test\inputs\*.csv --rules test\rules\rules_14June2021.json -o tests
       - uses: actions/upload-artifact@v2
