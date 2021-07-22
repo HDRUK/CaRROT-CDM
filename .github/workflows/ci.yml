@@ -24,7 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
@@ -81,6 +81,33 @@ jobs:
                fi
           done
 
+      - uses: actions/upload-artifact@v2
+        with:
+          name: test
+          path: tests
+          retention-days: 1
+  unit_test_3:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+        python-version: [3.6.8]
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - run: ls .
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
+      - run: |
+          coconnect info data_folder > temp.txt
+          set /p COCONNECT_DATA_FOLDER=<temp.txt
+          etlcdm.py -i %COCONNECT_DATA_FOLDER%\test\inputs\*.csv --rules %COCONNECT_DATA_FOLDER%\test\rules\rules_14June2021.json -o tests
       - uses: actions/upload-artifact@v2
         with:
           name: test
