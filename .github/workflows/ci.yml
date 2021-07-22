@@ -108,7 +108,7 @@ jobs:
           coconnect info data_folder > temp.txt
       - run: |
           type temp.txt
-          set /P FOLDER=< temp.txt
+          set /P FOLDER=<temp.txt
       - run: |
           echo %FOLDER%
           dir  %FOLDER% 
