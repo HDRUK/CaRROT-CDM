@@ -56,7 +56,7 @@ def load_json(f_in):
                 os.path.join(
                     os.path.dirname(__file__),'..','data')
                 )
-            data =  json.load(open(f'{data_dir}/{f_in}'))
+            data =  json.load(open(f'{data_dir}{os.path.sep}{f_in}'))
         except FileNotFoundError:
             raise FileNotFoundError(err)
 
@@ -120,8 +120,8 @@ def get_file_map_from_dir(_dir):
         )
 
     _map = {}
-    for fname in glob.glob(f"{_dir}/*.csv"):
-        key = fname.split("/")[-1]
+    for fname in glob.glob(f"{_dir}{os.path.sep}*.csv"):
+        key = os.path.basename(fname)
         _map[key] = fname
     
     return _map
