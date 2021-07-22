@@ -6,8 +6,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        #, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
@@ -25,8 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        #, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
@@ -53,8 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        #, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
