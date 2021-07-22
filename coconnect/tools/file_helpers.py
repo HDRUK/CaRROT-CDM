@@ -49,7 +49,6 @@ class InputData:
 
 def load_json(f_in):
     try:
-        print ('trying',f_in)
         data = json.load(open(f_in))
     except FileNotFoundError as err:
         try:
