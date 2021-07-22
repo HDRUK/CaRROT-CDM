@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-import copy
 from coconnect.cdm import (
     CommonDataModel,
     get_cdm_class
@@ -69,7 +68,7 @@ def main():
 
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
-    for j,(destination_table,rules_set) in enumerate(config['cdm'].items()):
+    for destination_table,rules_set in config['cdm'].items():
         #loop over each object instance in the rule set
         #for example, condition_occurrence may have multiple rulesx
         #for multiple condition_ocurrences e.g. Headache, Fever ..
