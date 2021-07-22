@@ -110,7 +110,7 @@ jobs:
           set /p COCONNECT_DATA_FOLDER=<temp.txt
           echo %COCONNECT_DATA_FOLDER%
       - run: |
-          etlcdm.py -i %COCONNECT_DATA_FOLDER%\test\inputs\*.csv --rules %COCONNECT_DATA_FOLDER%\test\rules\rules_14June2021.json -o tests
+          etlcdm.py -i test\inputs\*.csv --rules test\rules\rules_14June2021.json -o tests
       - uses: actions/upload-artifact@v2
         with:
           name: test
