@@ -108,6 +108,7 @@ jobs:
           coconnect info data_folder > temp.txt
       - run: |
           type temp.txt
+          dir<temp.txt
       - run: |
           set /p COCONNECT_DATA_FOLDER=<temp.txt
           echo %COCONNECT_DATA_FOLDER%
