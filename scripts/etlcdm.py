@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from coconnect.cdm import (
     CommonDataModel,
     get_cdm_class
@@ -40,7 +41,7 @@ def main():
 
     inputs = load_csv(
         {
-            x.split("/")[-1]:x
+            os.path.basename(x):x
             for x in args.inputs
         }
     )
