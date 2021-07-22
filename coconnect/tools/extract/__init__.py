@@ -103,6 +103,15 @@ def register_class(fname):
     name = os.path.basename(fname)
     #register the file within coconnect/classes so it can be imported
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
+
+    config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
+    if config_folder is not None:
+        save_dir = config_folder
+        fname_dst = os.path.join(save_dir, name)
+        if fname == fname_dst:
+            print (f"File is already present in {config_folder}")
+            return
+        
     fname_dst = os.path.join(save_dir, name)
     if os.path.isfile(fname_dst):
         os.unlink(fname_dst)
