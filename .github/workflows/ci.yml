@@ -105,10 +105,11 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: |
-          set /P FOLDER=d:\test
+          setx FOLDER d:\test
           echo %FOLDER%
       - run: |
-          etlcdm.py -i %FOLDER%\test\inputs\*.csv --rules %FOLDER%\test\rules\rules_14June2021.json -o tests
+          etlcdm.py -h
+          #-i %FOLDER%\test\inputs\*.csv --rules %FOLDER%\test\rules\rules_14June2021.json -o tests
       - uses: actions/upload-artifact@v2
         with:
           name: test
