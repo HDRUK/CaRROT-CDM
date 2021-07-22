@@ -106,7 +106,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           coconnect info data_folder > temp.txt
-      -run: |
+      - run: |
           set /p COCONNECT_DATA_FOLDER=<temp.txt
           echo %COCONNECT_DATA_FOLDER%
       - run: |
