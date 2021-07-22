@@ -45,8 +45,6 @@ def main():
             for x in args.inputs
         }
     )
-    print (inputs)
-    exit(0)
 
     name = config['metadata']['dataset']
 
