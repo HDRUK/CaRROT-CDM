@@ -104,14 +104,9 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - name: 'setup env folder'
-        run: echo %FOLDER%
-        env:
-          FOLDER: coconnect info data_folder
       - run: |
+          set /P FOLDER=d:\test
           echo %FOLDER%
-          echo %FOLDER2%
-          dir  %FOLDER% 
       - run: |
           etlcdm.py -i %FOLDER%\test\inputs\*.csv --rules %FOLDER%\test\rules\rules_14June2021.json -o tests
       - uses: actions/upload-artifact@v2
