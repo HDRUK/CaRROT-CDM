@@ -104,14 +104,14 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - run: |
-          coconnect info data_folder > temp.txt
-      - run: |
-          type temp.txt
-          set /P FOLDER=<temp.txt
-          echo %FOLDER% 
+      - name: 'setup env folder'
+        run: coconnect info data_folder > temp.txt
+        env:
+          FOLDER: type temp.txt
+          FOLDER2: coconnect info data_folder
       - run: |
           echo %FOLDER%
+          echo %FOLDER2%
           dir  %FOLDER% 
       - run: |
           etlcdm.py -i %FOLDER%\test\inputs\*.csv --rules %FOLDER%\test\rules\rules_14June2021.json -o tests
