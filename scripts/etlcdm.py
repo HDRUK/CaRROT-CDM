@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import sys
+print (sys.version)
+
 import argparse
 import json
 import os
