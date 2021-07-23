@@ -37,7 +37,18 @@ def main():
                         required=True,
                         nargs="+",
                         help='input csv files')
+    parser.add_argument("-nc","--number-of-rows-per-chunk",
+                        dest='number_of_rows_per_chunk',
+                        default=None,
+                        type=int,
+                        help="choose to chunk running the data into nrows")
+    parser.add_argument("-np","--number-of-rows-to-process",
+                        dest='number_of_rows_to_process',
+                        default=None,
+                        type=int,
+                        help="the total number of rows to process")
 
+    
     args = parser.parse_args()
 
     config = load_json(args.rules)
@@ -46,7 +57,9 @@ def main():
         {
             os.path.basename(x):x
             for x in args.inputs
-        }
+        },
+        chunksize=args.number_of_rows_per_chunk,
+        nrows=args.number_of_rows_to_process
     )
 
     name = config['metadata']['dataset']
@@ -71,11 +84,15 @@ def main():
             obj = get_cdm_class(destination_table)()
             #set the name of the object
             obj.set_name(f"{destination_table}_{i}")
+
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
-            apply_rules(cdm,obj,rules)
+            obj.rules = rules
+            obj.define = lambda self : apply_rules(self)
+            
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
+            
     cdm.process()
     print ('Finished Producing',cdm.keys())
     
