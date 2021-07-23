@@ -47,6 +47,10 @@ def main():
                         default=None,
                         type=int,
                         help="the total number of rows to process")
+    parser.add_argument("--use-profiler",
+                        dest='use_profiler',
+                        action='store_true',
+                        help="turn on saving statistics for profiling CPU and memory usage")
 
     
     args = parser.parse_args()
@@ -67,7 +71,10 @@ def main():
     #build an object to store the cdm
     cdm = CommonDataModel(name=name,
                           inputs=inputs,
-                          output_folder=args.out_dir)
+                          output_folder=args.out_dir,
+                          use_profiler=args.use_profiler)
+    cdm.set_chunk_size(number_of_rows_per_chunk)
+
 
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
