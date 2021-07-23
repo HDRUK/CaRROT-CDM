@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
+import sys
+print (sys.version)
 
 import argparse
 import json
