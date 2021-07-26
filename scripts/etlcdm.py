@@ -53,14 +53,22 @@ def main():
 
     config = load_json(args.rules)
 
-    inputs = load_csv(
+    if sys.platform =="win32":
+       inputs = load_csv(
+        _map=args.inputs,
+        chunksize=args.number_of_rows_per_chunk,
+        nrows=args.number_of_rows_to_process        
+        )     
+       
+    else:
+       inputs = load_csv(
         {
             os.path.basename(x):x
             for x in args.inputs
         },
         chunksize=args.number_of_rows_per_chunk,
         nrows=args.number_of_rows_to_process
-    )
+        )
 
     name = config['metadata']['dataset']
 
