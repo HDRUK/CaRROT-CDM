@@ -12,36 +12,6 @@ import coconnect.tools as tools
 def map():
     pass
 
-@click.command(help="Detect differences in either inputs or output csv files")
-@click.argument("file1")
-@click.argument("file2")
-def diff(file1,file2):
-    df1 = pd.read_csv(file1)
-    df2 = pd.read_csv(file2)
-
-    exact_match = df1.equals(df2)
-    if exact_match:
-        return
-
-    df = pd.concat([df1,df2]).drop_duplicates(keep=False)
-    if len(df) > 0:
-        print (" ======== Differing Rows ========== ")
-        print (df)
-        m = df1.merge(df2, on=df.columns[0], how='outer', suffixes=['', '_'], indicator=True)[['_merge']]
-        m = m[~m['_merge'].str.contains('both')]
-        file1 = file1.split('/')[-1]
-        file2 = file2.split('/')[-1]
-        
-        m['_merge'] = m['_merge'].map({'left_only':file1,'right_only':file2})
-        m = m.rename(columns={'_merge':'Only Contained Within'})
-        m.index.name = 'Row Number'
-        print (m.reset_index().to_dict(orient='records'))
-
-    else:
-        print (" ======= Rows are likely in a different order ====== ")
-        for i in range(len(df1)):
-            if not (df1.iloc[i] == df2.iloc[i]).any():
-                print ('Row',i,'is in a different location')
 
 
 @click.command(help="Generate a python class from the OMOP mapping json")
@@ -73,39 +43,6 @@ def register_class(pyconfig):
     tools.extract.register_class(pyconfig)
 
     
-@click.command(help="flattern a rules json file")
-@click.argument("rules")
-def flatten(rules):
-    data = tools.load_json(rules)
-    objects = data['cdm']
-    for destination_table,rule_set in objects.items():
-        if len(rule_set) < 2: continue
-        #print (rule_set)
-        df = pd.DataFrame.from_records(rule_set).T
-
-        #for name in df.index:
-        #    print (name,len(df.loc[name]))
-
-        df = df.loc['condition_concept_id'].apply(pd.Series)
-
-
-        def merge(s):
-            if s == 'term_mapping':
-                print ('hiya')
-                return {k:v for a in s for k,v in a.items()}
-        
-        print (df.groupby('source_field').agg(merge))
-            
-        #print (df.iloc[1])
-        #print (df.iloc[1][1])
-        #print (df)
-        #print (df.iloc[0])
-        #print (df.iloc[0].name)
-        #print (df.iloc[0].apply(pd.Series))
-        #print (df.iloc[1].apply(pd.Series)['term_mapping'].apply(pd.Series))
-        
-        exit(0)
-
     
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
@@ -381,7 +318,4 @@ py.add_command(list_classes,"list")
 py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
-
 map.add_command(run,"run")
-map.add_command(diff,"diff")
-#map.add_command(flatten,"flatten")
