@@ -1,5 +1,4 @@
 import os
-import sys
 import glob
 import json
 import pandas as pd
@@ -66,9 +65,7 @@ def load_json(f_in):
 
 
 def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):    
-    if sys.platform =="win32":
-        _map=get_file_map_from_dir_windows(_map)
-        
+           
     if rules is not None:
         rules = load_json(rules)
         source_map = get_mapped_fields_from_rules(rules)
