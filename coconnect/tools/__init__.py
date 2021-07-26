@@ -41,7 +41,7 @@ def get_classes(format=False):
             module = __import__(mname,fromlist=[fname])
             path = os.path.join(config_folder,fname)
             defined_classes = {
-                m[0]: {
+                fname: {
                     'module':m[1].__module__,
                     'path': path,
                     'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(config_folder,fname))))
@@ -67,10 +67,10 @@ def get_classes_from_tool(format=format):
             if os.path.isfile(link) == False:
                 os.unlink(path)
                 continue
-            
+        
         module = __import__(mname,fromlist=[fname])
         defined_classes = {
-            m[0]: {
+            fname: {
                 'module':m[1].__module__,
                 'path': path  if not os.path.islink(path) else os.readlink(path),
                 'sympath': path,

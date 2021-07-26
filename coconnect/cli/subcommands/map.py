@@ -123,10 +123,10 @@ def remove_class(ctx,name):
         _class = classes[name]
         os.unlink(_class['sympath'])
 
-@click.command(help="Perform OMOP Mapping")
-@click.option("--conf",'--rules',
+@click.command(help="Perform OMOP Mapping given an json file")
+@click.option("--rules",
               required=True,
-              help="pass the input json file containing all the mapping rules to be applied")
+              help="input json file containing all the mapping rules to be applied")
 @click.option("--type",
               default='csv',
               type=click.Choice(['csv']),
@@ -149,15 +149,11 @@ def remove_class(ctx,name):
                 #help="give a list of input files to process, and/or an input directory",
                 nargs=-1)
 @click.pass_context
-def run(ctx,conf,inputs,
+def run(ctx,rules,inputs,
         output_folder,type,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
 
-    _,conf_extension = os.path.splitext(conf)
-    if not any([conf_extension == ext for ext in ['.json','.py']]):
-        raise NotImplementedError(f"You must supply a json or py file with the arugment --conf/--rules. The file you supplied '{conf}' is not supported")
-    
     
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
@@ -191,16 +187,129 @@ def run(ctx,conf,inputs,
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
     inputs = tools.load_csv(inputs,
-                            rules=conf,
+                            rules=rules,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
-    if conf_extension == '.py':
-        available_classes = tools.get_classes()
-        if conf not in available_classes:
-            raise KeyError(f"cannot find config for {conf}")
+    config = tools.load_json(rules)
+    name = config['metadata']['dataset']
     
-        module = __import__(available_classes[name]['module'],fromlist=[name])
+    #build an object to store the cdm
+    cdm = coconnect.cdm.CommonDataModel(name=name,
+                                        inputs=inputs,
+                                        output_folder=output_folder,
+                                        use_profiler=use_profiler)
+    
+    #CDM needs to also track the number of rows to chunk
+    # - note: should check if this is still needed/used at all
+    cdm.set_chunk_size(number_of_rows_per_chunk)
+    #loop over the cdm object types defined in the configuration
+    #e.g person, measurement etc..
+    for destination_table,rules_set in config['cdm'].items():
+        #loop over each object instance in the rule set
+        #for example, condition_occurrence may have multiple rulesx
+        #for multiple condition_ocurrences e.g. Headache, Fever ..
+        for i,rules in enumerate(rules_set):
+            #make a new object for the cdm object
+            #Example:
+            # destination_table : person
+            # get_cdm_class returns <Person>
+            # obj : Person()
+            obj = coconnect.cdm.get_cdm_class(destination_table)()
+            #set the name of the object
+            obj.set_name(f"{destination_table}_{i}")
+            
+            #call the apply_rules function to setup how to modify the inputs
+            #based on the rules
+            obj.rules = rules
+            #Build a lambda function that will get executed during run time
+            #and will be able to apply these rules to the inputs that are loaded
+            #(this is useful when chunk)
+            obj.define = lambda self : tools.apply_rules(self)
+            
+            #register this object with the CDM model, so it can be processed
+            cdm.add(obj)
+            
+    cdm.process()
+
+
+@click.command(help="Perform OMOP Mapping given a python configuration file.")
+@click.option("--rules",
+              help="input json file containing all the mapping rules to be applied")
+@click.option("--pyconf","--conf",
+              required=True,
+              help="Run with a python configuration file")
+@click.option("--type",
+              default='csv',
+              type=click.Choice(['csv']),
+              help="specify the type of inputs, the default is .csv inputs")
+@click.option("--use-profiler",
+              is_flag=True,
+              help="turn on saving statistics for profiling CPU and memory usage")
+@click.option("--output-folder",
+              default=None,
+              help="define the output folder where to dump csv files to")
+@click.option("-nc","--number-of-rows-per-chunk",
+              default=None,
+              type=int,
+              help="choose to chunk running the data into nrows")
+@click.option("-np","--number-of-rows-to-process",
+              default=None,
+              type=int,
+              help="the total number of rows to process")
+@click.argument("inputs",
+                #help="give a list of input files to process, and/or an input directory",
+                nargs=-1)
+@click.pass_context
+def run_pyconfig(ctx,rules,pyconf,inputs,
+        output_folder,type,use_profiler,
+        number_of_rows_per_chunk,
+        number_of_rows_to_process):
+
+    
+    if type != 'csv':
+        raise NotImplementedError("Can only handle inputs that are .csv so far")
+        
+    #check if exists
+    if any('*' in x for x in inputs):
+        data_dir = os.path.dirname(coconnect.__file__)
+        data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
+
+        new_inputs = []
+        for i,x in enumerate(inputs):
+            if not os.path.exists(x):
+                new_inputs.extend(glob.glob(f"{data_dir}{os.path.sep}{x}"))
+            else:
+                new_inputs.append(x)
+        inputs = new_inputs
+
+    inputs = list(inputs)
+    for x in inputs:
+        if os.path.isdir(x):
+            inputs.remove(x)
+            inputs.extend(glob.glob(f'{x}{os.path.sep}*.csv'))
+        
+    #convert the list into a map between the filename and the full path
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    
+    if output_folder is None:
+        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+
+    inputs = tools.load_csv(inputs,
+                            rules=rules,
+                            chunksize=number_of_rows_per_chunk,
+                            nrows=number_of_rows_to_process)
+
+    if pyconf:
+        available_classes = tools.get_classes()
+        if pyconf not in available_classes:
+            ctx.invoke(list_classes)
+            raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
+    
+        module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
         defined_classes = [
             m[0]
             for m in inspect.getmembers(module, inspect.isclass)
@@ -217,8 +326,8 @@ def run(ctx,conf,inputs,
         #run it
         cdm.process()
                 
-    elif conf_extension == '.json':
-        config = tools.load_json(conf)
+    elif rules:
+        config = tools.load_json(rules)
         name = config['metadata']['dataset']
 
         #build an object to store the cdm
@@ -258,14 +367,21 @@ def run(ctx,conf,inputs,
                 cdm.add(obj)
     
         cdm.process()
-    
-    
-        
-    
-map.add_command(make_class,"make")
-map.add_command(register_class,"register")
-map.add_command(list_classes,"list")
-map.add_command(remove_class,"remove")
+    else:
+        raise NotImplementedError("You need to run the CLI tool with either a json or python configuration file")
+
+
+@click.group(help="Commands for using python configurations to run the ETL transformation.")
+def py():
+    pass
+
+py.add_command(make_class,"make")
+py.add_command(register_class,"register")
+py.add_command(list_classes,"list")
+py.add_command(remove_class,"remove")
+py.add_command(run_pyconfig,"run")
+map.add_command(py,"py")
+
 map.add_command(run,"run")
 map.add_command(diff,"diff")
-map.add_command(flatten,"flatten")
+#map.add_command(flatten,"flatten")
