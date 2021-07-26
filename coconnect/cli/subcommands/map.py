@@ -119,28 +119,13 @@ def remove_class(ctx,name):
         os.unlink(_class['sympath'])
 
 @click.command(help="Perform OMOP Mapping")
-@click.option("--name",
+@click.option("--conf",'--rules',
               required=True,
-              help="give the name of the dataset, use 'coconnect map list' to see what classes have been registered")
-@click.option("--rules",
-              required=False,
               help="pass the input json file containing all the mapping rules to be applied")
 @click.option("--type",
               default='csv',
               type=click.Choice(['csv']),
               help="specify the type of inputs, the default is .csv inputs")
-@click.option("--strip-name",
-              default=None,
-              type=int,
-              help="limit the number of chars in the key name for inputs {key:file}\
-              , useful with WhiteRabbit synthetic data, which is often limited to 31 characters")
-@click.option("--strip-name",
-              default=None,
-              type=int,
-              help="handy tool to strip the name of the input to match with whiterabbit")
-@click.option("--drop-csv-from-name",
-              is_flag=True,
-              help="handy tool to drop .csv. from the key name, may be needed with whiterabbit")
 @click.option("--use-profiler",
               is_flag=True,
               help="turn on saving statistics for profiling CPU and memory usage")
@@ -156,76 +141,118 @@ def remove_class(ctx,name):
               type=int,
               help="the total number of rows to process")
 @click.argument("inputs",
+                #help="give a list of input files to process, and/or an input directory",
                 nargs=-1)
 @click.pass_context
-def run(ctx,
-        name,rules,inputs,output_folder,
-        strip_name,drop_csv_from_name,
-        type,use_profiler,
+def run(ctx,conf,inputs,
+        output_folder,type,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
 
-    if not rules is None:
-        pyconfig = ctx.invoke(make_class,name=name,rules=rules)
-        ctx.invoke(register_class,pyconfig=pyconfig)
-        ctx.invoke(list_classes)
-        
+    _,conf_extension = os.path.splitext(conf)
+    if not any([conf_extension == ext for ext in ['.json','.py']]):
+        raise NotImplementedError(f"You must supply a json or py file with the arugment --conf/--rules. The file you supplied '{conf}' is not supported")
+    
+    
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
         
-    
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(coconnect.__file__)
-        data_dir = f'{data_dir}/data/'
+        data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
 
         new_inputs = []
         for i,x in enumerate(inputs):
             if not os.path.exists(x):
-                new_inputs.extend(glob.glob(f"{data_dir}/{x}"))
+                new_inputs.extend(glob.glob(f"{data_dir}{os.path.sep}{x}"))
             else:
                 new_inputs.append(x)
         inputs = new_inputs
 
-    #clean the names, if specified 
+    inputs = list(inputs)
+    for x in inputs:
+        if os.path.isdir(x):
+            inputs.remove(x)
+            inputs.extend(glob.glob(f'{x}{os.path.sep}*.csv'))
+        
+    #convert the list into a map between the filename and the full path
     inputs = {
-        (
-            x.split("/")[-1][:strip_name]
-            if drop_csv_from_name is False
-            else
-            x.split("/")[-1][:strip_name].replace('.csv','')
-        ):x
+        os.path.basename(x):x
         for x in inputs
     }
-
-
-    available_classes = tools.get_classes()
-    if name not in available_classes:
-        raise KeyError(f"cannot find config for {name}")
-    
-    module = __import__(available_classes[name]['module'],fromlist=[name])
-    defined_classes = [
-        m[0]
-        for m in inspect.getmembers(module, inspect.isclass)
-        if m[1].__module__ == module.__name__
-    ]
-    #should only be running one class anyway
-    defined_class = defined_classes[0]
-
     
     if output_folder is None:
-        output_folder = os.getcwd()+'/output_data/'
+        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    inputs = tools.load_csv(inputs,rules=rules,
+    inputs = tools.load_csv(inputs,
+                            rules=conf,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
-    cls = getattr(module,defined_class)
-    c = cls(inputs=inputs,
-            output_folder=output_folder,
-            use_profiler=use_profiler)
-    c.set_chunk_size(number_of_rows_per_chunk)
-    c.process()
+    if conf_extension == '.py':
+        available_classes = tools.get_classes()
+        if conf not in available_classes:
+            raise KeyError(f"cannot find config for {conf}")
+    
+        module = __import__(available_classes[name]['module'],fromlist=[name])
+        defined_classes = [
+            m[0]
+            for m in inspect.getmembers(module, inspect.isclass)
+            if m[1].__module__ == module.__name__
+        ]
+        #should only be running one class anyway
+        defined_class = defined_classes[0]
+        cls = getattr(module,defined_class)
+        #build a class object
+        cdm = cls(inputs=inputs,
+                  output_folder=output_folder,
+                  use_profiler=use_profiler)
+        cdm.set_chunk_size(number_of_rows_per_chunk)
+        #run it
+        cdm.process()
+                
+    elif conf_extension == '.json':
+        config = tools.load_json(conf)
+        name = config['metadata']['dataset']
+
+        #build an object to store the cdm
+        cdm = coconnect.cdm.CommonDataModel(name=name,
+                                            inputs=inputs,
+                                            output_folder=output_folder,
+                                            use_profiler=use_profiler)
+        
+        #CDM needs to also track the number of rows to chunk
+        # - note: should check if this is still needed/used at all
+        cdm.set_chunk_size(number_of_rows_per_chunk)
+        #loop over the cdm object types defined in the configuration
+        #e.g person, measurement etc..
+        for destination_table,rules_set in config['cdm'].items():
+            #loop over each object instance in the rule set
+            #for example, condition_occurrence may have multiple rulesx
+            #for multiple condition_ocurrences e.g. Headache, Fever ..
+            for i,rules in enumerate(rules_set):
+                #make a new object for the cdm object
+                #Example:
+                # destination_table : person
+                # get_cdm_class returns <Person>
+                # obj : Person()
+                obj = coconnect.cdm.get_cdm_class(destination_table)()
+                #set the name of the object
+                obj.set_name(f"{destination_table}_{i}")
+                
+                #call the apply_rules function to setup how to modify the inputs
+                #based on the rules
+                obj.rules = rules
+                #Build a lambda function that will get executed during run time
+                #and will be able to apply these rules to the inputs that are loaded
+                #(this is useful when chunk)
+                obj.define = lambda self : tools.apply_rules(self)
+                
+                #register this object with the CDM model, so it can be processed
+                cdm.add(obj)
+    
+        cdm.process()
     
     
         
