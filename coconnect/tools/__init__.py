@@ -13,6 +13,7 @@ from .file_helpers import (
     load_json,
     load_csv,
     get_file_map_from_dir,
+    get_file_map_from_dir_windows,
     get_mapped_fields_from_rules
 )
 
