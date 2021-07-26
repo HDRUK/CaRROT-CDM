@@ -21,7 +21,8 @@ from coconnect.cdm import (
 from coconnect.tools import (
     load_csv,
     load_json,
-    apply_rules
+    apply_rules,
+    get_file_map_from_dir_windows
 )
 
 
@@ -55,7 +56,7 @@ def main():
 
     if sys.platform =="win32":
        inputs = load_csv(
-        _map=args.inputs,
+        _map=get_file_map_from_dir_windows(args.inputs),
         chunksize=args.number_of_rows_per_chunk,
         nrows=args.number_of_rows_to_process        
         )     
