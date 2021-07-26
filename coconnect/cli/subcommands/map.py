@@ -46,7 +46,6 @@ def diff(file1,file2):
 
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
-              required=True,
               help="give the name of the dataset, this will be the name of the .py class file created")
 @click.option("--register",
               is_flag=True,
@@ -56,6 +55,9 @@ def diff(file1,file2):
 
 def make_class(ctx,name,rules,register):
     data = tools.load_json(rules)
+    if name == None:
+        name = data['metadata']['dataset']
+
     fname = tools.extract.make_class(data,name)
     if register:
         ctx.invoke(register_class,pyconfig=fname)
@@ -65,6 +67,9 @@ def make_class(ctx,name,rules,register):
 @click.argument("pyconfig")
 def register_class(pyconfig):
     pyconfig = os.path.abspath(pyconfig)
+    _,conf_extension = os.path.splitext(pyconfig)
+    if conf_extension != '.py':
+        raise NotImplementedError(f"You're trying to register the file {pyconfig} which isnt a .py file")
     tools.extract.register_class(pyconfig)
 
     
