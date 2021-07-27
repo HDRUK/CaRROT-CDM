@@ -135,36 +135,43 @@ The tool ==requires== you to pass a `.json` file for the rules, as well as space
 $ coconnect map run --rules <.json file for rules> <csv file 1> <csv file 2> <csv file 3> ...
 ```
 
-=== "Unix Users"
-    For macOS/Ubuntu/Centos etc. users, you can easily run from the CLI with a wildcard. Assuming your input data is located in the folder `data/` you can run:
-    ```
-    $ coconnect map run --rules rules.json data/*.csv
-    ```
 
-    The tool has the capability to also run on a folder containing the `.csv` files. The tool will look in the folder for `.csv` files and load them.
-    ```
-    $ coconnect map run --rules rules.json data/
-    ```
+!!! example
+
+    === "Unix Users"
     
-=== "Windows Users"
-    For Windows users, you can run by passing the full-path to the folder containing your `.csv` input files.
+        For macOS/Ubuntu/Centos etc. users, you can easily run from the CLI with a wildcard. Assuming your input data is located in the folder `data/` you can run:
 
-    ```
-    $ coconnect map run --rules rules.json D:\Foo\Bar\data
-    ```
 
-    Or by manually passing the individual input csv files:
-    ```
-    $ coconnect map run --rules rules.json D:\Foo\Bar\data\file_1.csv D:\Foo\Bar\data\file_2.csv 
-    ```    
+        ``` bash
+    	$ coconnect map run --rules rules.json data/*.csv
+        ```
 
-    Wildcards for inputs ....
-    {==
+    	The tool has the capability to also run on a folder containing the `.csv` files. The tool will look in the folder for `.csv` files and load them:
 
-    THIS NEEDS INSTRUCTIONS FOR WINDOWS USERS
+        ``` bash
+    	$ coconnect map run --rules rules.json data/
+        ```
 
-    ==}
 
+    === "Windows Users"
+    
+        For Windows users, you can run by passing the full-path to the folder containing your `.csv` input files.
+
+
+        ``` 
+    	> coconnect map run --rules rules.json D:\Foo\Bar\data
+        ```
+
+        Or by manually passing the individual input csv files:
+        
+        ``` 
+        > coconnect map run --rules rules.json D:\Foo\Bar\data\file_1.csv D:\Foo\Bar\data\file_2.csv
+        ```
+
+        Wildcards for inputs ....
+        {== THIS NEEDS INSTRUCTIONS FOR WINDOWS USERS ==}
+	
 ### 5. Check the output
 
 By default, mapped `csv` files are created in the folder `output_data` within your current working directory.
