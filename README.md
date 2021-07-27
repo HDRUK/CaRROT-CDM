@@ -15,7 +15,6 @@ CO-CONNECT-Tools contains a pythonic version of the OHDSI CDM (default version 5
 !!! caution
     This tool is only stable and can run with python versions `>=3.6` on the latest Unix distributions (macOS, Ubuntu, Centos7) and on Windows. 
 
-
 To install the package, the easiest way is to do this is via pip:
 ```
 $ python -m pip install co-connect-tools
@@ -88,7 +87,6 @@ To run the transformation to CDM you will need:
 1. `json` file containing the so-called mapping rules
 
 
-
 ### 3. Check inputs
 
 Input data is expected in `csv` format.
@@ -104,22 +102,44 @@ With your `json` file for the rules, you can quickly check the tool is able to r
 $ coconnect display json rules.json
 ```
 
+### 4. Run the tool
 
+Pass the tool the rules `.json` file 
 
-
-### Setup 
-
-To run this example, obtain the location of the coconnect data folder, and set this as an environment variable for ease.
 ```
-export COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
+$ coconnect map run --rules <.json file for rules> <csv file 1> <csv file 2> <csv file 3> ...
+```
+E.g.:
+```
+$ coconnect map run --rules rules.json data/*.csv
 ```
 
-### Execute
+### 5. Check the output
 
-The example dataset and associated mapping rules can be run with the simple script `etlcdm.py`:
-```bash
-etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o test/
+By default, mapped `csv` files are created in the folder `output_data` within your current working directory.
+!!! note
+    To specify a different output folder, use the command line argument `--output-folder` when running `coconnect map run`
+
+Additionally, log files are created in a subdirectory of the output folder, for example:
 ```
+output_data/
+├── condition_occurrence.csv
+├── logs
+│   └── 2021-07-19T100054.json
+└── observation.csv
+```
+
+Other than opening up the output csv in your favourite viewer, you can also use the command line tools to display a simple dataframe
+```
+$ coconnect display dataframe --drop-na output_data/condition_occurrence.csv 
+       condition_occurrence_id  person_id  condition_concept_id  ... condition_end_datetime condition_source_value  condition_source_concept_id
+0                            1          9                312437  ...    2020-04-10 00:00:00                      1                       312437
+1                            2         18                312437  ...    2020-04-11 00:00:00                      1                       312437
+2                            3         28                312437  ...    2020-04-10 00:00:00                      1                       312437
+3                            4         38                312437  ...    2020-04-10 00:00:00                      1                       312437
+4                            5         44                312437  ...    2020-04-10 00:00:00                      1                       312437
+```
+
 
 ### Inspecting the Output
 
