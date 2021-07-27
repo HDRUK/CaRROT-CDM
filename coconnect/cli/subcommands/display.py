@@ -12,8 +12,9 @@ def display():
 @click.option('--drop-na',is_flag=True)
 @click.option('--markdown',is_flag=True)
 @click.option('--head',type=int,default=None)
-def dataframe(fname,drop_na,markdown,head):
-    df = pandas.read_csv(fname,nrows=head)
+@click.option('--separator','--sep',type=str,default='\t')
+def dataframe(fname,drop_na,markdown,head,separator):
+    df = pandas.read_csv(fname,nrows=head,sep=separator)
     if drop_na:
         df = df.dropna(axis=1,how='all')
     if markdown:
