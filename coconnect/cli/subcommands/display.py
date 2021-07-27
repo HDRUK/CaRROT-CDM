@@ -62,7 +62,7 @@ def print_json(rules):
 def diff(file1,file2,separator):
     df1 = pandas.read_csv(file1,sep=separator)
     df2 = pandas.read_csv(file2,sep=separator)
-
+    
     exact_match = df1.equals(df2)
     if exact_match:
         return
