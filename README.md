@@ -1,40 +1,54 @@
 # CO-CONNECT Tools
 
-Welcome to our repo for `python` tools used by/with the CO-CONNECT project
+Welcome to our repo for `python` tools used by/with the CO-CONNECT project, primarily for performing ETL on health datasets, converting them to the OHDSI CommonDataModel.
+
+CO-CONNECT-Tools contains a pythonic version of the OHDSI CDM (default version 5.3.1). CLI tools can be used to define and process a CDM model given input data and given a `json` rules file.
 
 ### Table of Contents
 1. [Installing](#installing)
-1. [ETL Quick Start](#quick)
+1. [ETL-CDM Quick Start](#quick)
 1. [CLI](#cli)
-
 
 
 ## Installing
 
-This package runs with python versions `>=3.6`, the easiest way to install is via pip:
+!!! caution
+    This tool is only stable and can run with python versions `>=3.6` on the latest Unix distributions (macOS, Ubuntu, Centos7) and on Windows. 
+
+
+To install the package, the easiest way is to do this is via pip:
 ```
-$ pip install co-connect-tools
+$ python -m pip install co-connect-tools
 ```
-To ensure the right version of python (python3) is used to install from pip you can do:
-```
-$ pip3 install co-connect-tools
-```
-Or to be even safer:
+
+To ensure the right version of python (python3) is used to install from pip you can also do:
 ```
 $ python3 -m pip install co-connect-tools
 ```
-
-### From Source
-
-To install from the source code, you can do:
+Or
 ```
-$ git clone https://github.com/CO-CONNECT/co-connect-tools.git
-$ cd co-connect-tools
-$ pip install -e .
+$ pip3 install co-connect-tools
 ```
 
-### Installing via yum
-Package dependencies are located in `requirements.txt`, which need to be installed if you are building from source without pip:
+If you are struggling to install from `pip` due to lack of root permissions, or you are not using a virtual python environment (e.g. conda), you can install as a user with the command:
+```
+$  python3 -m pip install co-connect-tools --user
+```
+This will install the package into a local user folder.
+
+Alterative you can [download the source code](https://github.com/CO-CONNECT/co-connect-tools/tags), unpack and install as a local package:
+```
+$ cd < downloaded source code folder >
+$ python3 -m pip install -e . 
+```
+
+!!! tip
+    If you have trouble with `pip` hanging on installing dependencies, try to install using the argument `--no-cache-dir`. Also make sure that you have updated `pip` via `pip3 install --upgrade pip`.
+
+
+### Manual Install 
+If you are on a system and need to install manual without pip (e.g. yum), you can install from source but will also need to install the additional dependencies that are located in `requirements.txt`:
+
 ```bash
 $ cat requirements.txt 
 numpy
@@ -45,26 +59,49 @@ graphviz
 click
 sqlalchemy
 tabulate
+psutil
 ```
 
-## ETL Quick Start <a name="quick"></a>
+## ETL-CDM Quick Start <a name="quick"></a>
 
-The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool, is to use the script `etlcdm.py`:
+The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool.
 
-After installing the package you should be able to execute the command line script
+
+### 1. Checking the package
+
+To verify the package is installed you can test the following information commands:
 ```
-$ etlcdm.py --help
-usage: etlcdm.py [-h] --rules RULES --out-dir OUT_DIR --inputs INPUTS [INPUTS ...]
+$ coconnect info version
+<tool version in format X.Y.Z>
 
-ETL-CDM: transform a dataset into a CommonDataModel.
+$ coconnect info install_folder
+<path to install folder>
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --rules RULES         input .json file
-  --out-dir OUT_DIR, -o OUT_DIR
-                        name of the output folder
-  --inputs INPUTS [INPUTS ...], -i INPUTS [INPUTS ...]
-                        input csv files
+```
+
+
+### 2. Gather inputs
+
+To run the transformation to CDM you will need:   
+
+1. Input Data  
+1. `json` file containing the so-called mapping rules
+
+
+
+### 3. Check inputs
+
+Input data is expected in `csv` format.
+
+It is possible to do a quick check to display the first 10 rows of an input `csv`.
+Run:
+```
+$ coconnect display dataframe --head 10 <input data csv file>
+```
+
+With your `json` file for the rules, you can quickly check the tool is able to read and display them via:
+```
+$ coconnect display json rules.json
 ```
 
 
