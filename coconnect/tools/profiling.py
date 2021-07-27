@@ -25,7 +25,7 @@ class Profiler:
         self.logger.info(f"tracking {self.pid} every {self.interval} seconds")
         #count the number of cpus the computer running this process has
         self.cpu_count = psutil.cpu_count()
-        self.logger.info(f"{self.cepu_count} cpus available")
+        self.logger.info(f"{self.cpu_count} cpus available")
         #initiate a threaded function
         #that will run in a separate process and can monitor CPU/memory in the background
         self.th = threading.Thread(target=self.track)
