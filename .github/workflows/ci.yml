@@ -39,9 +39,9 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: coconnect display json example/sample_config/lion_structural_mapping.json
-      - run: coconnect map make --name Lion --register  example/sample_config/lion_structural_mapping.json
-      - run: coconnect map list
-      - run: coconnect map run --name Lion example/sample_input_data/*.csv
+      - run: coconnect map py make --name Lion --register  example/sample_config/lion_structural_mapping.json
+      - run: coconnect map py list
+      - run: coconnect map py run --conf Lion.py example/sample_input_data/*.csv
       - uses: actions/upload-artifact@v2
         with:
           name: outputs
@@ -71,12 +71,12 @@ jobs:
       - run: |
           for filename in tests/*.csv; do
                fname=${filename##*/}
-               if [[ -z $(coconnect map diff $filename coconnect/data/test/expected_outputs/$fname) ]];
+               if [[ -z $(coconnect display diff $filename coconnect/data/test/expected_outputs/$fname) ]];
                then
                   echo "$fname is good"
                else
                   echo "$fname failed!"
-                  coconnect map diff $filename coconnect/data/test/expected_outputs/$fname
+                  coconnect map display $filename coconnect/data/test/expected_outputs/$fname
                   exit
                fi
           done

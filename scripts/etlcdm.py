@@ -47,17 +47,29 @@ def main():
                         default=None,
                         type=int,
                         help="the total number of rows to process")
+    parser.add_argument("--use-profiler",
+                        dest='use_profiler',
+                        action='store_true',
+                        help="turn on saving statistics for profiling CPU and memory usage")
 
-    
+    #get the CLI arguments
     args = parser.parse_args()
-
+    
+    #load the rules json file 
     config = load_json(args.rules)
 
+    # load the csv inputs, given a map between the name of the .csv file
+    #    and the full path of the file
+    # by also passing the rules to load_csv, only needed columns (used by rules)
+    #    will be loaded
+    # pass extra arguments if the user has specified chunking
+    #    or has specified only processing a limited number of rows
     inputs = load_csv(
         {
             os.path.basename(x):x
             for x in args.inputs
         },
+        rules=args.rules,
         chunksize=args.number_of_rows_per_chunk,
         nrows=args.number_of_rows_to_process
     )
@@ -67,7 +79,12 @@ def main():
     #build an object to store the cdm
     cdm = CommonDataModel(name=name,
                           inputs=inputs,
-                          output_folder=args.out_dir)
+                          output_folder=args.out_dir,
+                          use_profiler=args.use_profiler)
+    #CDM needs to also track the number of rows to chunk
+    # - note: should check if this is still needed/used at all
+    cdm.set_chunk_size(args.number_of_rows_per_chunk)
+
 
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
@@ -88,6 +105,9 @@ def main():
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
             obj.rules = rules
+            #Build a lambda function that will get executed during run time
+            #and will be able to apply these rules to the inputs that are loaded
+            #(this is useful when chunk)
             obj.define = lambda self : apply_rules(self)
             
             #register this object with the CDM model, so it can be processed
