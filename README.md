@@ -65,7 +65,7 @@ psutil
 The primary purpose of this package is running ETL of given a dataset and a set of transform rules encoded within a `json` file. The simplest way to run the ETLTool, designed to handle the output `json` of the CO-CONNECT Mapping-Pipeline web-tool.
 
 
-### 1. Checking the package
+### 1. Checking The Package
 
 To verify the package is installed you can test the following information commands:
 ```
@@ -77,7 +77,7 @@ $ coconnect info install_folder
 
 ```
 
-### 2. Gather inputs
+### 2. Gather Inputs
 
 To run the transformation to CDM you will need:   
 
@@ -85,7 +85,7 @@ To run the transformation to CDM you will need:
 1. `json` file containing the so-called mapping rules
 
 
-### 3. Check inputs
+### 3. Check Inputs
 
 Input data is expected in `csv` format.
 
@@ -100,7 +100,7 @@ With your `json` file for the rules, you can quickly check the tool is able to r
 $ coconnect display json rules.json
 ```
 
-### 4. Run the tool
+### 4. Run The Tool
 
 The synthax for running the tool can be seen from using `--help`:
 ```
@@ -172,7 +172,7 @@ $ coconnect map run --rules <.json file for rules> <csv file 1> <csv file 2> <cs
         Wildcards for inputs ....
         {== THIS NEEDS INSTRUCTIONS FOR WINDOWS USERS ==}
 	
-### 5. Check the output
+### 5. Check The Output
 
 By default, mapped `csv` files are created in the folder `output_data` within your current working directory.
 !!! tip
