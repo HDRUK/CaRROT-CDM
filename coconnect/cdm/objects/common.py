@@ -80,11 +80,17 @@ class DestinationTable(object):
         ]
 
     def get_ordering(self):
-        return [
+        retval = [
             field
             for field in self.fields
             if getattr(self,field).pk == True
         ]
+
+        if len(retval) == 0:
+            #warning, no pk has been set on any field
+            retval = self.fields[0]
+        
+        return retval
         
     def __getitem__(self, key):
         return getattr(self, key)

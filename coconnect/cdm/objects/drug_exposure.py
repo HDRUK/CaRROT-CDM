@@ -3,12 +3,12 @@ from .common import DestinationTable, DestinationField
 
 class DrugExposure(DestinationTable):
     """
-    CDM Condition Occurrence object class
+    CDM Drug Exposure object class
     """
     
     name = 'drug_exposure'
     def __init__(self):
-        self.drug_exposure_id             = DestinationField(dtype="INTEGER"      , required=True)
+        self.drug_exposure_id             = DestinationField(dtype="INTEGER"      , required=True, pk=True)
         self.person_id                    = DestinationField(dtype="INTEGER"      , required=True)
         self.drug_concept_id              = DestinationField(dtype="INTEGER"      , required=True)
         self.drug_exposure_start_date     = DestinationField(dtype="DATE"         , required=True)
@@ -40,7 +40,7 @@ class DrugExposure(DestinationTable):
     def finalise(self,df):
         """
         Overloads the finalise method defined in the DestinationTable class.
-        For drug_exposure, the _id of the condition is often not set
+        For drug_exposure, the _id of the drug is often not set
         Therefore if the series is null, then we just make an incremental index for the _id
 
         Returns:
