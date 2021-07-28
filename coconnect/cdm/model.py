@@ -37,7 +37,10 @@ class CommonDataModel:
             if kwargs['use_profiler']:
                 self.profiler = Profiler(name=name)
                 self.profiler.start()
-        
+
+        #default separator for csv outputs is a tab
+        self._csv_separator = '\t'
+                
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
             
@@ -344,11 +347,14 @@ class CommonDataModel:
             else:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
-            df.to_csv(fname,mode=mode,header=header,index=True)
+            df.to_csv(fname,mode=mode,header=header,index=True,sep=self._csv_separator)
             self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
 
+    def set_csv_separator(self,sep):
+        self._csv_separator = sep
+        
     def set_chunk_size(self,value:int):
         self.chunksize = value
         

@@ -12,8 +12,9 @@ def display():
 @click.option('--drop-na',is_flag=True)
 @click.option('--markdown',is_flag=True)
 @click.option('--head',type=int,default=None)
-def dataframe(fname,drop_na,markdown,head):
-    df = pandas.read_csv(fname,nrows=head)
+@click.option('--separator','--sep',type=str,default='\t')
+def dataframe(fname,drop_na,markdown,head,separator):
+    df = pandas.read_csv(fname,nrows=head,sep=separator)
     if drop_na:
         df = df.dropna(axis=1,how='all')
     if markdown:
@@ -55,12 +56,13 @@ def print_json(rules):
 
 
 @click.command(help="Detect differences in either inputs or output csv files")
+@click.option('--separator','--sep',type=str,default='\t')
 @click.argument("file1")
 @click.argument("file2")
-def diff(file1,file2):
-    df1 = pandas.read_csv(file1)
-    df2 = pandas.read_csv(file2)
-
+def diff(file1,file2,separator):
+    df1 = pandas.read_csv(file1,sep=separator)
+    df2 = pandas.read_csv(file2,sep=separator)
+    
     exact_match = df1.equals(df2)
     if exact_match:
         return
