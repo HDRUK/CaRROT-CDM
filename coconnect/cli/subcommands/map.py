@@ -68,6 +68,10 @@ def remove_class(ctx,name):
               default='csv',
               type=click.Choice(['csv']),
               help="specify the type of inputs, the default is .csv inputs")
+@click.option("--csv-separator",
+              default=None,
+              type=click.Choice([';',':','\t',',',' ',]),
+              help="choose a separator to use when dumping output csv files")
 @click.option("--use-profiler",
               is_flag=True,
               help="turn on saving statistics for profiling CPU and memory usage")
@@ -87,7 +91,7 @@ def remove_class(ctx,name):
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,
-        output_folder,type,use_profiler,
+        output_folder,type,csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
 
@@ -136,6 +140,11 @@ def run(ctx,rules,inputs,
                                         inputs=inputs,
                                         output_folder=output_folder,
                                         use_profiler=use_profiler)
+
+    #allow the csv separator to be changed
+    #the default is tab (\t) separation
+    if not csv_separator is None:
+        cdm.set_csv_separator(csv_separator)
     
     #CDM needs to also track the number of rows to chunk
     # - note: should check if this is still needed/used at all

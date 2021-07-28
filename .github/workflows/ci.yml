@@ -76,7 +76,7 @@ jobs:
                   echo "$fname is good"
                else
                   echo "$fname failed!"
-                  coconnect map display $filename coconnect/data/test/expected_outputs/$fname
+                  coconnect display diff $filename coconnect/data/test/expected_outputs/$fname
                   exit
                fi
           done
