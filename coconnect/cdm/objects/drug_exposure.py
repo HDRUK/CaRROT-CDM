@@ -11,12 +11,12 @@ class DrugExposure(DestinationTable):
         self.drug_exposure_id             = DestinationField(dtype="INTEGER"      , required=True, pk=True)
         self.person_id                    = DestinationField(dtype="INTEGER"      , required=True)
         self.drug_concept_id              = DestinationField(dtype="INTEGER"      , required=True)
-        self.drug_exposure_start_date     = DestinationField(dtype="DATE"         , required=True)
-        self.drug_exposure_start_datetime = DestinationField(dtype="DATETIME"     , required=False)
-        self.drug_exposure_end_date       = DestinationField(dtype="DATE"         , required=True)
-        self.drug_exposure_end_datetime   = DestinationField(dtype="DATETIME"     , required=False)
+        self.drug_exposure_start_date     = DestinationField(dtype="DATE"         , required=False)
+        self.drug_exposure_start_datetime = DestinationField(dtype="DATETIME"     , required=True)
+        self.drug_exposure_end_date       = DestinationField(dtype="DATE"         , required=False)
+        self.drug_exposure_end_datetime   = DestinationField(dtype="DATETIME"     , required=True)
         self.verbatim_end_date            = DestinationField(dtype="DATE"         , required=False)
-        self.drug_type_concept_id         = DestinationField(dtype="INTEGER"      , required=True)
+        self.drug_type_concept_id         = DestinationField(dtype="INTEGER"      , required=False)
         self.stop_reason                  = DestinationField(dtype="VARCHAR(20)"  , required=False)
         self.refills                      = DestinationField(dtype="INTEGER"      , required=False)
         self.quantity                     = DestinationField(dtype="FLOAT"        , required=False)
@@ -71,6 +71,7 @@ class DrugExposure(DestinationTable):
         """
 
         df = super().get_df(**kwargs)
+        
         #make sure the concept_ids are numeric, otherwise set them to null
         df['drug_concept_id'] = pd.to_numeric(df['drug_concept_id'],errors='coerce')
         #require the drug_concept_id  to be filled

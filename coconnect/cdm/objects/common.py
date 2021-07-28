@@ -244,7 +244,10 @@ class DestinationTable(object):
             
             ndiff = nbefore - nafter
             if ndiff>0:
-                self.logger.warning(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
+                log = self.logger.warning
+                if nafter == 0:
+                    log = self.logger.error
+                log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
             self._meta['required_fields'][field] = {
                 'before':nbefore,
                 'after':nafter
