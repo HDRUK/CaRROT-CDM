@@ -29,9 +29,7 @@ def set_debug(value):
     _DEBUG = value
     
 def get_classes(format=False):
-
     retval = get_classes_from_tool(format=format)
-
     config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
     if config_folder is not None:
         sys.path.append(config_folder)
@@ -50,7 +48,7 @@ def get_classes(format=False):
                 if m[1].__module__ == module.__name__
             }
             retval.update(defined_classes)
-                
+
     return retval
     
 def get_classes_from_tool(format=format):
