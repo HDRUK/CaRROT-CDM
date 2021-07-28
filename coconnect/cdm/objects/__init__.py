@@ -3,6 +3,7 @@ from .condition_occurrence import ConditionOccurrence
 from .visit_occurrence import VisitOccurrence
 from .measurement import Measurement
 from .observation import Observation
+from .drug_exposure import DrugExposure
 
 import sys
 this = sys.modules[__name__]
