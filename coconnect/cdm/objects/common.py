@@ -27,6 +27,7 @@ class DataFormatter(collections.OrderedDict):
         super().__init__()
         self['INTEGER'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
         self['FLOAT'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['VARCHAR(MAX)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
         self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
         self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
