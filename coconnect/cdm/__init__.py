@@ -9,7 +9,8 @@ from .objects import (
     ConditionOccurrence,
     VisitOccurrence,
     Measurement,
-    Observation
+    Observation,
+    DrugExposure
 )
 
 from .decorators import (
@@ -17,5 +18,6 @@ from .decorators import (
     define_condition_occurrence,
     define_visit_occurrence,
     define_measurement,
-    define_observation
+    define_observation,
+    define_drug_exposure
 )
