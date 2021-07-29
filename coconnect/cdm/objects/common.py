@@ -27,6 +27,7 @@ class DataFormatter(collections.OrderedDict):
         super().__init__()
         self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
         self['Text50'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['Text60'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
         self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
         self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
