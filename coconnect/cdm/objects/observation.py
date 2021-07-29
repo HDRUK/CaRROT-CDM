@@ -12,7 +12,7 @@ class Observation(DestinationTable):
         self.person_id                     = DestinationField(dtype="Integer"   , required=True )
         self.observation_concept_id        = DestinationField(dtype="Integer"   , required=True )
         self.observation_date              = DestinationField(dtype="Date"      , required=False )
-        self.observation_datetime          = DestinationField(dtype="Timestamp" , required=False )
+        self.observation_datetime          = DestinationField(dtype="Timestamp" , required=True )
         self.observation_type_concept_id   = DestinationField(dtype="Integer"   , required=False )
         self.value_as_number               = DestinationField(dtype="Float"     , required=False )
         self.value_as_string               = DestinationField(dtype="Text60"    , required=False )

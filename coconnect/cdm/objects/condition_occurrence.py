@@ -12,7 +12,7 @@ class ConditionOccurrence(DestinationTable):
         self.person_id                     = DestinationField(dtype="Integer"   , required=True )
         self.condition_concept_id          = DestinationField(dtype="Integer"   , required=True )
         self.condition_start_date          = DestinationField(dtype="Date"      , required=False )
-        self.condition_start_datetime      = DestinationField(dtype="Timestamp" , required=False )
+        self.condition_start_datetime      = DestinationField(dtype="Timestamp" , required=True )
         self.condition_end_date            = DestinationField(dtype="Date"      , required=False )
         self.condition_end_datetime        = DestinationField(dtype="Timestamp" , required=False )
         self.condition_type_concept_id     = DestinationField(dtype="Integer"   , required=False )

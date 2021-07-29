@@ -12,7 +12,7 @@ class Measurement(DestinationTable):
         self.person_id                     = DestinationField(dtype="Integer"   , required=True )
         self.measurement_concept_id        = DestinationField(dtype="Integer"   , required=True )
         self.measurement_date              = DestinationField(dtype="Date"      , required=False )
-        self.measurement_datetime          = DestinationField(dtype="Timestamp" , required=False )
+        self.measurement_datetime          = DestinationField(dtype="Timestamp" , required=True )
         self.measurement_type_concept_id   = DestinationField(dtype="Integer"   , required=False )
         self.operator_concept_id           = DestinationField(dtype="Integer"   , required=False )
         self.value_as_number               = DestinationField(dtype="Float"     , required=False )
