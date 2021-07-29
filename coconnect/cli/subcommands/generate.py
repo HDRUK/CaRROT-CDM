@@ -2,7 +2,8 @@ import os
 import click
 import coconnect
 import pandas as pd
-    
+import numpy as np
+
 @click.group(help='Commands to generate helpful files.')
 def generate():
     pass
@@ -64,23 +65,33 @@ def synthetic(report,number_of_events,output_directory,fill_column_with_values):
 @click.argument("version")
 def cdm(table,version):
     data_dir = os.path.dirname(coconnect.__file__)
-    data_dir = f'{data_dir}/data/'
-
-    version = 'v'+version.replace(".","_")
+    data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
+    data_dir = f'{data_dir}{os.path.sep}cdm{os.path.sep}BCLINK_EXPORT{os.path.sep}'
     
     #load the details of this cdm objects from the data files taken from OHDSI GitHub
     # - set the table (e.g. person, condition_occurrence,...)  as the index
     #   so that all values associated with the object (name) can be retrieved
     # - then set the field (e.g. person_id, birth_datetime,,) to help with future lookups
     # - just keep information on if the field is required (Yes/No) and what the datatype is (INTEGER,..)
-    cdm = pd.read_csv(f'{data_dir}/cdm/OMOP_CDM_{version}.csv',encoding="ISO-8859-1")\
-                 .set_index('table')\
-                 .loc[table].set_index('field')[['required', 'type']]
+    cdm = pd.read_csv(f'{data_dir}{version}{os.path.sep}export-{table.upper()}.csv',
+                      encoding="ISO-8859-1",sep='\t')\
+                      .set_index('DESCRIPTION')
 
     for index,row in cdm.iterrows():
-        required = row['required'] == "Yes"
-        dtype = row['type']
-        string = f'self.{index} = DestinationField(dtype="{dtype}", required={required})'
+        required = row['REQUIRED'] == "Yes"
+        dtype = row['TYPE']
+        length = row['LENGTH']
+        key = row['KEY']
+        
+        if not np.isnan(length):
+            dtype = f"{dtype}{int(length)}"
+
+        if not np.isnan(key):
+            extra = ', pk=True'
+        else:
+            extra = ''
+            
+        string = f'self.{index} = DestinationField(dtype="{dtype}", required={required} {extra})'
         print (string)
     
 generate.add_command(cdm,"cdm")
