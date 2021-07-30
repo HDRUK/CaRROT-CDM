@@ -79,7 +79,7 @@ def remove_class(ctx,name):
               default=None,
               help="define the output folder where to dump csv files to")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default=None,
+              default=100000,
               type=int,
               help="choose to chunk running the data into nrows")
 @click.option("-np","--number-of-rows-to-process",
