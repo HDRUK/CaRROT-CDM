@@ -2,6 +2,7 @@ import os
 import glob
 import json
 import pandas as pd
+from coconnect.tools.logger import Logger
 
 class MissingInputFiles(Exception):
     pass
@@ -11,6 +12,10 @@ class InputData:
         self.chunksize = chunksize
         self.__file_readers = {}
         self.__dataframe = {}
+
+        self.logger = Logger(self.__class__.__name__)
+        self.logger.info("InputData Object Created")
+
 
     def all(self):
         return {
@@ -22,24 +27,32 @@ class InputData:
         return self.__file_readers.keys()
 
     def next(self):
-        check = {}
+        #loop over all loaded files
         for key in self.keys():
-            try:
-                self.get_df(key)
-            except StopIteration:
-                self.__dataframe[key] = pd.DataFrame(columns = self.__dataframe[key].columns)
-                
-            check[key] = self.__dataframe[key].empty
+            #get the next dataframe chunk for this file
+            self.__dataframe[key] = self.get_df_chunk(key)
 
-        if all([x==True for x in check.values()]):
-            raise StopIteration("all input files have been used now")
-                        
-    def get_df(self,key):
-        self.__dataframe[key] = self.__file_readers[key].get_chunk(self.chunksize)
+        #check if all __dataframe objects are empty
+        #if they are, reaise a StopIteration as processing has finished
+        if all([x.empty for x in self.__dataframe.values()]):
+            self.logger.debug("All input files have now been processed.")
+            raise StopIteration
+
+        self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
+
+        
+    def get_df_chunk(self,key):
+        try:
+            #for this file reader, get the next chunk of data and update self.__dataframe
+            return self.__file_readers[key].get_chunk(self.chunksize)
+        except StopIteration:
+            #otherwise, if at the end of the file reader, return an empty frame
+            return pd.DataFrame()
+            
 
     def __getitem__(self,key):
         if key not in self.__dataframe.keys():
-            self.get_df(key)
+            self.__dataframe[key] = self.get_df_chunk(key)
         return self.__dataframe[key]
         
     def __setitem__(self,key,obj):

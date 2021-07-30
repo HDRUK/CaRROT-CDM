@@ -47,14 +47,17 @@ class CommonDataModel:
         if 'inputs' in kwargs:
             inputs = kwargs['inputs']
             chunked_inputs = False
-            if not isinstance(inputs,dict):
-                if not isinstance(inputs,InputData):
-                    self.logger.error(inputs)
-                    raise NoInputFiles("setting up inputs that are not a dict!!")
-                else:
-                    chunked_inputs = True
-                    self.logger.warning("You are running with chunked inputs!")
 
+            
+            if isinstance(inputs,dict):
+                self.logger.info("Running with an InputData object")
+            elif isinstance(inputs,InputData):
+                chunked_inputs = True
+                self.logger.info("Running with an InputData object")
+            else:
+                self.logger.error(inputs)
+                raise NoInputFiles("setting up inputs that are not valid!")
+            
             if not self.inputs is None:
                 self.logger.waring("overwriting inputs")
 
