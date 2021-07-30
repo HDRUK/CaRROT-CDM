@@ -79,7 +79,7 @@ def remove_class(ctx,name):
               default=None,
               help="define the output folder where to dump csv files to")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default=None,
+              default=100000,
               type=int,
               help="choose to chunk running the data into nrows")
 @click.option("-np","--number-of-rows-to-process",
@@ -87,6 +87,7 @@ def remove_class(ctx,name):
               type=int,
               help="the total number of rows to process")
 @click.argument("inputs",
+                required=True,
                 #help="give a list of input files to process, and/or an input directory",
                 nargs=-1)
 @click.pass_context
@@ -113,6 +114,7 @@ def run(ctx,rules,inputs,
         inputs = new_inputs
 
     inputs = list(inputs)
+    
     for x in inputs:
         if os.path.isdir(x):
             inputs.remove(x)

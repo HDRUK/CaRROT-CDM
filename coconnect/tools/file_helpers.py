@@ -10,6 +10,7 @@ class MissingInputFiles(Exception):
 class InputData:
     def __init__(self,chunksize):
         self.chunksize = chunksize
+        
         self.__file_readers = {}
         self.__dataframe = {}
 
@@ -37,17 +38,28 @@ class InputData:
         if all([x.empty for x in self.__dataframe.values()]):
             self.logger.debug("All input files have now been processed.")
             raise StopIteration
-
+        
         self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
 
         
     def get_df_chunk(self,key):
-        try:
-            #for this file reader, get the next chunk of data and update self.__dataframe
-            return self.__file_readers[key].get_chunk(self.chunksize)
-        except StopIteration:
-            #otherwise, if at the end of the file reader, return an empty frame
-            return pd.DataFrame()
+        #obtain the file by key 
+        obj = self.__file_readers[key]
+        #if it is a TextFileReader, get a dataframe chunk
+        if isinstance(obj,pd.io.parsers.TextFileReader):
+            try:
+                #for this file reader, get the next chunk of data and update self.__dataframe
+                return obj.get_chunk(self.chunksize)
+            except StopIteration:
+                #otherwise, if at the end of the file reader, return an empty frame
+                return pd.DataFrame()
+        else:
+            #if we're handling non-chunked data
+            #return an empty dataframe if we've already loaded this dataframe
+            if key in self.__dataframe.keys():
+                return pd.DataFrame()
+            #otherwise return the dataframe as it's the first time we're getting it
+            return obj
             
 
     def __getitem__(self,key):
@@ -56,6 +68,10 @@ class InputData:
         return self.__dataframe[key]
         
     def __setitem__(self,key,obj):
+        if not (isinstance(obj,pd.DataFrame) or isinstance(obj,pd.io.parsers.TextFileReader)):
+            raise NotImplementedError("When using InputData, the object must be of type "
+                                      f"{pd.DataFrame} or {pd.io.parsers.TextFileReader} ")
+        self.logger.info(f"Registering  {key} [{type(obj)}]")
         self.__file_readers[key] = obj
         
     
@@ -79,13 +95,22 @@ def load_json(f_in):
 
 def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
 
+    logger = Logger("coconnect.tools.load_csv")
+    
     if rules is not None:
+        logger.debug("rules .json file supplied")
         rules = load_json(rules)
         source_map = get_mapped_fields_from_rules(rules)
 
         inputs_from_json = list(source_map.keys())
         inputs_from_cli = list(_map.keys())
 
+        if len(inputs_from_cli) == 0:
+            raise MissingInputFiles (f"You haven't loaded any input files!")
+            
+        logger.debug(f"{len(inputs_from_cli)} input files loaded")
+        logger.debug(f"{inputs_from_cli}")
+        
         missing_inputs = list(set(inputs_from_json) - set(inputs_from_cli))
         if len(missing_inputs) > 0 :
             raise MissingInputFiles (f"Found the following files {missing_inputs} in the json file, that are not in the loaded file list... {inputs_from_cli}")
@@ -100,11 +125,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-
-    if chunksize == None:
-        retval = {}
-    else:
-        retval = InputData(chunksize)
+    retval = InputData(chunksize)
         
     for key,obj in _map.items():
         fields = None
