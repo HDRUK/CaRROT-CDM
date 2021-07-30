@@ -3,6 +3,10 @@ import pandas
 import json
 import coconnect.tools as tools
 
+class DifferingColumns(Exception):
+    pass
+
+
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
     pass
@@ -68,6 +72,7 @@ def diff(file1,file2,separator):
         return
 
     df = pandas.concat([df1,df2]).drop_duplicates(keep=False)
+
     if len(df) > 0:
         print (" ======== Differing Rows ========== ")
         print (df)
@@ -80,6 +85,11 @@ def diff(file1,file2,separator):
         m = m.rename(columns={'_merge':'Only Contained Within'})
         m.index.name = 'Row Number'
         print (m.reset_index().to_dict(orient='records'))
+
+    elif len(df1.columns) != len(df2.columns):
+        
+        raise DifferingColumns('in df1 but not df2',list(set(df1.columns) - set(df2.columns)),'\n',
+                               'in df2 but not df1',list(set(df2.columns) - set(df1.columns)))
 
     else:
         print (" ======= Rows are likely in a different order ====== ")
