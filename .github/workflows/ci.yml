@@ -48,9 +48,11 @@ jobs:
           path: output_data
           retention-days: 1
   unit_test_json_config_unix:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest]
+        #, macos-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
@@ -105,19 +107,10 @@ jobs:
       - run: |
           coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
       - run: |
-          for filename in tests\*.csv; do
-               fname=${filename##*\}
-               echo $fname
-               if [[ -z $(coconnect display diff $filename coconnect\data\test\expected_outputs\$fname) ]];
-               then
-                  echo "$fname is good"
-               else
-                  echo "$fname failed!"
-                  coconnect display diff $filename coconnect\data\test\expected_outputs\$fname
-                  exit
-               fi
-          done
-
+          for /r %filename in (*) do (
+              echo %i
+          )
+          
       - uses: actions/upload-artifact@v2
         with:
           name: test
