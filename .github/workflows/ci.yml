@@ -110,9 +110,7 @@ jobs:
           $files = Get-ChildItem tests\*.csv
           Foreach ($file in $files )
           {
-              echo $file
-              echo $file.BaseName
-              echo $file.FullName
+              coconnect display diff $file.FullName coconnect\data\test\expected_outputs\$file.Name
           }
           
       - uses: actions/upload-artifact@v2
