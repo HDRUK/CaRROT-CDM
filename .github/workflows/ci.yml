@@ -67,7 +67,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
+          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.csv; do
                fname=${filename##*/}
