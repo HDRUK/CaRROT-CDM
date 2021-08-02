@@ -22,7 +22,6 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/CO-CONNECT/co-connect-tools",
-    scripts = ['scripts/etlcdm.py'],
     entry_points = {
         'console_scripts':[
             'coconnect=coconnect.cli.cli:coconnect',
