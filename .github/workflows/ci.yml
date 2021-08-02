@@ -107,7 +107,8 @@ jobs:
       - run: |
           coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
       - run: |
-          Foreach ($file in tests\* )
+          $files = Get-ChildItem tests\*.csv
+          Foreach ($file in $files )
           {
               echo $file
           }
