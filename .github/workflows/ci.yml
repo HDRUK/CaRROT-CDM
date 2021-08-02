@@ -111,6 +111,8 @@ jobs:
           Foreach ($file in $files )
           {
               echo $file
+              echo $file.BaseName
+              echo $file.FullName
           }
           
       - uses: actions/upload-artifact@v2
