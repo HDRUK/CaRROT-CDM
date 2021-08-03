@@ -111,10 +111,10 @@ jobs:
           Foreach ($file in $files )
           {
               $newFile = $file.FullName
-              $refFile = coconnect\data\test\expected_outputs\$file.Name
+              $refFile = "coconnect\data\test\expected_outputs\"$file.Name
               echo $newFile
               echo $refFile
-              echo coconnect display diff $newFile $refFile
+              echo "coconnect display diff "$newFile $refFile
           }
           
       - uses: actions/upload-artifact@v2
