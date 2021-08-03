@@ -63,7 +63,7 @@ class CommonDataModel:
 
             self.inputs = inputs
             self.chunked_inputs = chunked_inputs
-
+            
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
 
@@ -364,14 +364,14 @@ class CommonDataModel:
     def set_indexing(self,index_map,strict_check=False):
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')
-        
+
         for key,index in index_map.items():
-            if key not in self.inputs:
+            if key not in self.inputs.keys():
                 self.logger.warning(f"trying to set index '{index}' for '{key}' but this has not been loaded as an inputs!")
                 continue
 
             if index not in self.inputs[key].columns:
                 self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
                 continue
-                
             self.inputs[key].index = self.inputs[key][index].rename('index') 
+

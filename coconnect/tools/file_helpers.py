@@ -43,7 +43,7 @@ class InputData:
 
         
     def get_df_chunk(self,key):
-        #obtain the file by key 
+        #obtain the file by key
         obj = self.__file_readers[key]
         #if it is a TextFileReader, get a dataframe chunk
         if isinstance(obj,pd.io.parsers.TextFileReader):
