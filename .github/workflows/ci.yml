@@ -20,7 +20,7 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: coconnect --help
-  unit_test_1:
+  unit_test_py_config:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -47,7 +47,7 @@ jobs:
           name: outputs
           path: output_data
           retention-days: 1
-  unit_test_2:
+  unit_test_json_config:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -67,7 +67,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/
+          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.csv; do
                fname=${filename##*/}
