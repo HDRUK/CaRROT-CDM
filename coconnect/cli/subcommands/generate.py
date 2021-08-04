@@ -1,5 +1,6 @@
 import os
 import click
+import json
 import coconnect
 import pandas as pd
 import requests
@@ -46,6 +47,8 @@ def ccom(report_id,number_of_events,output_directory,
         print ('failed to get a response')
         print (response.json())
         exit(0)
+    else:
+        print (json.dumps(response.json(),indent=6))
         
     tables = {
         table['name']:table['id']
@@ -53,8 +56,8 @@ def ccom(report_id,number_of_events,output_directory,
         }
 
     for name,_id in tables.items():
-        url = f"{url}/api/scanreportvaluesfilter/?scan_report_table={_id}"#&fields=value,frequency"
-        print (name,url)
+        url = f"{url}/api/scanreportvaluesfilter/?scan_report_table={_id}&fields=value,frequency"
+        print ('trying',name,url)
         response = requests.get(
             url, headers=headers,
             allow_redirects=True,
