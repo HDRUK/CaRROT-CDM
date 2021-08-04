@@ -1,6 +1,10 @@
 import os
+import glob
 import json
 import pandas as pd
+
+class MissingInputFiles(Exception):
+    pass
 
 class InputData:
     def __init__(self,chunksize):
@@ -53,7 +57,7 @@ def load_json(f_in):
                 os.path.join(
                     os.path.dirname(__file__),'..','data')
                 )
-            data =  json.load(open(f'{data_dir}/{f_in}'))
+            data =  json.load(open(f'{data_dir}{os.path.sep}{f_in}'))
         except FileNotFoundError:
             raise FileNotFoundError(err)
 
@@ -65,6 +69,13 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
     if rules is not None:
         rules = load_json(rules)
         source_map = get_mapped_fields_from_rules(rules)
+
+        inputs_from_json = list(source_map.keys())
+        inputs_from_cli = list(_map.keys())
+
+        missing_inputs = list(set(inputs_from_json) - set(inputs_from_cli))
+        if len(missing_inputs) > 0 :
+            raise MissingInputFiles (f"Found the following files {missing_inputs} in the json file, that are not in the loaded file list... {inputs_from_cli}")
         
         #reduce the mapping of inputs, if we dont need them all
         _map = {
@@ -75,7 +86,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             for k,v in _map.items()
             if k in source_map
         }
-        
+
 
     if chunksize == None:
         retval = {}
@@ -110,8 +121,8 @@ def get_file_map_from_dir(_dir):
         )
 
     _map = {}
-    for fname in glob.glob(f"{_dir}/*.csv"):
-        key = fname.split("/")[-1]
+    for fname in glob.glob(f"{_dir}{os.path.sep}*.csv"):
+        key = os.path.basename(fname)
         _map[key] = fname
     
     return _map
