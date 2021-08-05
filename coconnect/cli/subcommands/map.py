@@ -350,7 +350,7 @@ def gui(ctx):
     while True:
         event, values = window.Read()
         
-        if event == 'Cancel':
+        if event == 'Cancel' or event == None:
             break
     
         rules = values['_RULES_']
