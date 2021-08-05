@@ -316,7 +316,28 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
     else:
         raise NotImplementedError("You need to run the CLI tool with either a json or python configuration file")
 
+@click.command(help="run as a Graphical User Interface (GUI)")
+def gui():
+    import PySimpleGUI as sg
 
+    sg.theme('DarkAmber')   # Add a touch of color
+    # All the stuff inside your window.
+    layout = [  [sg.Text('Some text on Row 1')],
+                [sg.Text('Enter something on Row 2'), sg.InputText()],
+                [sg.Button('Ok'), sg.Button('Cancel')] ]
+    
+    # Create the Window
+    window = sg.Window('Window Title', layout)
+    # Event Loop to process "events" and get the "values" of the inputs
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
+            break
+        print('You entered ', values[0])
+        
+    window.close()
+
+    
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
@@ -328,3 +349,4 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(gui,"gui")
