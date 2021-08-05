@@ -56,14 +56,25 @@ def ccom(report_id,number_of_events,output_directory,
         }
 
     for name,_id in tables.items():
-        url = f"{url}/api/scanreportvaluesfilter/?scan_report_table={_id}&fields=value,frequency"
+        _url = f"{url}/api/scanreportvaluesfilterscanreporttable/?scan_report_table={_id}&fields=value,frequency,scan_report_field"
         print ('trying',name,url)
         response = requests.get(
-            url, headers=headers,
+            _url, headers=headers,
             allow_redirects=True,
-            #timeout=5,
+        )
+        df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')
+        print (df)
+        print (df.columns)
+        print (df.index.unique().tolist())
+
+        _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}"
+        response = requests.get(
+            _url, headers=headers,
+            allow_redirects=True,
         )
         print (response.json())
+
+        
         break
  
         
