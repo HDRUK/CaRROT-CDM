@@ -61,7 +61,7 @@ def ccom(report_id,number_of_events,output_directory,
         response = requests.get(
             url, headers=headers,
             allow_redirects=True,
-            timeout=2000,
+            #timeout=5,
         )
         print (response.json())
         break
