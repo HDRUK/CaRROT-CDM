@@ -38,8 +38,8 @@ class CommonDataModel:
                 self.profiler = Profiler(name=name)
                 self.profiler.start()
 
-        #default separator for csv outputs is a tab
-        self._csv_separator = '\t'
+        #default separator for output files is a tab
+        self._outfile_separator = '\t'
                 
         if 'output_folder' in kwargs:
             self.output_folder = kwargs['output_folder']
@@ -327,18 +327,31 @@ class CommonDataModel:
         fname = f'{f_out}/{date}{extra}.json'
         json.dump(self.logs,open(fname,'w'),indent=6)
         self.logger.info(f'saved a log file to {fname}')
-    
+
+
+    def get_outfile_extension(self):
+        if self._outfile_separator == ',':
+            return 'csv'
+        elif self._outfile_separator == '\t':
+            return 'tsv'
+        else:
+            self.logger.warning(f"Don't know what to do with the extension '{self._outfile_separator}' ")
+            self.logger.warning("Defaulting to csv")
+            return 'csv'
+        
     def save_to_file(self,f_out=None,mode='w'):
         if f_out == None:
             f_out = self.output_folder
         header=True
         if mode == 'a':
             header = False
-            
+
+        file_extension = self.get_outfile_extension()
+        
         for name,df in self.__df_map.items():
             if df is None:
                 continue
-            fname = f'{f_out}/{name}.csv'
+            fname = f'{f_out}/{name}.{file_extension}'
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
                 os.makedirs(f'{f_out}')
@@ -347,13 +360,13 @@ class CommonDataModel:
             else:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
-            df.to_csv(fname,mode=mode,header=header,index=True,sep=self._csv_separator)
+            df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
             self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
 
-    def set_csv_separator(self,sep):
-        self._csv_separator = sep
+    def set_outfile_separator(self,sep):
+        self._outfile_separator = sep
         
     def set_chunk_size(self,value:int):
         self.chunksize = value
