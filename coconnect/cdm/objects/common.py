@@ -197,8 +197,8 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        df = self.finalise(df)
         df = self.format(df)
+        df = self.finalise(df)
 
         #register the df
         self.__df = df
