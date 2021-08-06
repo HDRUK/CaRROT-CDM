@@ -57,28 +57,58 @@ def ccom(report_id,number_of_events,output_directory,
 
     for name,_id in tables.items():
         _url = f"{url}/api/scanreportvaluesfilterscanreporttable/?scan_report_table={_id}&fields=value,frequency,scan_report_field"
-        print ('trying',name,url)
         response = requests.get(
             _url, headers=headers,
             allow_redirects=True,
         )
-        df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')
-        print (df)
-        print (df.columns)
-        print (df.index.unique().tolist())
-
-        _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}"
+        df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')        
+        _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}&fields=id,name"
         response = requests.get(
             _url, headers=headers,
             allow_redirects=True,
         )
-        print (response.json())
-
+        res = response.json()
+                
+        id_to_col_name = {
+            field['id']:field['name']
+            for field in res
+        }
+        df.index = df.index.map(id_to_col_name)
         
-        break
- 
-        
+        df_synthetic = {}
+        for col_name in df.index.unique():
+            if col_name == '': continue
+            
+            _df = df.loc[[col_name]]
+            frequency = _df['frequency']
+            total = frequency.sum()
+            if total > 0 :
+                frequency = number_of_events*frequency / total
+                frequency = frequency.astype(int)
+            else:
+                frequency = number_of_events
+                
+            values = _df['value'].repeat(frequency)\
+                                 .sample(frac=1)\
+                                 .reset_index(drop=True)
+            values.name = col_name
+            df_synthetic[col_name] = values
 
+        df_synthetic = pd.concat(df_synthetic.values(),axis=1)
+
+        for col_name in fill_column_with_values:
+            if col_name in df_synthetic.columns:
+                df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
+                
+        
+        if not os.path.isdir(output_directory):
+            os.makedirs(output_directory)
+        fname = f"{output_directory}/{name}"
+
+        df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+        print (df_synthetic)
+        df_synthetic.to_csv(fname)
+        print (f"created {fname} with {number_of_events} events")
     
 @click.command(help="generate synthetic data from a ScanReport xlsx file")
 @click.argument("report")
