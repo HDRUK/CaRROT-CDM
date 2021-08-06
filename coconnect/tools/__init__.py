@@ -13,7 +13,8 @@ from .file_helpers import (
     load_json,
     load_csv,
     get_file_map_from_dir,
-    get_mapped_fields_from_rules
+    get_mapped_fields_from_rules,
+    diff_csv
 )
 
 from .rules_helpers import(

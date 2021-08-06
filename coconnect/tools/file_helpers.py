@@ -2,9 +2,13 @@ import os
 import glob
 import json
 import pandas as pd
+from coconnect.tools.logger import Logger
 
 class MissingInputFiles(Exception):
     pass
+class DifferingColumns(Exception):
+    pass
+
 
 class InputData:
     def __init__(self,chunksize):
@@ -150,3 +154,56 @@ def get_mapped_fields_from_rules(rules):
 
     return source_map
     
+
+def get_separator_from_filename(fname):
+    _, fileExtension = os.path.splitext(fname)
+    if fileExtension == '.tsv':
+        return '\t'
+    else:
+        return ','
+
+
+def diff_csv(file1,file2,separator=None):
+    logger = Logger("CSV File Diff")
+    
+    if separator == None:
+        sep1 = get_separator_from_filename(file1)
+        sep2 = get_separator_from_filename(file2)
+    else:
+        sep1 = separator
+        sep2 = separator
+        
+    df1 = pd.read_csv(file1,sep=sep1)
+    df2 = pd.read_csv(file2,sep=sep2)
+    
+    exact_match = df1.equals(df2)
+    if exact_match:
+        return
+
+    df = pd.concat([df1,df2]).drop_duplicates(keep=False)
+
+    if len(df) > 0:
+        logger.error(" ======== Differing Rows ========== ")
+        logger.error(df)
+        m = df1.merge(df2, on=df.columns[0], how='outer', suffixes=['', '_'], indicator=True)[['_merge']]
+        m = m[~m['_merge'].str.contains('both')]
+        file1 = file1.split('/')[-1]
+        file2 = file2.split('/')[-1]
+        
+        m['_merge'] = m['_merge'].map({'left_only':file1,'right_only':file2})
+        m = m.rename(columns={'_merge':'Only Contained Within'})
+        m.index.name = 'Row Number'
+        logger.error(m.reset_index().to_dict(orient='records'))
+        raise Exception("differences detected")
+        
+    elif len(df1.columns) != len(df2.columns):
+        
+        raise DifferingColumns('in df1 but not df2',list(set(df1.columns) - set(df2.columns)),'\n',
+                               'in df2 but not df1',list(set(df2.columns) - set(df1.columns)))
+
+    else:
+        logger.error(" ======= Rows are likely in a different order ====== ")
+        for i in range(len(df1)):
+            if not (df1.iloc[i] == df2.iloc[i]).any():
+                print ('Row',i,'is in a different location')
+        raise Exception("differences detected")

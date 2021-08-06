@@ -67,8 +67,11 @@ def test(ctx):
     _dir = f"{_dir}{os.path.sep}data{os.path.sep}test"
     inputs = glob.glob(f"{_dir}{os.path.sep}inputs{os.path.sep}*.csv")
     rules = f"{_dir}{os.path.sep}rules{os.path.sep}rules_14June2021.json"
-    ctx.invoke(run,inputs=inputs,rules=rules)
-
+    output_folder = 'tests'
+    ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
+    for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
+        tools.diff_csv(fname,fname)
+    
         
 @click.command(help="Perform OMOP Mapping given an json file")
 @click.option("--rules",
