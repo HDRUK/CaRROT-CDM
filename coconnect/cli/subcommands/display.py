@@ -54,8 +54,15 @@ def dag(rules):
 
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
-def print_json(rules):
+@click.option('--list-tables',is_flag=True)
+@click.option('--list-fields',is_flag=True)
+def print_json(rules,list_fields,list_tables):
     data = tools.load_json(rules)
+    if list_fields or list_tables:
+        data = tools.get_mapped_fields_from_rules(data)
+        if list_tables:
+            data = list(data.keys())
+
     print (json.dumps(data,indent=6))
 
 
