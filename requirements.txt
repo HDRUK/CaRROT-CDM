@@ -8,3 +8,4 @@ sqlalchemy
 tabulate
 psutil
 requests
+openpyxl
