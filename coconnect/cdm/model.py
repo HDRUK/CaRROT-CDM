@@ -9,8 +9,10 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-
 from coconnect.tools.file_helpers import InputData
+
+from coconnect import __version__ as cc_version
+
 
 from .objects import DestinationTable
 
@@ -30,7 +32,7 @@ class CommonDataModel:
             name = kwargs['name']
             
         self.logger = Logger(self.__class__.__name__)
-        self.logger.info("CommonDataModel created")
+        self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.profiler = None
         if 'use_profiler' in kwargs:
@@ -118,6 +120,7 @@ class CommonDataModel:
         #bookkeep some logs
         self.logs = {
             'meta':{
+                'version': cc_version,
                 'created_by': getpass.getuser(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,

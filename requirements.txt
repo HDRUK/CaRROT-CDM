@@ -8,3 +8,5 @@ sqlalchemy
 tabulate
 psutil
 pysimplegui
+requests
+openpyxl
