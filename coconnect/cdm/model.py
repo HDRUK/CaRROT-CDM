@@ -27,13 +27,20 @@ class CommonDataModel:
 
     """
 
-    inputs = None
-    
-    def __init__(self, name=None, output_folder="output_data/",
+    def __init__(self, name=None, output_folder="output_data{os.path.sep}",
                  inputs=None, use_profiler=False,
                  automatically_generate_missing_rules=False):
         """
-        
+        CommonDataModel class initialisation 
+        Args:
+            name (str): Give a name for the class to appear in the logging
+            output_folder (str): Path of where the output tsv/csv files should be written to.
+                                 The default is to save to a folder in the current directory
+                                 called 'output_data'.
+            inputs (dict or InputData): Input Data can be a dictionary mapping file names to pandas dataframes,
+                                        or can be an InputData object
+            use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
+                                 The default is set to false.
         """
         name = self.__class__.__name__ if name is None else name
             
@@ -49,13 +56,13 @@ class CommonDataModel:
 
         #default separator for output files is a tab
         self._outfile_separator = '\t'
-                
-            
+
+        #perform some checks on the input data
         if isinstance(inputs,dict):
             self.logger.info("Running with an InputData object")
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
-        elif self.inputs is None:
+        elif self.inputs is None or inputs is None: 
             self.logger.error(inputs)
             raise NoInputFiles("setting up inputs that are not valid!")
             
@@ -64,11 +71,6 @@ class CommonDataModel:
 
         self.inputs = inputs
             
-        if self.inputs == None:
-            raise NoInputFiles('You need to set or specify the input files.')
-
-        self.chunksize = None
-        
         #register opereation tools
         self.tools = OperationTools()
 
@@ -111,10 +113,9 @@ class CommonDataModel:
             for name in dir(self)
             if isinstance(getattr(self,name),DestinationTable)
         ]
+        #if they have, then include them in this model
         for obj in registered_objects:
-            if obj._type not in self.__objects:
-                self.__objects[obj._type] = {}
-            self.__objects[obj._type][obj.name] = obj
+            self.add(obj)
         
         #bookkeep some logs
         self.logs = {
@@ -132,13 +133,13 @@ class CommonDataModel:
             self.profiler.stop()
             df_profile = self.profiler.get_df()
             f_out = self.output_folder
-            f_out = f'{f_out}/logs/'
+            f_out = f'{f_out}{os.path.sep}logs{os.path.sep}'
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
                 os.makedirs(f'{f_out}')
                 
             date = self.logs['meta']['created_at']
-            fname = f'{f_out}/statistics_{date}.csv'
+            fname = f'{f_out}{os.path.sep}statistics_{date}.csv'
             df_profile.to_csv(fname)
             self.logger.info(f"Writen the memory/cpu statistics to {fname}")
             self.logger.info("Finished")
@@ -369,9 +370,6 @@ class CommonDataModel:
 
     def set_outfile_separator(self,sep):
         self._outfile_separator = sep
-        
-    def set_chunk_size(self,value:int):
-        self.chunksize = value
         
     def set_indexing(self,index_map,strict_check=False):
         if self.inputs == None:
