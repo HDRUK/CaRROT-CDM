@@ -60,7 +60,7 @@ def remove_class(ctx,name):
         _class = classes[name]
         os.unlink(_class['sympath'])
 
-@click.command(help="Perform OMOP Mapping given an json file")
+@click.command()
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
@@ -88,14 +88,17 @@ def remove_class(ctx,name):
               help="the total number of rows to process")
 @click.argument("inputs",
                 required=True,
-                #help="give a list of input files to process, and/or an input directory",
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,
         output_folder,type,csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
+    """
+    Perform OMOP Mapping given an json file and a series of input files
 
+    INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
+    """
     
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
