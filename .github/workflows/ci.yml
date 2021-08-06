@@ -69,7 +69,7 @@ jobs:
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
           coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
-          for filename in tests/*.csv; do
+          for filename in tests/*.tsv; do
                fname=${filename##*/}
                if [[ -z $(coconnect display diff $filename coconnect/data/test/expected_outputs/$fname) ]];
                then
@@ -106,7 +106,7 @@ jobs:
       - run: |
           coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
       - run: |
-          $files = Get-ChildItem tests\*.csv
+          $files = Get-ChildItem tests\*.tsv
           Foreach ($file in $files )
           {
               $newFile = $file.FullName
