@@ -26,7 +26,11 @@ def get_source_table(inputs,name):
     inputs[name].name = name
     return inputs[name]
 
-def apply_rules(cdm,obj,rules):
+def apply_rules(this):
+    this.logger.info("Called apply_rules")
+
+    rules = this.rules
+    
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']
         source_field_name = rule['source_field']
@@ -38,13 +42,13 @@ def apply_rules(cdm,obj,rules):
             term_mapping = rule['term_mapping']
 
 
-        source_table = get_source_table(cdm.inputs,source_table_name)
+        source_table = get_source_table(this.inputs,source_table_name)
         source_field = get_source_field(source_table,source_field_name)
         series = source_field.copy()
 
         if operations is not None:
             for operation in operations:
-                function = cdm.tools[operation]
+                function = this.tools[operation]
                 series = function(series)
                 
         if term_mapping is not None:
@@ -59,4 +63,5 @@ def apply_rules(cdm,obj,rules):
                 # - set all values in this column to it
                 series.values[:] = term_mapping
 
-        obj[destination_field].series = series
+        this[destination_field].series = series
+        this.logger.info(f"Mapped {destination_field}")

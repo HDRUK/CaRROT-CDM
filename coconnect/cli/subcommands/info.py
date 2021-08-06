@@ -9,7 +9,7 @@ def info():
 @click.command(help="Get the data folder location")
 def data_folder():
     _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
-    data_dir = f"{_dir}/data"
+    data_dir = f"{_dir}{os.path.sep}data"
     print (data_dir)
 
 @click.command(help="Get the root folder location of coconnect tools")

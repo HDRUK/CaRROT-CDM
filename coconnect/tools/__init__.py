@@ -29,9 +29,7 @@ def set_debug(value):
     _DEBUG = value
     
 def get_classes(format=False):
-
     retval = get_classes_from_tool(format=format)
-
     config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
     if config_folder is not None:
         sys.path.append(config_folder)
@@ -41,7 +39,7 @@ def get_classes(format=False):
             module = __import__(mname,fromlist=[fname])
             path = os.path.join(config_folder,fname)
             defined_classes = {
-                m[0]: {
+                fname: {
                     'module':m[1].__module__,
                     'path': path,
                     'last-modified': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(os.path.join(config_folder,fname))))
@@ -50,7 +48,7 @@ def get_classes(format=False):
                 if m[1].__module__ == module.__name__
             }
             retval.update(defined_classes)
-                
+
     return retval
     
 def get_classes_from_tool(format=format):
@@ -67,10 +65,10 @@ def get_classes_from_tool(format=format):
             if os.path.isfile(link) == False:
                 os.unlink(path)
                 continue
-            
+        
         module = __import__(mname,fromlist=[fname])
         defined_classes = {
-            m[0]: {
+            fname: {
                 'module':m[1].__module__,
                 'path': path  if not os.path.islink(path) else os.readlink(path),
                 'sympath': path,

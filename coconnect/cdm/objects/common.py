@@ -25,16 +25,13 @@ class BadInputs(Exception):
 class DataFormatter(collections.OrderedDict):
     def __init__(self):
         super().__init__()
-        self['INTEGER'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['FLOAT'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
-        self['VARCHAR(60)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-        self['VARCHAR(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['VARCHAR(20)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
-        self['VARCHAR(10)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:10])
-        self['VARCHAR'] = lambda x : x.fillna('').astype(str).apply(lambda x: x)
-        self['STRING(50)'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['DATETIME'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-        self['DATE'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
+        self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
+        self['Float'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['Text20'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['Text50'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['Text60'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
+        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+        self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
 
 class DestinationField(object):
@@ -80,11 +77,17 @@ class DestinationTable(object):
         ]
 
     def get_ordering(self):
-        return [
+        retval = [
             field
             for field in self.fields
             if getattr(self,field).pk == True
         ]
+
+        if len(retval) == 0:
+            #warning, no pk has been set on any field
+            retval = self.fields[0]
+        
+        return retval
         
     def __getitem__(self, key):
         return getattr(self, key)
@@ -237,7 +240,9 @@ class DestinationTable(object):
             
             ndiff = nbefore - nafter
             if ndiff>0:
-                self.logger.warning(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
+                #log a warning message if after requiring non-NaN values has removed all rows
+                log = self.logger.warning if nafter > 0 else self.logger.error
+                log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
             self._meta['required_fields'][field] = {
                 'before':nbefore,
                 'after':nafter

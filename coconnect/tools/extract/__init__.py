@@ -88,7 +88,7 @@ def make_class(data,
 
     current_dir = os.getcwd()
 
-    fname = f'{current_dir}/{name}.py'
+    fname = os.path.join(current_dir, f"{name}.py")
     if os.path.isfile(fname):
         print (f"Recreating file {fname}")
     else:
@@ -100,10 +100,19 @@ def make_class(data,
     return fname
     
 def register_class(fname):
-    name = fname.split("/")[-1]
+    name = os.path.basename(fname)
     #register the file within coconnect/classes so it can be imported
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
-    fname_dst =  f'{save_dir}/{name}'
+
+    config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
+    if config_folder is not None:
+        save_dir = config_folder
+        fname_dst = os.path.join(save_dir, name)
+        if fname == fname_dst:
+            print (f"File is already present in {config_folder}")
+            return
+        
+    fname_dst = os.path.join(save_dir, name)
     if os.path.isfile(fname_dst):
         os.unlink(fname_dst)
     print (f"Registering file, creating a symlink to {fname_dst}")
