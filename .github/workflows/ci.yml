@@ -20,7 +20,7 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: coconnect --help
-  unit_test_1:
+  unit_test_py_config:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -47,11 +47,11 @@ jobs:
           name: outputs
           path: output_data
           retention-days: 1
-  unit_test_2:
+  unit_test_json_config_unix:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: [3.6.8]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
@@ -67,9 +67,9 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          etlcdm.py -i $COCONNECT_DATA_FOLDER/test/inputs/*.csv --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json -o tests/
+          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
-          for filename in tests/*.csv; do
+          for filename in tests/*.tsv; do
                fname=${filename##*/}
                if [[ -z $(coconnect display diff $filename coconnect/data/test/expected_outputs/$fname) ]];
                then
@@ -81,6 +81,40 @@ jobs:
                fi
           done
 
+      - uses: actions/upload-artifact@v2
+        with:
+          name: test
+          path: tests
+          retention-days: 1
+  unit_test_json_config_windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.6.8]
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - run: ls .
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
+      - run: |
+          coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
+      - run: |
+          $files = Get-ChildItem tests\*.tsv
+          Foreach ($file in $files )
+          {
+              $newFile = $file.FullName
+              $refFile = $('coconnect\data\test\expected_outputs\' + $file.Name)
+              $command = $('coconnect display diff ' + $newFile + ' ' +  $refFile)
+              Invoke-expression $command
+          }
+          
       - uses: actions/upload-artifact@v2
         with:
           name: test
