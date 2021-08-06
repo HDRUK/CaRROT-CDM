@@ -74,7 +74,7 @@ def print_json(rules,list_fields,list_tables):
 @click.argument("file1")
 @click.argument("file2")
 def diff(file1,file2,separator):
-    tools.diff_csv(file1,file2,separtor)
+    tools.diff_csv(file1,file2,separator)
 
 
 @click.command(help="flattern a rules json file")
