@@ -12,59 +12,57 @@ from coconnect.tools.profiling import Profiler
 from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
-
-
 from .objects import DestinationTable
-
 
 class NoInputFiles(Exception):
     pass
 
 
 class CommonDataModel:
+    """Pythonic Version of the OHDSI CDM.
+
+    This class controls and manages CDM Table objects that are added to it
+
+    When self.process() is executed by the user, all added objects are defined, merged, formatted and finalised, before being dumped to an output file (.tsv file by default).
+
+    """
 
     inputs = None
-    output_folder = "output_data/"
     
-    def __init__(self,**kwargs):
-        name = self.__class__.__name__
-        if 'name' in kwargs:
-            name = kwargs['name']
+    def __init__(self, name=None, output_folder="output_data/",
+                 inputs=None, use_profiler=False,
+                 automatically_generate_missing_rules=False):
+        """
+        
+        """
+        name = self.__class__.__name__ if name is None else name
             
-        self.logger = Logger(self.__class__.__name__)
+        self.logger = Logger(name)
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
+        self.output_folder = output_folder
+        
         self.profiler = None
-        if 'use_profiler' in kwargs:
-            if kwargs['use_profiler']:
-                self.profiler = Profiler(name=name)
-                self.profiler.start()
+        if use_profiler:
+            self.profiler = Profiler(name=name)
+            self.profiler.start()
 
         #default separator for output files is a tab
         self._outfile_separator = '\t'
                 
-        if 'output_folder' in kwargs:
-            self.output_folder = kwargs['output_folder']
             
-        if 'inputs' in kwargs:
-            inputs = kwargs['inputs']
-            chunked_inputs = False
+        if isinstance(inputs,dict):
+            self.logger.info("Running with an InputData object")
+        elif isinstance(inputs,InputData):
+            self.logger.info("Running with an InputData object")
+        elif self.inputs is None:
+            self.logger.error(inputs)
+            raise NoInputFiles("setting up inputs that are not valid!")
+            
+        if not self.inputs is None:
+            self.logger.waring("overwriting inputs")
 
-            
-            if isinstance(inputs,dict):
-                self.logger.info("Running with an InputData object")
-            elif isinstance(inputs,InputData):
-                chunked_inputs = True
-                self.logger.info("Running with an InputData object")
-            else:
-                self.logger.error(inputs)
-                raise NoInputFiles("setting up inputs that are not valid!")
-            
-            if not self.inputs is None:
-                self.logger.waring("overwriting inputs")
-
-            self.inputs = inputs
-            self.chunked_inputs = chunked_inputs
+        self.inputs = inputs
             
         if self.inputs == None:
             raise NoInputFiles('You need to set or specify the input files.')
@@ -75,11 +73,9 @@ class CommonDataModel:
         self.tools = OperationTools()
 
         #allow rules to be generated automatically or not
-        self.automatically_generate_missing_rules = False
-        if 'automatically_generate_missing_rules' in kwargs:
-            do_auto = bool(kwargs['automatically_generate_missing_rules'])
-            self.logger.info(f"Setting automatic rule generation to '{do_auto}'")
-            self.automatically_generate_missing_rules = do_auto
+        self.automatically_generate_missing_rules = automatically_generate_missing_rules
+        if self.automatically_generate_missing_rules:
+            self.logger.info(f"Turning on automatic rule generation")
 
         #define a person_id masker, if the person_id are to be masked
         self.person_id_masker = None
