@@ -1,6 +1,6 @@
 id,date of visit,study id,visit number,headache,sore throat
 101,01/05/2020,pk1,1,Y,N
-xc102,01/05/2020,pk2,1,N,Y
+102,01/05/2020,pk2,1,N,Y
 103,01/05/2020,pk3,1,N,N
 104,01/05/2020,pk4,1,Y,Y
 105,20/05/2020,pk1,2,N,N

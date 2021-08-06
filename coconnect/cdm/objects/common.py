@@ -21,6 +21,16 @@ class FormattingError(Exception):
 class BadInputs(Exception):
     pass
 
+def test(x):
+    print (type(x))
+    print (x)
+    x = x.str.extract('(\d+)')
+    print(x.iloc[:,0])
+    exit(0)
+    print (type(x))
+    x = pd.to_numeric(x,errors='coerce').astype('Int64')
+    print (type(x))
+    return x
 
 class DataFormatter(collections.OrderedDict):
     def __init__(self):
@@ -199,7 +209,7 @@ class DestinationTable(object):
 
         df = self.format(df)
         df = self.finalise(df)
-
+                
         #register the df
         self.__df = df
         return df
@@ -209,13 +219,18 @@ class DestinationTable(object):
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
-            
+
+            nbefore = len(df[col])
+            nsample = 5 if nbefore > 5 else nbefore
+            sample = df[col].sample(nsample)
             df[col] = formatter_function(df[col])
 
-            #if col in self.required_fields and len(df[df[col].isna()])>0:
-            #    self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
-            #    raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
-                
+            if nbefore > 0 and df[col].isna().all() and col in self.get_ordering():
+                self.logger.error(f"Something wrong with the formatting of the required field '{col}'.")
+                self.logger.error(f"Using the formatter '{dtype}' failed on all values.")
+                self.logger.info(f"Sample of this column before formatting:")
+                self.logger.error(sample)
+                raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
             
         return df
 
