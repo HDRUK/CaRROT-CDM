@@ -216,17 +216,21 @@ class DestinationTable(object):
 
     def format(self,df):
         for col in df.columns:
+            
+            #if is already all na/nan, dont bother trying to format
+            if df[col].isna().all():
+                continue
+            
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
-
             nbefore = len(df[col])
             nsample = 5 if nbefore > 5 else nbefore
             sample = df[col].sample(nsample)
             df[col] = formatter_function(df[col])
 
             if nbefore > 0 and df[col].isna().all() and col in self.get_ordering():
-                self.logger.error(f"Something wrong with the formatting of the required field '{col}'.")
+                self.logger.error(f"Something wrong with the formatting of the field '{col}'.")
                 self.logger.error(f"Using the formatter '{dtype}' failed on all values.")
                 self.logger.info(f"Sample of this column before formatting:")
                 self.logger.error(sample)
