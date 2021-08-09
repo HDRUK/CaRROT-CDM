@@ -321,27 +321,41 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
 def gui(ctx):
     import PySimpleGUI as sg
 
-    coconnect_theme = {'BACKGROUND': '#475da7',
-                       'TEXT': '#FFFFFF',
+    coconnect_theme = {'BACKGROUND': 'white',
+                       'TEXT': '#000000',
                        'INPUT': '#c4c6e2',
                        'TEXT_INPUT': '#000000',
-                       'SCROLL': '#c7e78b',
-                       'BUTTON': ('white', '#3DB28C'),
+                       'SCROLL': '#c4c6e2',
+                       'BUTTON': ('white', '#475da7','#3DB28C'),
                        'PROGRESS': ('#01826B', '#D0D0D0'),
                        'BORDER': 1,
-                       'SLIDER_DEPTH': 0,
+                       'SLIDER_DEPTH': 1,
                        'PROGRESS_DEPTH': 0}
     
     # Add your dictionary to the PySimpleGUI themes
     sg.theme_add_new('coconnect', coconnect_theme)
     sg.theme('coconnect')
+
+    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    data_dir = f"{_dir}{os.path.sep}data"
+    print (data_dir)
+    exit(0)
     
     layout = [
+        [sg.Image('./logo.png')],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse()],
         [sg.T('Select the input CSVs:')],
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse()],
-        [sg.OK('Run'), sg.Cancel()]
+        [sg.T('Select an output folder:')],
+        [sg.Input(key='_OUTPUT_',default_text=os.getcwd()), sg.FolderBrowse()],
+        [[sg.T('Change the default data chunksize:'),
+          sg.Slider(range=(0,1000000),
+                    default_value=100000,
+                    resolution=10000,
+                    #size=(20,15),
+                    orientation='horizontal')]],
+        [sg.OK('Run'), sg.Cancel(button_color=('white','#3DB28C'))]
     ]
 
     font = ("Roboto", 15)
@@ -352,7 +366,11 @@ def gui(ctx):
         
         if event == 'Cancel' or event == None:
             break
-    
+
+        output_folder = values['_OUTPUT_']
+        if output_folder == '':
+            output_folder = None
+            
         rules = values['_RULES_']
         if rules == '':
             sg.Popup(f'Error: please select a rules file')
@@ -367,7 +385,7 @@ def gui(ctx):
             continue
         
         inputs = inputs.split(';')
-        ctx.invoke(run,rules=rules,inputs=inputs)
+        ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
         sg.Popup("Done!")
         break
         
