@@ -340,7 +340,7 @@ def gui(ctx):
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
-        [sg.Image(f'{data_dir}logo.png')],
+        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT ETL-Tool",font = ("Roboto", 25))],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse()],
         [sg.T('Select the input CSVs:')],
