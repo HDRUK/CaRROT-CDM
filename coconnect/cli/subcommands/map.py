@@ -99,6 +99,8 @@ def run(ctx,rules,inputs,
 
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
+    print ("started")
+    
     
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
@@ -139,13 +141,16 @@ def run(ctx,rules,inputs,
 
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
-    
+
+    print ("creating  object")
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         output_folder=output_folder,
                                         use_profiler=use_profiler)
-
+    print ("here")
+    exit(0)
+    
     #allow the csv separator to be changed
     #the default is tab (\t) separation
     if not csv_separator is None:

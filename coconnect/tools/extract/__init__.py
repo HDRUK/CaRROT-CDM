@@ -5,9 +5,6 @@ from . import templates
 import glob
 from coconnect.cdm import classes
 
-from coconnect.tools.logger import Logger
-logger = Logger("extract")
-
 def make_class(data,
                name=None,
                f_inputs=None):
