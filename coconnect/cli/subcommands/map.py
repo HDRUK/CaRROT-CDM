@@ -71,9 +71,8 @@ def test(ctx):
     ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
     for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
         tools.diff_csv(fname,fname)
-    
-        
-@click.command(help="Perform OMOP Mapping given an json file")
+          
+@click.command()
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
@@ -92,22 +91,32 @@ def test(ctx):
               default=None,
               help="define the output folder where to dump csv files to")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default=None,
+              default=100000,
               type=int,
               help="choose to chunk running the data into nrows")
 @click.option("-np","--number-of-rows-to-process",
               default=None,
               type=int,
               help="the total number of rows to process")
+@click.option("--log-level","-l",
+              type=click.Choice(['0','1','2','3']),
+              default='2',
+              help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
 @click.argument("inputs",
-                #help="give a list of input files to process, and/or an input directory",
+                required=True,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,
+def run(ctx,rules,inputs,log_level,
         output_folder,type,csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
+    """
+    Perform OMOP Mapping given an json file and a series of input files
 
+    INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
+    """
+
+    coconnect.params['debug_level'] = int(log_level)
     
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
@@ -126,6 +135,7 @@ def run(ctx,rules,inputs,
         inputs = new_inputs
 
     inputs = list(inputs)
+    
     for x in inputs:
         if os.path.isdir(x):
             inputs.remove(x)
@@ -147,21 +157,18 @@ def run(ctx,rules,inputs,
 
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
-    
+
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         output_folder=output_folder,
                                         use_profiler=use_profiler)
-
+    
     #allow the csv separator to be changed
     #the default is tab (\t) separation
     if not csv_separator is None:
         cdm.set_csv_separator(csv_separator)
     
-    #CDM needs to also track the number of rows to chunk
-    # - note: should check if this is still needed/used at all
-    cdm.set_chunk_size(number_of_rows_per_chunk)
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
     for destination_table,rules_set in config['cdm'].items():
@@ -262,74 +269,27 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
-    if pyconf:
-        available_classes = tools.get_classes()
-        if pyconf not in available_classes:
-            ctx.invoke(list_classes)
-            raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
+    available_classes = tools.get_classes()
+    if pyconf not in available_classes:
+        ctx.invoke(list_classes)
+        raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
     
-        module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
-        defined_classes = [
-            m[0]
-            for m in inspect.getmembers(module, inspect.isclass)
-            if m[1].__module__ == module.__name__
-        ]
-        #should only be running one class anyway
-        defined_class = defined_classes[0]
-        cls = getattr(module,defined_class)
-        #build a class object
-        cdm = cls(inputs=inputs,
-                  output_folder=output_folder,
-                  use_profiler=use_profiler)
-        cdm.set_chunk_size(number_of_rows_per_chunk)
-        #run it
-        cdm.process()
-                
-    elif rules:
-        config = tools.load_json(rules)
-        name = config['metadata']['dataset']
-
-        #build an object to store the cdm
-        cdm = coconnect.cdm.CommonDataModel(name=name,
-                                            inputs=inputs,
-                                            output_folder=output_folder,
-                                            use_profiler=use_profiler)
-        
-        #CDM needs to also track the number of rows to chunk
-        # - note: should check if this is still needed/used at all
-        cdm.set_chunk_size(number_of_rows_per_chunk)
-        #loop over the cdm object types defined in the configuration
-        #e.g person, measurement etc..
-        for destination_table,rules_set in config['cdm'].items():
-            #loop over each object instance in the rule set
-            #for example, condition_occurrence may have multiple rulesx
-            #for multiple condition_ocurrences e.g. Headache, Fever ..
-            for i,rules in enumerate(rules_set):
-                #make a new object for the cdm object
-                #Example:
-                # destination_table : person
-                # get_cdm_class returns <Person>
-                # obj : Person()
-                obj = coconnect.cdm.get_cdm_class(destination_table)()
-                #set the name of the object
-                obj.set_name(f"{destination_table}_{i}")
-                
-                #call the apply_rules function to setup how to modify the inputs
-                #based on the rules
-                obj.rules = rules
-                #Build a lambda function that will get executed during run time
-                #and will be able to apply these rules to the inputs that are loaded
-                #(this is useful when chunk)
-                obj.define = lambda self : tools.apply_rules(self)
-                
-                #register this object with the CDM model, so it can be processed
-                cdm.add(obj)
-    
-        cdm.process()
-    else:
-        raise NotImplementedError("You need to run the CLI tool with either a json or python configuration file")
-
-
+    module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
+    defined_classes = [
+        m[0]
+        for m in inspect.getmembers(module, inspect.isclass)
+        if m[1].__module__ == module.__name__
+    ]
+    #should only be running one class anyway
+    defined_class = defined_classes[0]
+    cls = getattr(module,defined_class)
+    #build a class object
+    cdm = cls(inputs=inputs,
+              output_folder=output_folder,
+              use_profiler=use_profiler)
+    #run it
+    cdm.process()
+      
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
