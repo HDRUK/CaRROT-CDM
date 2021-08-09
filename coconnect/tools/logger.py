@@ -30,8 +30,8 @@ class Logger(logging.Logger):
         ch.setFormatter(formatter)
         self.addHandler(ch)
 
-        #file_formatter = logging.Formatter(format_str)
-        #fh = logging.FileHandler('coconnect.log',mode='a')
-        #fh.setFormatter(file_formatter)
+        file_formatter = logging.Formatter(format_str)
+        fh = logging.FileHandler('coconnect.log',mode='a')
+        fh.setFormatter(file_formatter)
         #fh.setLevel(logging.DEBUG)
-        #self.addHandler(fh)
+        self.addHandler(fh)

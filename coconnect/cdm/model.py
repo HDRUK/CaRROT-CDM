@@ -65,8 +65,8 @@ class CommonDataModel:
         elif self.inputs is None or inputs is None: 
             self.logger.error(inputs)
             raise NoInputFiles("setting up inputs that are not valid!")
-            
-        if not self.inputs is None:
+
+        if hasattr(self,'inputs'):
             self.logger.waring("overwriting inputs")
 
         self.inputs = inputs

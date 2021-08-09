@@ -151,9 +151,6 @@ def run(ctx,rules,inputs,
     if not csv_separator is None:
         cdm.set_csv_separator(csv_separator)
     
-    #CDM needs to also track the number of rows to chunk
-    # - note: should check if this is still needed/used at all
-    cdm.set_chunk_size(number_of_rows_per_chunk)
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
     for destination_table,rules_set in config['cdm'].items():
@@ -254,74 +251,27 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
-    if pyconf:
-        available_classes = tools.get_classes()
-        if pyconf not in available_classes:
-            ctx.invoke(list_classes)
-            raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
+    available_classes = tools.get_classes()
+    if pyconf not in available_classes:
+        ctx.invoke(list_classes)
+        raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
     
-        module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
-        defined_classes = [
-            m[0]
-            for m in inspect.getmembers(module, inspect.isclass)
-            if m[1].__module__ == module.__name__
-        ]
-        #should only be running one class anyway
-        defined_class = defined_classes[0]
-        cls = getattr(module,defined_class)
-        #build a class object
-        cdm = cls(inputs=inputs,
-                  output_folder=output_folder,
-                  use_profiler=use_profiler)
-        cdm.set_chunk_size(number_of_rows_per_chunk)
-        #run it
-        cdm.process()
-                
-    elif rules:
-        config = tools.load_json(rules)
-        name = config['metadata']['dataset']
-
-        #build an object to store the cdm
-        cdm = coconnect.cdm.CommonDataModel(name=name,
-                                            inputs=inputs,
-                                            output_folder=output_folder,
-                                            use_profiler=use_profiler)
-        
-        #CDM needs to also track the number of rows to chunk
-        # - note: should check if this is still needed/used at all
-        cdm.set_chunk_size(number_of_rows_per_chunk)
-        #loop over the cdm object types defined in the configuration
-        #e.g person, measurement etc..
-        for destination_table,rules_set in config['cdm'].items():
-            #loop over each object instance in the rule set
-            #for example, condition_occurrence may have multiple rulesx
-            #for multiple condition_ocurrences e.g. Headache, Fever ..
-            for i,rules in enumerate(rules_set):
-                #make a new object for the cdm object
-                #Example:
-                # destination_table : person
-                # get_cdm_class returns <Person>
-                # obj : Person()
-                obj = coconnect.cdm.get_cdm_class(destination_table)()
-                #set the name of the object
-                obj.set_name(f"{destination_table}_{i}")
-                
-                #call the apply_rules function to setup how to modify the inputs
-                #based on the rules
-                obj.rules = rules
-                #Build a lambda function that will get executed during run time
-                #and will be able to apply these rules to the inputs that are loaded
-                #(this is useful when chunk)
-                obj.define = lambda self : tools.apply_rules(self)
-                
-                #register this object with the CDM model, so it can be processed
-                cdm.add(obj)
-    
-        cdm.process()
-    else:
-        raise NotImplementedError("You need to run the CLI tool with either a json or python configuration file")
-
-
+    module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
+    defined_classes = [
+        m[0]
+        for m in inspect.getmembers(module, inspect.isclass)
+        if m[1].__module__ == module.__name__
+    ]
+    #should only be running one class anyway
+    defined_class = defined_classes[0]
+    cls = getattr(module,defined_class)
+    #build a class object
+    cdm = cls(inputs=inputs,
+              output_folder=output_folder,
+              use_profiler=use_profiler)
+    #run it
+    cdm.process()
+      
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
