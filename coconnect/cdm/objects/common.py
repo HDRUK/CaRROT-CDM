@@ -89,6 +89,14 @@ class DestinationTable(object):
         self.logger.debug(self.get_destination_fields())
         self.__df = None
 
+        #get the required fields
+        self.required_fields = [
+            field
+            for field in self.get_field_names()
+            if getattr(self,field).required == True
+        ]
+
+
     def get_field_names(self):
         """
         From the current object, loop over all member objects and find those that are instances
@@ -289,17 +297,10 @@ class DestinationTable(object):
             pandas.Dataframe: cleaned output dataframe
         """
 
-        #retrieve columns that have been marked as being required
-        required_fields = [
-            field
-            for field in self.get_field_names()
-            if getattr(self,field).required == True
-        ]
-        self.required_fields = required_fields
         self._meta['required_fields'] = {}
 
         #loop over the required fields
-        for field in required_fields:
+        for field in self.required_fields:
             #count the number of rows before
             nbefore = len(df)
             #remove rows which do not have this required field filled
