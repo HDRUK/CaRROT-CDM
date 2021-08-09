@@ -25,6 +25,8 @@ setuptools.setup(
     entry_points = {
         'console_scripts':[
             'coconnect=coconnect.cli.cli:coconnect',
+            'etltool=coconnect.cli.subcommands.map:run',
+            'etl-gui=coconnect.cli.subcommands.gui:gui',
         ],
     },
     packages=setuptools.find_packages(),
