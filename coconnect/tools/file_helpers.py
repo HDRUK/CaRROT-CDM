@@ -52,7 +52,7 @@ class InputData:
                 return obj.get_chunk(self.chunksize)
             except StopIteration:
                 #otherwise, if at the end of the file reader, return an empty frame
-                return pd.DataFrame()
+                return pd.DataFrame(columns=self.__dataframe[key].columns)
         else:
             #if we're handling non-chunked data
             #return an empty dataframe if we've already loaded this dataframe
