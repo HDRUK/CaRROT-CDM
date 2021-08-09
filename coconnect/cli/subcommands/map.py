@@ -342,7 +342,7 @@ def gui(ctx):
     exit(0)
     
     layout = [
-        [sg.Image('./logo.png')],
+        [sg.Image(f'{data_dir}logo.png')],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse()],
         [sg.T('Select the input CSVs:')],
