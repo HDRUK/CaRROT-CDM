@@ -42,7 +42,7 @@ class Observation(DestinationTable):
         """
         #if the _id is all null, give them a temporary index
         #so that all rows are not removed when performing the check on
-        #the required rows being filled 
+        #the required rows being filled
         if df['observation_id'].isnull().any():
             df['observation_id'] = df.reset_index().index + 1
             
@@ -71,7 +71,7 @@ class Observation(DestinationTable):
 
         #require the observation_concept_id to be filled
         nulls = df['observation_concept_id'].isnull()
-        if nulls.all():
+        if nulls.all() and len(df['observation_concept_id'])>0:
             self.logger.error("the observation_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")

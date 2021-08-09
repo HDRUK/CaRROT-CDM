@@ -65,7 +65,7 @@ class ConditionOccurrence(DestinationTable):
         df['condition_concept_id'] = pd.to_numeric(df['condition_concept_id'],errors='coerce')
         #require the condition_concept_id to be filled
         nulls = df['condition_concept_id'].isnull()
-        if nulls.all():
+        if nulls.all() and len(df['condition_concept_id']) > 0 :
             self.logger.error("the condition_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")

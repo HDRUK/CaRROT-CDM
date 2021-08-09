@@ -21,8 +21,14 @@ class FormattingError(Exception):
 class BadInputs(Exception):
     pass
 
-
 class DataFormatter(collections.OrderedDict):
+    """
+    Class for formatting DestinationFields in the CommonDataModel
+
+    Inherits from an ordered dictionary, and maps datatypes to lambda functions.
+    The lamba functions encode how to transform and format a pandas series given the datatype.
+
+    """
     def __init__(self):
         super().__init__()
         self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
@@ -35,6 +41,20 @@ class DataFormatter(collections.OrderedDict):
 
 
 class DestinationField(object):
+    """
+    CommonDataModel Table Destination Field.
+
+    Object for handling output columns (destination fields) in a 
+    Destination Table
+
+    Attributes:
+       series (pandas.Series): raw column data in the form of a series
+       dtype (str): data type for how to format the column based on the DataFormatter
+       required (bool): if the column is required or not 
+                        i.e. if the row should be delete if it is not filled
+       pk (str): primary key label, indicating if the column is the primary required field
+
+    """
     def __init__(self, dtype: str, required: bool, pk=False):
         self.series = None
         self.dtype = dtype
@@ -43,7 +63,7 @@ class DestinationField(object):
 
 class DestinationTable(object):
     """
-    Common object that all CDM objects (tables) inherit from
+    Common object that all CDM objects (tables) inherit from.
     """
     def __init__(self,_type,_version='v5_3_1'):
         """
@@ -69,7 +89,23 @@ class DestinationTable(object):
         self.logger.debug(self.get_destination_fields())
         self.__df = None
 
+        #get the required fields
+        self.required_fields = [
+            field
+            for field in self.get_field_names()
+            if getattr(self,field).required == True
+        ]
+
+
     def get_field_names(self):
+        """
+        From the current object, loop over all member objects and find those that are instances
+        of a DestinationField (column)
+        
+        Returns:
+           list : a list of destination fields (columns [series])
+
+        """
         return [
             item
             for item in self.__dict__.keys()
@@ -77,6 +113,12 @@ class DestinationTable(object):
         ]
 
     def get_ordering(self):
+        """
+        Loops over all associated fields and finds which have been marked as being a primary key.
+
+        Returns:
+            list: a string list of the names of primary columns (fields)
+        """
         retval = [
             field
             for field in self.fields
@@ -90,12 +132,27 @@ class DestinationTable(object):
         return retval
         
     def __getitem__(self, key):
+        """
+        Retrieve a field (column) from the table (dataframe)
+
+        Args:
+           key (str) : name of a destination field
+        Returns:
+           DestinationField : the destination field object
+        """
+        
         return getattr(self, key)
 
     def __setitem__(self, key, obj):
+        """
+        Register a field object with the table
+        """
         return setattr(self, key, obj)
     
     def set_name(self,name):
+        """
+        Register/Set the name of the destination table
+        """
         self.name = name
         self.logger.name = self.name
     
@@ -197,62 +254,74 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        df = self.finalise(df)
         df = self.format(df)
-
+        df = self.finalise(df)
+                
         #register the df
         self.__df = df
         return df
 
     def format(self,df):
         for col in df.columns:
+            
+            #if is already all na/nan, dont bother trying to format
+            if df[col].isna().all():
+                continue
+            
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
-            
+
+            nbefore = len(df[col])
+            nsample = 5 if nbefore > 5 else nbefore
+            sample = df[col].sample(nsample)
             df[col] = formatter_function(df[col])
 
-            #if col in self.required_fields and len(df[df[col].isna()])>0:
-            #    self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
-            #    raise FormattingError(f"The column {col} using the formatter function {dtype} produced NaN values in a required column")
-                
-            
+            if col in self.required_fields and df[col].isna().all():
+                self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
+                self.logger.info(f"Sample of this column before formatting:")
+                self.logger.error(sample)
+
+                raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
+
         return df
 
     def finalise(self,df):
         """
-        Finalise function, expected to be overloaded by children classes
-        """
-        
-        required_fields = [
-            field
-            for field in self.get_field_names()
-            if getattr(self,field).required == True
-        ]
-        self.required_fields = required_fields
-        
-        self._meta['required_fields'] = {}
-        for field in required_fields:
-            nbefore = len(df)
+        Finalise a dataframe by dropping null/nan rows if a required field is missing.
+        also sort the dataframe by the primary key of the table.
 
+        Args:
+            df (pandas.Dataframe): input dataframe
+        Returns:
+            pandas.Dataframe: cleaned output dataframe
+        """
+
+        self._meta['required_fields'] = {}
+
+        #loop over the required fields
+        for field in self.required_fields:
+            #count the number of rows before
+            nbefore = len(df)
+            #remove rows which do not have this required field filled
             df = df[~df[field].isna()]
+            #count the number of rows after
             nafter = len(df)
-            
+            #get the number of rows removed
             ndiff = nbefore - nafter
+            #if rows have been removed
             if ndiff>0:
                 #log a warning message if after requiring non-NaN values has removed all rows
                 log = self.logger.warning if nafter > 0 else self.logger.error
                 log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
+
+            #log some metadata
             self._meta['required_fields'][field] = {
                 'before':nbefore,
                 'after':nafter
             }
-            #if 'concept_id' in field:
-            #    values = df[field].unique().tolist()
-            #    self._meta['required_fields'][field]['concept_values'] = values
 
-
+        #return the dataframe sorted by the primary key requested
         df = df.sort_values(self.get_ordering())
-        
         return df
 
