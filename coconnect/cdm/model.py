@@ -125,7 +125,8 @@ class CommonDataModel:
                 'created_by': getpass.getuser(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
-                'output_folder':os.path.abspath(self.output_folder)
+                'output_folder':os.path.abspath(self.output_folder),
+                'total_data_processed':{}
             }
         }
 
@@ -299,12 +300,16 @@ class CommonDataModel:
         * Retrieve the next chunk of data
 
         """
+
         i=0
         while True:
+        
             for destination_table in self.execution_order:
                 self[destination_table] = self.process_table(destination_table)
-                self.logger.info(f'finalised {destination_table} on iteration {i}')
-                
+                if not self[destination_table] is None:
+                    nrows = len(self[destination_table])
+                    self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
+
             mode = 'w'
             if i>0:
                 mode='a'
@@ -362,7 +367,7 @@ class CommonDataModel:
         #execute them all
         dfs = []
         self.logger.info(f"working on {destination_table}")
-        logs = {}
+        logs = {'objects':{}}
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df(force_rebuild=False)
@@ -373,7 +378,7 @@ class CommonDataModel:
                 continue
             
             dfs.append(df)
-            logs[obj.name] = obj._meta
+            logs['objects'][obj.name] = obj._meta
 
         if len(dfs) == 0:
             return None
@@ -385,25 +390,40 @@ class CommonDataModel:
         else:
             df_destination = pd.concat(dfs,ignore_index=True)
 
+        #register the total length of the output dataframe
+        logs['ntotal'] = len(df_destination)
+        
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
         #df_destination = self.mask_person_id(df_destination)
-
         #get the primary columnn
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
         primary_column = df_destination.columns[0]
         #if it's not the person_id
         if primary_column != 'person_id':
-            #create an index from 1-N 
-            df_destination[primary_column] = df_destination.reset_index().index + 1
+            #create an index from 1-N
+            start_index = 1
+            #if we're processing chunked data, and nrows have already been created (processed)
+            #start the index from this number
+            total_data_processed = self.logs['meta']['total_data_processed']
+            if destination_table in total_data_processed:
+                nrows_processed_so_far = total_data_processed[destination_table]
+                start_index += nrows_processed_so_far
+                
+            df_destination[primary_column] = df_destination.reset_index().index + start_index
+            
+            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
 
         #book the metadata logs
         self.logs[destination_table] = logs
+
+        if destination_table not in self.logs['meta']['total_data_processed']:
+            self.logs['meta']['total_data_processed'][destination_table] = 0
+        self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
-            
         #return the finalised full dataframe for this table
         return df_destination
 
