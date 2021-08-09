@@ -1,15 +1,24 @@
+import coconnect
 import logging
 import coloredlogs
 import textwrap
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
 
-print ("hello from logger")
-
 class Logger(logging.Logger):
     def __init__(self,name):
-        print ("setting up a new logger",name)
         super().__init__(name)
-        self.setLevel(logging.INFO)
+        debug_level = coconnect.params['debug_level']
+
+        if debug_level == 0:
+            debug_level = logging.ERROR
+        elif debug_level == 1:
+            debug_level = logging.WARNING
+        elif debug_level == 2:
+            debug_level = logging.INFO
+        else:
+            debug_level = logging.DEBUG
+            
+        self.setLevel(debug_level)
         format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         formatter = coloredlogs.ColoredFormatter(format_str)
 
@@ -20,5 +29,5 @@ class Logger(logging.Logger):
         file_formatter = logging.Formatter(format_str)
         fh = logging.FileHandler('coconnect.log',mode='a')
         fh.setFormatter(file_formatter)
-        #fh.setLevel(logging.DEBUG)
+        fh.setLevel(debug_level)
         self.addHandler(fh)

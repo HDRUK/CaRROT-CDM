@@ -42,7 +42,7 @@ class CommonDataModel:
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
-        name = self.__class__.__name__ if name is None else name
+        name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
         self.logger.info(f"CommonDataModel created with version {cc_version}")
@@ -51,6 +51,7 @@ class CommonDataModel:
         
         self.profiler = None
         if use_profiler:
+            self.logger.debug(f"Turning on cpu/memory profiling")
             self.profiler = Profiler(name=name)
             self.profiler.start()
 
