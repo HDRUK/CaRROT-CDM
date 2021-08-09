@@ -42,7 +42,7 @@ class Observation(DestinationTable):
         """
         #if the _id is all null, give them a temporary index
         #so that all rows are not removed when performing the check on
-        #the required rows being filled 
+        #the required rows being filled
         if df['observation_id'].isnull().any():
             df['observation_id'] = df.reset_index().index + 1
             
