@@ -290,6 +290,80 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
     #run it
     cdm.process()
       
+@click.command(help="run as a Graphical User Interface (GUI)")
+@click.pass_context
+def gui(ctx):
+    import PySimpleGUI as sg
+
+    coconnect_theme = {'BACKGROUND': 'white',
+                       'TEXT': '#000000',
+                       'INPUT': '#c4c6e2',
+                       'TEXT_INPUT': '#000000',
+                       'SCROLL': '#c4c6e2',
+                       'BUTTON': ('white', '#475da7','#3DB28C'),
+                       'PROGRESS': ('#01826B', '#D0D0D0'),
+                       'BORDER': 1,
+                       'SLIDER_DEPTH': 1,
+                       'PROGRESS_DEPTH': 0}
+    
+    # Add your dictionary to the PySimpleGUI themes
+    sg.theme_add_new('coconnect', coconnect_theme)
+    sg.theme('coconnect')
+
+    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
+    
+    layout = [
+        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT ETL-Tool",font = ("Roboto", 25))],
+        [sg.T('Select the rules json:')],
+        [sg.Input(key='_RULES_'), sg.FilesBrowse()],
+        [sg.T('Select the input CSVs:')],
+        [sg.Input(key='_INPUTS_'), sg.FilesBrowse()],
+        [sg.T('Select an output folder:')],
+        [sg.Input(key='_OUTPUT_',default_text=os.getcwd()), sg.FolderBrowse()],
+        #[[sg.T('Change the default data chunksize:'),
+        #  sg.Slider(range=(0,1000000),
+        #            default_value=100000,
+        #            resolution=10000,
+        #            orientation='horizontal')]],
+        [sg.OK('Run'), sg.Cancel(button_color=('white','#3DB28C'))]
+    ]
+
+    font = ("Roboto", 15)
+    
+    window = sg.Window('COCONNECT', layout, font=font)
+    while True:
+        event, values = window.Read()
+        
+        if event == 'Cancel' or event == None:
+            break
+
+        output_folder = values['_OUTPUT_']
+        if output_folder == '':
+            output_folder = None
+            
+        rules = values['_RULES_']
+        if rules == '':
+            sg.Popup(f'Error: please select a rules file')
+            continue
+        elif len(rules.split(';'))>1:
+            sg.Popup(f'Error: only select one file for the rules!')
+            continue
+
+        inputs = values['_INPUTS_']
+        if inputs == '':
+            sg.Popup(f'Error: please select at least one file or directory for the inputs')
+            continue
+        
+        inputs = inputs.split(';')
+        ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
+        sg.Popup("Done!")
+        break
+        
+    window.close()
+
+    
+
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
@@ -301,4 +375,5 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(gui,"gui")
 map.add_command(test,"test")
