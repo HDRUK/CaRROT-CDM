@@ -21,17 +21,6 @@ class FormattingError(Exception):
 class BadInputs(Exception):
     pass
 
-def test(x):
-    print (type(x))
-    print (x)
-    x = x.str.extract('(\d+)')
-    print(x.iloc[:,0])
-    exit(0)
-    print (type(x))
-    x = pd.to_numeric(x,errors='coerce').astype('Int64')
-    print (type(x))
-    return x
-
 class DataFormatter(collections.OrderedDict):
     """
     Class for formatting DestinationFields in the CommonDataModel
