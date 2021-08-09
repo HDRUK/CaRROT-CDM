@@ -428,6 +428,14 @@ class CommonDataModel:
         return df_destination
 
     def save_logs(self,f_out=None,extra=""):
+        """
+        CommonDataModel keeps logs of various information about what rows have been processed/created/deleted
+        these logs are saved to json files by this function.
+
+        Args:
+            f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
+            extra (str): Extra string to append to the name of the log file, useful for sliced data.
+        """
         if f_out == None:
             f_out = self.output_folder
         f_out = f'{f_out}/logs/'
@@ -442,6 +450,18 @@ class CommonDataModel:
 
 
     def get_outfile_extension(self):
+        """
+        Work out what the extension of the output file for the dataframes should be.
+
+        Given the '_outfile_separator' to be used in `df.to_csv`,
+        work out the file extension.
+
+        At current, only tab separated and comma separated values (files) are supported
+        
+        Returns:
+           str: outfile extension name
+        
+        """
         if self._outfile_separator == ',':
             return 'csv'
         elif self._outfile_separator == '\t':
@@ -452,6 +472,14 @@ class CommonDataModel:
             return 'csv'
         
     def save_to_file(self,f_out=None,mode='w'):
+        """
+        Save the dataframe processed by the CommonDataModel to files.
+
+        Args:
+            f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
+            mode (str): Mode for how to write the file. Append or write. Default is 'w' or write mode.
+        
+        """
         if f_out == None:
             f_out = self.output_folder
         header=True
@@ -478,9 +506,23 @@ class CommonDataModel:
         self.logger.info("finished save to file")
 
     def set_outfile_separator(self,sep):
+        """
+        Set which separator to use, e.g. ',' or '\t' 
+
+        Args:
+            sep (str): which separator to use when writing csv (tsv) files
+        """
         self._outfile_separator = sep
         
     def set_indexing(self,index_map,strict_check=False):
+        """
+        Create indexes on input files which would allow rules to use data from 
+        different input tables.
+
+        Args:
+            index_map (dict): a map between the filename and what should be the column used for indexing 
+
+        """
         if self.inputs == None:
             raise NoInputFiles('Trying to indexing before any inputs have been setup')
 
