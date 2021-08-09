@@ -337,9 +337,7 @@ def gui(ctx):
     sg.theme('coconnect')
 
     _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
-    data_dir = f"{_dir}{os.path.sep}data"
-    print (data_dir)
-    exit(0)
+    data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
         [sg.Image(f'{data_dir}logo.png')],
@@ -349,12 +347,11 @@ def gui(ctx):
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse()],
         [sg.T('Select an output folder:')],
         [sg.Input(key='_OUTPUT_',default_text=os.getcwd()), sg.FolderBrowse()],
-        [[sg.T('Change the default data chunksize:'),
-          sg.Slider(range=(0,1000000),
-                    default_value=100000,
-                    resolution=10000,
-                    #size=(20,15),
-                    orientation='horizontal')]],
+        #[[sg.T('Change the default data chunksize:'),
+        #  sg.Slider(range=(0,1000000),
+        #            default_value=100000,
+        #            resolution=10000,
+        #            orientation='horizontal')]],
         [sg.OK('Run'), sg.Cancel(button_color=('white','#3DB28C'))]
     ]
 
