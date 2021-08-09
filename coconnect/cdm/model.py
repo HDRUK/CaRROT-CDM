@@ -130,6 +130,10 @@ class CommonDataModel:
         }
 
     def __del__(self):
+        """
+        Class destructor:
+              Stops the profiler from running before deleting self
+        """
         if self.profiler:
             self.profiler.stop()
             df_profile = self.profiler.get_df()
@@ -166,10 +170,21 @@ class CommonDataModel:
             return self.__df_map[key]
 
     def __setitem__(self,key,obj):
+        """
+        Registration of a new dataframe for a new object
+        Args:
+            key (str) : name of the CDM table (e.g. "person")
+            obj (pandas.DataFrame) : dataframe to refer to 
+        """
+        self.logger.debug(f"creating {obj} for {key}")
         self.__df_map[key] = obj
-    
         
     def add(self,obj):
+        """
+        Function to add a new CDM table (object) to the current model
+        Args:
+            obj (DestinationTable) : CDM Table to be registered with the class
+        """
         if obj._type not in self.__objects:
             self.__objects[obj._type] = {}
             
@@ -180,6 +195,17 @@ class CommonDataModel:
         self.logger.info(f"Added {obj.name} of type {obj._type}")
         
     def get_objects(self,destination_table):
+        """
+        For a given destination table:
+        * Retrieve all associated objects that have been registered with the class
+
+        Args:
+            destination_table (str) : name of a destination (CDM) table e.g. "person"
+        Returns:
+            list : a list of destination table objects 
+                   e.g. [<person_0>, <person_1>] 
+                   which would be objects for male and female mapping
+        """
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -192,6 +218,13 @@ class CommonDataModel:
 
     
     def mask_person_id(self,df):
+        """
+        Given a dataframe object, apply a masking map on the person_id, if one has been created
+        Args:
+            df (pandas.Dataframe) : input pandas dataframe
+        Returns:
+            pandas.Dataframe: modified dataframe with person id masked
+        """
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
             if self.person_id_masker is None:
@@ -205,6 +238,15 @@ class CommonDataModel:
         return df
 
     def count_objects(self):
+        """
+        For each CDM (destination) table, count the number of objects associated
+        e.g.
+        {
+           "observation": 6,
+           "condition_occurrence": 1,
+           "person": 2
+        }
+        """
         count_map = json.dumps({
             key: len(obj.keys())
             for key,obj in self.__objects.items()
@@ -212,12 +254,51 @@ class CommonDataModel:
         self.logger.info(f"Number of objects to process for each table...\n{count_map}")
 
     def keys(self):
+        """
+        For cdm.keys(), return the keys of which objects have been mapped.
+        Hence which CDM table dataframes have been created.
+        This should be used AFTER cdm.process() has been run, which creates the dataframes.
+        """
         return self.__df_map.keys()
 
     def objects(self):
+        """
+        Method to retrieve the input objects to the CDM 
+        """
         return self.__objects
 
+    def process(self):
+        """
+        Main functionality of the CommonDataModel class
+        When executed, this function determines the order in which to process the CDM tables
+        Then determines whether to process chunked or flat data
+        """
+        #determine the order to execute tables in
+        #only thing that matters is to execute the person table first
+        # - this is if we want to mask the person_ids and need to save a record of
+        #   the link between the unmasked and masked
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
+        self.count_objects()
+
+        #switch to process the data in chunks or not
+        if isinstance(self.inputs,InputData):
+            self.process_chunked_data()
+        else:
+            self.process_flat_data()
+
+    
     def process_chunked_data(self):
+        """
+        Process chunked data, processes as follows
+        * While the chunking of is not yet finished
+        * Loop over all CDM tables (via execution order) 
+          and process the table (see process_table), returning a dataframe
+        * Register the retrieve dataframe with the model  
+        * For the current chunk slice, save the data/logs to files
+        * Retrieve the next chunk of data
+
+        """
         i=0
         while True:
             for destination_table in self.execution_order:
@@ -238,6 +319,13 @@ class CommonDataModel:
                 break
 
     def process_flat_data(self):
+        """
+        For processing of flat data (not chunked):
+        * Loop over each destination table (via execution order):
+        * Process the CDM table (see process_table) retrieving a dataframe
+        * Register the retrieve dataframe with the model
+        * Save files and logs
+        """
         for destination_table in self.execution_order:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
@@ -245,22 +333,22 @@ class CommonDataModel:
         self.save_to_file()
         self.save_logs()
                 
-    def process(self):
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
-
-        #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
-        else:
-            self.process_flat_data()
             
     def process_table(self,destination_table):
+        """
+        Process a CDM (destination) table. The method proceeds as follows:
+        * Given a destination table name e.g. 'person' 
+        * Retrieve all objects belonging to the given CDM table (e.g. <person_0, person_1>)
+        * Loop over each object
+        * Retrieve a dataframe for that object given it's definition/rules (see get_df)
+        * Concatenate all retrieve dataframes together by stacking on top of each other vertically
+        * Create new indexes for the primary column so the go from 1-N 
+        
+        Args:
+            destination_table (str) : name of a destination table to process (e.g. 'person')
+        Returns:
+            pandas.Dataframe: a merged output dataframe in the CDM format for the destination table
+        """
         objects = self.get_objects(destination_table)
         nobjects = len(objects)
         extra = ""
