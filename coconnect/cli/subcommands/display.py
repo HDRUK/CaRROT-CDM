@@ -4,15 +4,6 @@ import pandas
 import json
 import coconnect.tools as tools
 
-class DifferingColumns(Exception):
-    pass
-
-def get_separator_from_filename(fname):
-    _, fileExtension = os.path.splitext(fname)
-    if fileExtension == '.tsv':
-        return '\t'
-    else:
-        return ','
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
@@ -83,46 +74,7 @@ def print_json(rules,list_fields,list_tables):
 @click.argument("file1")
 @click.argument("file2")
 def diff(file1,file2,separator):
-
-    if separator == None:
-        sep1 = get_separator_from_filename(file1)
-        sep2 = get_separator_from_filename(file2)
-    else:
-        sep1 = separator
-        sep2 = separator
-        
-    df1 = pandas.read_csv(file1,sep=sep1)
-    df2 = pandas.read_csv(file2,sep=sep2)
-    
-    exact_match = df1.equals(df2)
-    if exact_match:
-        return
-
-    df = pandas.concat([df1,df2]).drop_duplicates(keep=False)
-
-    if len(df) > 0:
-        print (" ======== Differing Rows ========== ")
-        print (df)
-        m = df1.merge(df2, on=df.columns[0], how='outer', suffixes=['', '_'], indicator=True)[['_merge']]
-        m = m[~m['_merge'].str.contains('both')]
-        file1 = file1.split('/')[-1]
-        file2 = file2.split('/')[-1]
-        
-        m['_merge'] = m['_merge'].map({'left_only':file1,'right_only':file2})
-        m = m.rename(columns={'_merge':'Only Contained Within'})
-        m.index.name = 'Row Number'
-        print (m.reset_index().to_dict(orient='records'))
-
-    elif len(df1.columns) != len(df2.columns):
-        
-        raise DifferingColumns('in df1 but not df2',list(set(df1.columns) - set(df2.columns)),'\n',
-                               'in df2 but not df1',list(set(df2.columns) - set(df1.columns)))
-
-    else:
-        print (" ======= Rows are likely in a different order ====== ")
-        for i in range(len(df1)):
-            if not (df1.iloc[i] == df2.iloc[i]).any():
-                print ('Row',i,'is in a different location')
+    tools.diff_csv(file1,file2,separator)
 
 
 @click.command(help="flattern a rules json file")

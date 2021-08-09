@@ -60,6 +60,18 @@ def remove_class(ctx,name):
         _class = classes[name]
         os.unlink(_class['sympath'])
 
+@click.command(help="Execute the running of the test dataset")
+@click.pass_context
+def test(ctx):
+    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    _dir = f"{_dir}{os.path.sep}data{os.path.sep}test"
+    inputs = glob.glob(f"{_dir}{os.path.sep}inputs{os.path.sep}*.csv")
+    rules = f"{_dir}{os.path.sep}rules{os.path.sep}rules_14June2021.json"
+    output_folder = 'tests'
+    ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
+    for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
+        tools.diff_csv(fname,fname)
+          
 @click.command()
 @click.option("--rules",
               required=True,
@@ -289,3 +301,4 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(test,"test")
