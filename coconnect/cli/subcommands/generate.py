@@ -1,19 +1,123 @@
 import os
 import click
+import json
 import coconnect
 import pandas as pd
 import numpy as np
+import requests
+
+class MissingToken(Exception):
+    pass
+
 
 @click.group(help='Commands to generate helpful files.')
 def generate():
     pass
 
-@click.command(help="generate synthetic data from a ScanReport")
+@click.group(help='Commands to generate synthetic data.')
+def synthetic():
+    pass
+
+@click.command(help="generate synthetic data from a ScanReport ID from CCOM")
+@click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
+@click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
+@click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
+@click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
+@click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("-u","--url",help="url endpoint for the CCOM website to ping",
+              type=str,
+              default="https://ccom.azurewebsites.net")
+def ccom(report_id,number_of_events,output_directory,
+         fill_column_with_values,token,
+         url):
+    token = os.environ.get("COCONNECT_TOKEN") or token
+    if token == None:
+        raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
+        "Content-type": "application/json",
+        "charset": "utf-8",
+        "Authorization": f"Token {token}"
+    }
+
+    response = requests.get(
+        f"{url}/api/scanreporttablesfilter/?scan_report={report_id}",
+        headers=headers
+    )
+    if response.status_code != 200:
+        print ('failed to get a response')
+        print (response.json())
+        exit(0)
+    else:
+        print (json.dumps(response.json(),indent=6))
+        
+    tables = {
+        table['name']:table['id']
+        for table in response.json()
+        }
+
+    for name,_id in tables.items():
+        _url = f"{url}/api/scanreportvaluesfilterscanreporttable/?scan_report_table={_id}&fields=value,frequency,scan_report_field"
+        response = requests.get(
+            _url, headers=headers,
+            allow_redirects=True,
+        )
+        df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')        
+        _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}&fields=id,name"
+        response = requests.get(
+            _url, headers=headers,
+            allow_redirects=True,
+        )
+        res = response.json()
+                
+        id_to_col_name = {
+            field['id']:field['name']
+            for field in res
+        }
+        df.index = df.index.map(id_to_col_name)
+        
+        df_synthetic = {}
+        for col_name in df.index.unique():
+            if col_name == '': continue
+            
+            _df = df.loc[[col_name]]
+            frequency = _df['frequency']
+            total = frequency.sum()
+            if total > 0 :
+                frequency = number_of_events*frequency / total
+                frequency = frequency.astype(int)
+            else:
+                frequency = number_of_events
+                
+            values = _df['value'].repeat(frequency)\
+                                 .sample(frac=1)\
+                                 .reset_index(drop=True)
+            values.name = col_name
+            df_synthetic[col_name] = values
+
+        df_synthetic = pd.concat(df_synthetic.values(),axis=1)
+
+        for col_name in fill_column_with_values:
+            if col_name in df_synthetic.columns:
+                df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
+                
+        
+        if not os.path.isdir(output_directory):
+            os.makedirs(output_directory)
+        fname = f"{output_directory}/{name}"
+
+        df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+        print (df_synthetic)
+        df_synthetic.to_csv(fname)
+        print (f"created {fname} with {number_of_events} events")
+    
+@click.command(help="generate synthetic data from a ScanReport xlsx file")
 @click.argument("report")
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
-def synthetic(report,number_of_events,output_directory,fill_column_with_values):
+def xlsx(report,number_of_events,output_directory,fill_column_with_values):
     dfs = pd.read_excel(report,sheet_name=None)
     sheets_to_process = list(dfs.keys())[2:-1]
 
@@ -60,6 +164,12 @@ def synthetic(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
+synthetic.add_command(xlsx,"xlsx")
+synthetic.add_command(ccom,"ccom")
+generate.add_command(synthetic,"synthetic")
+
+
+        
 @click.command(help="generate a python configuration for the given table")
 @click.argument("table")
 @click.argument("version")
@@ -95,4 +205,3 @@ def cdm(table,version):
         print (string)
     
 generate.add_command(cdm,"cdm")
-generate.add_command(synthetic,"synthetic")
