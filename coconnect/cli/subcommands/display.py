@@ -1,3 +1,4 @@
+import os
 import click
 import pandas
 import json
@@ -6,6 +7,12 @@ import coconnect.tools as tools
 class DifferingColumns(Exception):
     pass
 
+def get_separator_from_filename(fname):
+    _, fileExtension = os.path.splitext(fname)
+    if fileExtension == '.tsv':
+        return '\t'
+    else:
+        return ','
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
@@ -16,8 +23,13 @@ def display():
 @click.option('--drop-na',is_flag=True)
 @click.option('--markdown',is_flag=True)
 @click.option('--head',type=int,default=None)
-@click.option('--separator','--sep',type=str,default='\t')
+@click.option('--separator','--sep',type=str,default=None)
 def dataframe(fname,drop_na,markdown,head,separator):
+
+    #if separator not specified, get it from the file extension 
+    if separator == None:
+        separator = get_separator_from_filename(fname)
+        
     df = pandas.read_csv(fname,nrows=head,sep=separator)
     if drop_na:
         df = df.dropna(axis=1,how='all')
@@ -67,12 +79,20 @@ def print_json(rules,list_fields,list_tables):
 
 
 @click.command(help="Detect differences in either inputs or output csv files")
-@click.option('--separator','--sep',type=str,default='\t')
+@click.option('--separator','--sep',type=str,default=None)
 @click.argument("file1")
 @click.argument("file2")
 def diff(file1,file2,separator):
-    df1 = pandas.read_csv(file1,sep=separator)
-    df2 = pandas.read_csv(file2,sep=separator)
+
+    if separator == None:
+        sep1 = get_separator_from_filename(file1)
+        sep2 = get_separator_from_filename(file2)
+    else:
+        sep1 = separator
+        sep2 = separator
+        
+    df1 = pandas.read_csv(file1,sep=sep1)
+    df2 = pandas.read_csv(file2,sep=sep2)
     
     exact_match = df1.equals(df2)
     if exact_match:

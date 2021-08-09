@@ -7,3 +7,5 @@ click
 sqlalchemy
 tabulate
 psutil
+requests
+openpyxl
