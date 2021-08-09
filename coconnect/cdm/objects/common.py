@@ -21,7 +21,6 @@ class FormattingError(Exception):
 class BadInputs(Exception):
     pass
 
-
 class DataFormatter(collections.OrderedDict):
     """
     Class for formatting DestinationFields in the CommonDataModel
@@ -89,6 +88,14 @@ class DestinationTable(object):
         #print a check to see what cdm objects have been initialised
         self.logger.debug(self.get_destination_fields())
         self.__df = None
+
+        #get the required fields
+        self.required_fields = [
+            field
+            for field in self.get_field_names()
+            if getattr(self,field).required == True
+        ]
+
 
     def get_field_names(self):
         """
@@ -247,24 +254,36 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        df = self.finalise(df)
         df = self.format(df)
-
+        df = self.finalise(df)
+                
         #register the df
         self.__df = df
         return df
 
     def format(self,df):
         for col in df.columns:
+            
+            #if is already all na/nan, dont bother trying to format
+            if df[col].isna().all():
+                continue
+            
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
+
+            nbefore = len(df[col])
+            nsample = 5 if nbefore > 5 else nbefore
+            sample = df[col].sample(nsample)
             df[col] = formatter_function(df[col])
 
             if col in self.required_fields and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
+                self.logger.info(f"Sample of this column before formatting:")
+                self.logger.error(sample)
+
                 raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
-                            
+
         return df
 
     def finalise(self,df):
@@ -278,17 +297,10 @@ class DestinationTable(object):
             pandas.Dataframe: cleaned output dataframe
         """
 
-        #retrieve columns that have been marked as being required
-        required_fields = [
-            field
-            for field in self.get_field_names()
-            if getattr(self,field).required == True
-        ]
-        self.required_fields = required_fields
         self._meta['required_fields'] = {}
 
         #loop over the required fields
-        for field in required_fields:
+        for field in self.required_fields:
             #count the number of rows before
             nbefore = len(df)
             #remove rows which do not have this required field filled

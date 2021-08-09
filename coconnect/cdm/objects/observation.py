@@ -71,7 +71,7 @@ class Observation(DestinationTable):
 
         #require the observation_concept_id to be filled
         nulls = df['observation_concept_id'].isnull()
-        if nulls.all():
+        if nulls.all() and len(df['observation_concept_id'])>0:
             self.logger.error("the observation_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
