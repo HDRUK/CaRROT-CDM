@@ -150,13 +150,27 @@ def run(ctx,rules,inputs,log_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
+
+    config = tools.load_json(rules)
+    name = config['metadata']['dataset']
+
+        
+    print (inputs)
+    print (number_of_rows_per_chunk)
+    n_used_fields = [ len(sublist) for sublist in tools.get_mapped_fields_from_rules(config).values() ]
+    max_n_used_fields = max(n_used_fields)
+    print (max_n_used_fields)
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
-    config = tools.load_json(rules)
-    name = config['metadata']['dataset']
+    print (inputs.keys())
+    print (inputs[list(inputs.keys())[0]])
+    inputs.next()
+    print (inputs[list(inputs.keys())[0]])
+
+    exit(0)
 
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,

@@ -70,14 +70,14 @@ def ccom(report_id,number_of_events,output_directory,
             allow_redirects=True,
         )
         res = response.json()
-                
         id_to_col_name = {
-            field['id']:field['name']
+            field['id']:field['name'].replace('\ufeff','')
             for field in res
         }
         df.index = df.index.map(id_to_col_name)
         
         df_synthetic = {}
+        
         for col_name in df.index.unique():
             if col_name == '': continue
             
