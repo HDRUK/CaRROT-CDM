@@ -76,10 +76,6 @@ def test(ctx):
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
-@click.option("--type",
-              default='csv',
-              type=click.Choice(['csv']),
-              help="specify the type of inputs, the default is .csv inputs")
 @click.option("--csv-separator",
               default=None,
               type=click.Choice([';',':','\t',',',' ',]),
@@ -91,9 +87,8 @@ def test(ctx):
               default=None,
               help="define the output folder where to dump csv files to")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default=100000,
-              type=int,
-              help="choose to chunk running the data into nrows")
+              default='auto',
+              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize.")
 @click.option("-np","--number-of-rows-to-process",
               default=None,
               type=int,
@@ -107,7 +102,7 @@ def test(ctx):
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,log_level,
-        output_folder,type,csv_separator,use_profiler,
+        output_folder,csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -116,11 +111,34 @@ def run(ctx,rules,inputs,log_level,
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
 
+    config = tools.load_json(rules)
+    name = config['metadata']['dataset']
+
+    
+    if number_of_rows_per_chunk == 'auto':
+        #automatically calculate the ideal chunksize
+        #get the fields that are going to be used
+        used_fields = tools.get_mapped_fields_from_rules(config)
+        #calculate the number of fields that are to be used per dataset
+        n_used_fields = [ len(sublist) for sublist in used_fields.values() ]
+        #find what's the largest number of fields loaded by any dataset
+        max_n_used_fields = max(n_used_fields)
+        #get the number of files used
+        n_files = len(n_used_fields)
+        max_n_rows = 2e6
+        number_of_rows_per_chunk = int(max_n_rows/(max_n_used_fields*n_files))
+    else:
+        try:
+            number_of_rows_per_chunk = int(number_of_rows_per_chunk)
+        except ValueError:
+            raise ValueError(f"number_of_rows_per_chunk must be an Integer or 'auto', you inputted '{number_of_rows_per_chunk}'")
+        
+        #turn off chunking if 0 or negative chunksizes are given
+        if number_of_rows_per_chunk < 0 :
+            number_of_rows_per_chunk = None
+    
     coconnect.params['debug_level'] = int(log_level)
     
-    if type != 'csv':
-        raise NotImplementedError("Can only handle inputs that are .csv so far")
-        
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(coconnect.__file__)
@@ -150,27 +168,10 @@ def run(ctx,rules,inputs,log_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-
-    config = tools.load_json(rules)
-    name = config['metadata']['dataset']
-
-        
-    print (inputs)
-    print (number_of_rows_per_chunk)
-    n_used_fields = [ len(sublist) for sublist in tools.get_mapped_fields_from_rules(config).values() ]
-    max_n_used_fields = max(n_used_fields)
-    print (max_n_used_fields)
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
-
-    print (inputs.keys())
-    print (inputs[list(inputs.keys())[0]])
-    inputs.next()
-    print (inputs[list(inputs.keys())[0]])
-
-    exit(0)
 
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
