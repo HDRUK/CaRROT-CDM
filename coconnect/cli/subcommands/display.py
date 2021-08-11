@@ -71,10 +71,11 @@ def print_json(rules,list_fields,list_tables):
 
 @click.command(help="Detect differences in either inputs or output csv files")
 @click.option('--separator','--sep',type=str,default=None)
+@click.option('--max-rows','-n',type=int,default=None)
 @click.argument("file1")
 @click.argument("file2")
-def diff(file1,file2,separator):
-    tools.diff_csv(file1,file2,separator)
+def diff(file1,file2,separator,max_rows):
+    tools.diff_csv(file1,file2,separator=separator,nrows=max_rows)
 
 
 @click.command(help="flattern a rules json file")

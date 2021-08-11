@@ -196,7 +196,7 @@ def get_separator_from_filename(fname):
         return ','
 
 
-def diff_csv(file1,file2,separator=None):
+def diff_csv(file1,file2,separator=None,nrows=None):
     logger = Logger("CSV File Diff")
     
     if separator == None:
@@ -205,9 +205,9 @@ def diff_csv(file1,file2,separator=None):
     else:
         sep1 = separator
         sep2 = separator
-        
-    df1 = pd.read_csv(file1,sep=sep1)
-    df2 = pd.read_csv(file2,sep=sep2)
+
+    df1 = pd.read_csv(file1,sep=sep1,nrows=nrows)
+    df2 = pd.read_csv(file2,sep=sep2,nrows=nrows)
     
     exact_match = df1.equals(df2)
     if exact_match:
