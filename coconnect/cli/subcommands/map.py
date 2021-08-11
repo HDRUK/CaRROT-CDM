@@ -110,14 +110,15 @@ def run(ctx,rules,inputs,log_level,
 
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
-
+    #change the global log level
+    coconnect.params['debug_level'] = int(log_level)
+    #load the json loads
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
-    
+    #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
-        #automatically calculate the ideal chunksize
-        #get the fields that are going to be used
+        #get the fields that are going to be used/loaded
         used_fields = tools.get_mapped_fields_from_rules(config)
         #calculate the number of fields that are to be used per dataset
         n_used_fields = [ len(sublist) for sublist in used_fields.values() ]
@@ -125,6 +126,12 @@ def run(ctx,rules,inputs,log_level,
         max_n_used_fields = max(n_used_fields)
         #get the number of files used
         n_files = len(n_used_fields)
+        
+        # If there is one dataset and one column being used, the max loaded to memory
+        #   is 2million rows (this is fairly arbitrary)
+        #   it is an approximation assuming the data in the values is relatively small
+        #   this should keep the memory usage down
+        # When there is more fields and more files loaded, reduce the of rows per chunk
         max_n_rows = 2e6
         number_of_rows_per_chunk = int(max_n_rows/(max_n_used_fields*n_files))
     else:
@@ -137,7 +144,6 @@ def run(ctx,rules,inputs,log_level,
         if number_of_rows_per_chunk < 0 :
             number_of_rows_per_chunk = None
     
-    coconnect.params['debug_level'] = int(log_level)
     
     #check if exists
     if any('*' in x for x in inputs):
