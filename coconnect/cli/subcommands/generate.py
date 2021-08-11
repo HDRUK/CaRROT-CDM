@@ -72,7 +72,7 @@ def ccom(report_id,number_of_events,output_directory,
         res = response.json()
                 
         id_to_col_name = {
-            field['id']:field['name']
+            field['id']:field['name'].replace('\ufeff','')
             for field in res
         }
         df.index = df.index.map(id_to_col_name)
