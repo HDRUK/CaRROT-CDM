@@ -32,7 +32,8 @@ def dataframe(fname,drop_na,markdown,head,separator):
 @click.argument('fnames',nargs=-1)
 @click.option('-y',required=True,multiple=True)
 @click.option('-x',required=True)
-def plot(fnames,x,y):
+@click.option('--save-plot',default=None,help='choose the name of file to save the plot to')
+def plot(fnames,x,y,save_plot):
     import matplotlib.pyplot as plt
     fig,ax = plt.subplots(len(y),figsize=(14,7))
 
@@ -46,6 +47,8 @@ def plot(fnames,x,y):
         for fname in fnames:
             dfs[fname].plot(x=x,y=_y,ax=ax[i],label=fname)
     plt.show()
+    if save_plot:
+        fig.savefig(save_plot)
 
 
 @click.command(help="Display the OMOP mapping json as a DAG")
