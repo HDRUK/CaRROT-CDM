@@ -199,7 +199,6 @@ def get_separator_from_filename(fname):
 
 def diff_csv(file1,file2,separator=None,nrows=None):
     logger = Logger("CSV File Diff")
-    
     if separator == None:
         sep1 = get_separator_from_filename(file1)
         sep2 = get_separator_from_filename(file2)
@@ -212,6 +211,7 @@ def diff_csv(file1,file2,separator=None,nrows=None):
     
     exact_match = df1.equals(df2)
     if exact_match:
+        logger.info("exact match found")
         return
 
     df = pd.concat([df1,df2]).drop_duplicates(keep=False)
@@ -241,3 +241,4 @@ def diff_csv(file1,file2,separator=None,nrows=None):
             if not (df1.iloc[i] == df2.iloc[i]).any():
                 print ('Row',i,'is in a different location')
         raise Exception("differences detected")
+

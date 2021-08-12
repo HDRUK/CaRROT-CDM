@@ -44,7 +44,7 @@ def apply_rules(this):
         source_table = get_source_table(this.inputs,source_table_name)
         source_field = get_source_field(source_table,source_field_name)
         series = source_field.copy()
-
+        
         if operations is not None:
             for operation in operations:
                 function = this.tools[operation]
