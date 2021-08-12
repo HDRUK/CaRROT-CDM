@@ -19,7 +19,7 @@ def dataframe(fname,drop_na,markdown,head,separator):
 
     #if separator not specified, get it from the file extension 
     if separator == None:
-        separator = get_separator_from_filename(fname)
+        separator = tools.get_separator_from_filename(fname)
         
     df = pandas.read_csv(fname,nrows=head,sep=separator)
     if drop_na:

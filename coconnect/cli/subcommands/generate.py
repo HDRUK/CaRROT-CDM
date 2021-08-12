@@ -69,11 +69,14 @@ def ccom(report_id,number_of_events,output_directory,
             _url, headers=headers,
             allow_redirects=True,
         )
-        res = response.json()
+
+
+        res = json.loads(response.content.decode('utf-8'))
         id_to_col_name = {
-            field['id']:field['name'].replace('\ufeff','')
+            field['id']:field['name'].lstrip('\ufeff')
             for field in res
         }
+        
         df.index = df.index.map(id_to_col_name)
         
         df_synthetic = {}
@@ -97,7 +100,6 @@ def ccom(report_id,number_of_events,output_directory,
             df_synthetic[col_name] = values
 
         df_synthetic = pd.concat(df_synthetic.values(),axis=1)
-
         for col_name in fill_column_with_values:
             if col_name in df_synthetic.columns:
                 df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
