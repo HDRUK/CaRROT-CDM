@@ -88,7 +88,7 @@ def test(ctx):
               help="define the output folder where to dump csv files to")
 @click.option("-nc","--number-of-rows-per-chunk",
               default='auto',
-              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize.")
+              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking.")
 @click.option("-np","--number-of-rows-to-process",
               default=None,
               type=int,
