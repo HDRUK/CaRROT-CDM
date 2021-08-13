@@ -19,7 +19,8 @@ class InputData:
 
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("InputData Object Created")
-
+        if self.chunksize is not None:
+            self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
 
     def all(self):
         return {
@@ -137,7 +138,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
         else:
             fname = obj['file']
             fields = obj['fields']
-
+            
         df = pd.read_csv(load_path+fname,chunksize=chunksize,nrows=nrows,dtype=str,usecols=fields)
 
         if isinstance(df,pd.DataFrame):

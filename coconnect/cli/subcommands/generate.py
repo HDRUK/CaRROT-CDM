@@ -70,6 +70,7 @@ def ccom(report_id,number_of_events,output_directory,
             allow_redirects=True,
         )
 
+
         res = json.loads(response.content.decode('utf-8'))
         id_to_col_name = {
             field['id']:field['name'].lstrip('\ufeff')
@@ -79,6 +80,7 @@ def ccom(report_id,number_of_events,output_directory,
         df.index = df.index.map(id_to_col_name)
         
         df_synthetic = {}
+        
         for col_name in df.index.unique():
             if col_name == '': continue
             
