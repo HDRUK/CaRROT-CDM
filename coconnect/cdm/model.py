@@ -134,6 +134,8 @@ class CommonDataModel:
         Class destructor:
               Stops the profiler from running before deleting self
         """
+        if not hasattr(self,'profiler'):
+            return
         if self.profiler:
             self.profiler.stop()
             df_profile = self.profiler.get_df()
@@ -274,12 +276,15 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self,object_list=None):
+    def process(self,object_list=None,save=True):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
+
+        self.save = save
+        
         if object_list != None:
             for obj in object_list:
                 self.process_individual(obj)
@@ -291,7 +296,7 @@ class CommonDataModel:
             self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
             self.logger.info(f"Starting processing in order: {self.execution_order}")
             self.count_objects()
-            
+
             #switch to process the data in chunks or not
             if isinstance(self.inputs,InputData):
                 self.process_chunked_data()
@@ -334,7 +339,6 @@ class CommonDataModel:
 
         i=0
         while True:
-        
             for destination_table in self.execution_order:
                 self[destination_table] = self.process_table(destination_table)
                 if not self[destination_table] is None:
@@ -344,9 +348,10 @@ class CommonDataModel:
             mode = 'w'
             if i>0:
                 mode='a'
-                
-            self.save_to_file(mode=mode)
-            self.save_logs(extra=f'_slice_{i}')
+
+            if self.save:
+                self.save_to_file(mode=mode)
+                self.save_logs(extra=f'_slice_{i}')
             i+=1
             
             try:
@@ -401,8 +406,9 @@ class CommonDataModel:
         logs = {'objects':{}}
         for i,obj in enumerate(objects):
             obj.execute(self)
-            
             df = obj.get_df(force_rebuild=False)
+            print (df)
+                        
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:

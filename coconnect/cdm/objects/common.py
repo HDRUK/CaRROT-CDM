@@ -96,7 +96,13 @@ class DestinationTable(object):
             if getattr(self,field).required == True
         ]
 
-
+    @classmethod
+    def from_file(cls,df):
+        obj = cls()
+        for colname in df.columns:
+            obj[colname].series = df[colname]
+        return obj
+            
     def get_field_names(self):
         """
         From the current object, loop over all member objects and find those that are instances
