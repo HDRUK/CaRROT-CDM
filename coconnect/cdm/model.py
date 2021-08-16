@@ -9,7 +9,7 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-from coconnect.tools.file_helpers import InputData
+from coconnect.io.plugins.local import DataCollection
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable
@@ -60,10 +60,10 @@ class CommonDataModel:
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
-            self.logger.info("Running with an InputData object")
-        elif isinstance(inputs,InputData):
-            self.logger.info("Running with an InputData object")
-        elif self.inputs is None or inputs is None: 
+            self.logger.info("Running with an DataCollection object")
+        elif isinstance(inputs,DataCollection):
+            self.logger.info("Running with an DataCollection object")
+        elif not hasattr(self,'inputs') or inputs is None: 
             self.logger.error(inputs)
             raise NoInputFiles("setting up inputs that are not valid!")
 
@@ -283,7 +283,7 @@ class CommonDataModel:
         self.count_objects()
 
         #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
+        if isinstance(self.inputs,DataCollection):
             self.process_chunked_data()
         else:
             self.process_flat_data()
