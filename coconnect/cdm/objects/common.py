@@ -193,7 +193,7 @@ class DestinationTable(object):
         #or define functions have been specified for this object
         # it will build the inputs from these functions
         self.define(self)
-
+       
         #build the dataframe for this object
         df = self.get_df()
         return df

@@ -401,6 +401,7 @@ class CommonDataModel:
         logs = {'objects':{}}
         for i,obj in enumerate(objects):
             obj.execute(self)
+            
             df = obj.get_df(force_rebuild=False)
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
@@ -413,7 +414,6 @@ class CommonDataModel:
 
         if len(dfs) == 0:
             return None
-            
         #merge together
         self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         if len(dfs) == 1:
