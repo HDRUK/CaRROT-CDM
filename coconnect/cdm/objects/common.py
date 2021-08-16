@@ -195,7 +195,8 @@ class DestinationTable(object):
         self.define(self)
 
         #build the dataframe for this object
-        _ = self.get_df()
+        df = self.get_df()
+        return df
         
     def get_df(self,force_rebuild=True):
         """

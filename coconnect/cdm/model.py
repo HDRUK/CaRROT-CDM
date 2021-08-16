@@ -27,7 +27,7 @@ class CommonDataModel:
 
     """
 
-    def __init__(self, name=None, output_folder="output_data{os.path.sep}",
+    def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
                  inputs=None, use_profiler=False,
                  automatically_generate_missing_rules=False):
         """
@@ -63,14 +63,13 @@ class CommonDataModel:
             self.logger.info("Running with an InputData object")
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
-        elif self.inputs is None or inputs is None: 
+        elif self.inputs is None and inputs is None: 
             self.logger.error(inputs)
             raise NoInputFiles("setting up inputs that are not valid!")
 
-        if hasattr(self,'inputs'):
-            self.logger.waring("overwriting inputs")
-
-        self.inputs = inputs
+        if hasattr(self,'inputs') and inputs is not None:
+            self.logger.warning("overwriting inputs")
+            self.inputs = inputs
             
         #register opereation tools
         self.tools = OperationTools()
@@ -194,8 +193,12 @@ class CommonDataModel:
 
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
+
+    def get_all_objects(self):
+        return [ obj for collection in self.__objects.values() for obj in collection.values()]
+
         
-    def get_objects(self,destination_table):
+    def get_objects(self,destination_table=None):
         """
         For a given destination table:
         * Retrieve all associated objects that have been registered with the class
@@ -207,6 +210,9 @@ class CommonDataModel:
                    e.g. [<person_0>, <person_1>] 
                    which would be objects for male and female mapping
         """
+        if destination_table == None:
+            return self.get_all_objects()
+        
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -274,31 +280,46 @@ class CommonDataModel:
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-
         if object_list != None:
-            self.__objects = {
-                destination_table: { k:v
-                                     for k,v in objects.items()
-                                     if k in object_list
-                }
-                for destination_table,objects in self.__objects.items()
-            }
+            for obj in object_list:
+                self.process_individual(obj)
+        else:                
+            #determine the order to execute tables in
+            #only thing that matters is to execute the person table first
+            # - this is if we want to mask the person_ids and need to save a record of
+            #   the link between the unmasked and masked
+            self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            self.logger.info(f"Starting processing in order: {self.execution_order}")
+            self.count_objects()
+            
+            #switch to process the data in chunks or not
+            if isinstance(self.inputs,InputData):
+                self.process_chunked_data()
+            else:
+                self.process_flat_data()
+
+    def process_individual(self,obj):
+        i = 0 
+        while True:
+            destination_table = obj.name
+            df = obj.execute(self)
+            self[destination_table] = df
+            
+            mode = 'w'
+            if i>0:
+                mode='a'
+
+            i+=1
+            
+            if len(df) > 0:
+                self.save_to_file(mode=mode)
+
+            try:
+                self.inputs.next()
+            except StopIteration:
+                break
+
                 
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
-
-        #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
-        else:
-            self.process_flat_data()
-
-    
     def process_chunked_data(self):
         """
         Process chunked data, processes as follows
@@ -509,6 +530,7 @@ class CommonDataModel:
                 self.logger.info(f'saving {name} to {fname}')
             else:
                 self.logger.info(f'updating {name} in {fname}')
+
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
             self.logger.debug(df.dropna(axis=1,how='all'))
