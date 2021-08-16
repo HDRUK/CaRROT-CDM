@@ -42,7 +42,7 @@ class InputData:
         if all([x.empty for x in self.__dataframe.values()]):
             self.logger.debug("All input files have now been processed.")
             raise StopIteration
-        
+
         self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
 
         
@@ -61,7 +61,7 @@ class InputData:
             #if we're handling non-chunked data
             #return an empty dataframe if we've already loaded this dataframe
             if key in self.__dataframe.keys():
-                return pd.DataFrame()
+                return pd.DataFrame(columns=self.__dataframe[key].columns)
             #otherwise return the dataframe as it's the first time we're getting it
             return obj
             

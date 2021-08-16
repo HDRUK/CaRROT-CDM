@@ -268,12 +268,22 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self):
+    def process(self,object_list=None):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
+
+        if object_list != None:
+            self.__objects = {
+                destination_table: { k:v
+                                     for k,v in objects.items()
+                                     if k in object_list
+                }
+                for destination_table,objects in self.__objects.items()
+            }
+                
         #determine the order to execute tables in
         #only thing that matters is to execute the person table first
         # - this is if we want to mask the person_ids and need to save a record of
