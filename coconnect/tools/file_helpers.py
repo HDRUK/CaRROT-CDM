@@ -3,6 +3,7 @@ import glob
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
+from coconnect.io import local
 
 class MissingInputFiles(Exception):
     pass
@@ -129,7 +130,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-    retval = InputData(chunksize)
+    retval = local.DataCollection(chunksize=chunksize)
         
     for key,obj in _map.items():
         fields = None
@@ -154,7 +155,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = df
+        retval[key] = local.DataBrick(df)
 
     return retval
 

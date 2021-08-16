@@ -9,7 +9,7 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-from coconnect.tools.file_helpers import InputData
+from coconnect.io.plugins.local import DataCollection
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable
@@ -60,16 +60,15 @@ class CommonDataModel:
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
-            self.logger.info("Running with an InputData object")
-        elif isinstance(inputs,InputData):
-            self.logger.info("Running with an InputData object")
-        elif self.inputs is None and inputs is None: 
-            self.logger.error(inputs)
-            raise NoInputFiles("setting up inputs that are not valid!")
-
-        if hasattr(self,'inputs') and inputs is not None:
+            self.logger.info("Running with an DataCollection object")
+        elif isinstance(inputs,DataCollection):
+            self.logger.info("Running with an DataCollection object")
+        elif hasattr(self,'inputs') and inputs is not None:
             self.logger.warning("overwriting inputs")
             self.inputs = inputs
+        else:
+            self.logger.error(inputs)
+            raise NoInputFiles("setting up inputs that are not valid!")
             
         #register opereation tools
         self.tools = OperationTools()
@@ -282,6 +281,22 @@ class CommonDataModel:
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
+<<<<<<< HEAD
+=======
+        #determine the order to execute tables in
+        #only thing that matters is to execute the person table first
+        # - this is if we want to mask the person_ids and need to save a record of
+        #   the link between the unmasked and masked
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
+        self.count_objects()
+
+        #switch to process the data in chunks or not
+        if isinstance(self.inputs,DataCollection):
+            self.process_chunked_data()
+        else:
+            self.process_flat_data()
+>>>>>>> dev/scaleOut/rework_data_objects
 
         self.save = save
         
