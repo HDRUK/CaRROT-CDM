@@ -29,7 +29,7 @@ class CommonDataModel:
 
     def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
                  inputs=None, use_profiler=False,
-                 automatically_generate_missing_rules=False):
+                 fill_missing_columns=False):
         """
         CommonDataModel class initialisation 
         Args:
@@ -74,9 +74,9 @@ class CommonDataModel:
         self.tools = OperationTools()
 
         #allow rules to be generated automatically or not
-        self.automatically_generate_missing_rules = automatically_generate_missing_rules
-        if self.automatically_generate_missing_rules:
-            self.logger.info(f"Turning on automatic rule generation")
+        self.fill_missing_columns = fill_missing_columns
+        #if self.fill_missing_columns:
+        self.logger.info(f"Turning on automatic column filling generation {self.fill_missing_columns}")
 
         #define a person_id masker, if the person_id are to be masked
         self.person_id_masker = None
@@ -196,7 +196,13 @@ class CommonDataModel:
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
 
-    def filter(self,config):
+    def find_one(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna).sample(frac=1).iloc[0]
+        
+    def find(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna)
+
+    def filter(self,config,cols=None,dropna=False):
         retval = None
         for obj in config:
             if isinstance(obj,str):
@@ -204,17 +210,21 @@ class CommonDataModel:
                 if retval is None:
                     retval = df
                 else:
-                    retval = retval.join(df)
+                    retval = retval.merge(df,left_index=True,right_index=True)
             elif isinstance(obj,dict):
                 for key,value in obj.items():
                     df = self[key].filter(value).set_index('person_id')
                     if retval is None:
                         retval = df
                     else:
-                        retval = retval.join(df)
+                        retval = retval.merge(df,left_index=True,right_index=True)
             else:
                 raise NotImplementedError("need to pass a json object to filter()")
-                                                
+
+        if dropna:
+            retval = retval.dropna(axis=1)
+        if cols is not None:
+            retval = retval[cols]
         return retval
         
     def get_all_objects(self):
@@ -493,8 +503,10 @@ class CommonDataModel:
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
         #finalised full dataframe for this table
-        self[destination_table] = get_cdm_class(destination_table).from_df(df_destination)
-        #self[destination_table] = df_destination
+        obj = get_cdm_class(destination_table).from_df(df_destination)
+        obj.update(self)
+        self[destination_table] = obj
+
 
     def save_logs(self,f_out=None,extra=""):
         """

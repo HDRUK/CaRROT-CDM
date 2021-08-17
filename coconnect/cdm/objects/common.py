@@ -184,6 +184,12 @@ class DestinationTable(object):
         """
         return list(self.fields)
 
+    def update(self,that):
+        #extract all objects from the passed object
+        objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
+        #add objects to this class
+        self.__dict__.update(objs)
+        
     def execute(self,that):
         """
         execute the creation of the cdm object by passing
@@ -192,11 +198,7 @@ class DestinationTable(object):
            that: input object class where input objects can be loaded 
                  and the define/finalise functions can be overloaded
         """
-
-        #extract all objects from the passed object
-        objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
-        #add objects to this class
-        self.__dict__.update(objs)
+        self.update(that)
 
         #execute the define function
         #the default define() does nothing
@@ -233,7 +235,7 @@ class DestinationTable(object):
             
         return df
     
-    def get_df(self,force_rebuild=False,dropna=False):
+    def get_df(self,force_rebuild=False,dropna=False,**kwargs):
         """
         Retrieve a dataframe from the current object
 
