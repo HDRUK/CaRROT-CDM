@@ -418,10 +418,10 @@ class CommonDataModel:
         if len(dfs) == 0:
             return None
         #merge together
-        self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         if len(dfs) == 1:
             df_destination = dfs[0]
         else:
+            self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
             df_destination = pd.concat(dfs,ignore_index=True)
 
         #register the total length of the output dataframe

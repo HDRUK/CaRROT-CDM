@@ -7,6 +7,7 @@ def from_table(table):
             for colname in df.columns:
                 obj[colname].series = df[colname]
             return defs
+        wrapper.__name__ = defs.__name__
         return wrapper
     return decorator
 
