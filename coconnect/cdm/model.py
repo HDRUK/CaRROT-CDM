@@ -291,7 +291,7 @@ class CommonDataModel:
             #only thing that matters is to execute the person table first
             # - this is if we want to mask the person_ids and need to save a record of
             #   the link between the unmasked and masked
-            self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            self.execution_order = self.get_execution_order()
             self.logger.info(f"Starting processing in order: {self.execution_order}")
             self.count_objects()
 
@@ -322,6 +322,16 @@ class CommonDataModel:
             except StopIteration:
                 break
 
+    def get_execution_order(self):
+        return sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            
+    def get(self):
+        self.execution_order = self.get_execution_order()
+        for destination_table in self.execution_order:
+            self.process_table(destination_table)
+
+        self.inputs.next()
+        
                 
     def process_chunked_data(self):
         """
@@ -338,7 +348,7 @@ class CommonDataModel:
         i=0
         while True:
             for destination_table in self.execution_order:
-                self[destination_table] = self.process_table(destination_table)
+                self.process_table(destination_table)
                 if not self[destination_table] is None:
                     nrows = len(self[destination_table])
                     self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
@@ -366,7 +376,7 @@ class CommonDataModel:
         * Save files and logs
         """
         for destination_table in self.execution_order:
-            self[destination_table] = self.process_table(destination_table)
+            self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
         self.save_to_file()
@@ -458,8 +468,8 @@ class CommonDataModel:
             self.logs['meta']['total_data_processed'][destination_table] = 0
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
-        #return the finalised full dataframe for this table
-        return df_destination
+        #finalised full dataframe for this table
+        self[destination_table] = df_destination
 
     def save_logs(self,f_out=None,extra=""):
         """
