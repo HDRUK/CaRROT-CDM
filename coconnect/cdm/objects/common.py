@@ -233,7 +233,7 @@ class DestinationTable(object):
             
         return df
     
-    def get_df(self,force_rebuild=True,dropna=False):
+    def get_df(self,force_rebuild=False,dropna=False):
         """
         Retrieve a dataframe from the current object
 
@@ -242,7 +242,10 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
-            return self.__df 
+            if dropna:
+                return self.__df.dropna(axis=1)
+            else:
+                return self.__df 
 
                 
         #get a dict of all series

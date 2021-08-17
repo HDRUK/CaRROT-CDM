@@ -195,6 +195,28 @@ class CommonDataModel:
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
+
+    def filter(self,config):
+        retval = None
+        for obj in config:
+            if isinstance(obj,str):
+                df = self[obj].get_df().set_index('person_id')
+                if retval is None:
+                    retval = df
+                else:
+                    retval = retval.join(df)
+            elif isinstance(obj,dict):
+                for key,value in obj.items():
+                    df = self[key].filter(value).set_index('person_id')
+                    if retval is None:
+                        retval = df
+                    else:
+                        retval = retval.join(df)
+            else:
+                raise NotImplementedError("need to pass a json object to filter()")
+                                                
+        return retval
+        
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
