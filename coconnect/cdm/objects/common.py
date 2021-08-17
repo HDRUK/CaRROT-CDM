@@ -208,8 +208,32 @@ class DestinationTable(object):
         #build the dataframe for this object
         df = self.get_df()
         return df
-        
-    def get_df(self,force_rebuild=True):
+
+    def filter(self,filters):
+
+        import operator
+        ops = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '>=': operator.ge,
+            '<=': operator.le,
+            '==': operator.eq
+        }
+                
+        if not isinstance(filters,dict):
+            raise NotImplementedError("filter must be a 'dict' .")
+
+        df = self.get_df()
+        for col,value in filters.items():
+            if isinstance(value,dict):
+                for op_str,val in value.items():
+                    df = df[ops[op_str](df[col],val)]                        
+            else:
+                df = df[df[col] == value]
+            
+        return df
+    
+    def get_df(self,force_rebuild=True,dropna=False):
         """
         Retrieve a dataframe from the current object
 
@@ -269,7 +293,10 @@ class DestinationTable(object):
 
         df = self.format(df)
         df = self.finalise(df)
-                
+
+        if dropna:
+            df = df.dropna(axis=1)
+        
         #register the df
         self.__df = df
         return df

@@ -330,7 +330,10 @@ class CommonDataModel:
         for destination_table in self.execution_order:
             self.process_table(destination_table)
 
-        self.inputs.next()
+        try:
+            self.inputs.next()
+        except StopIteration:
+            self.logger.info("Now finished all inputs")
         
                 
     def process_chunked_data(self):
