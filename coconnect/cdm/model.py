@@ -63,11 +63,11 @@ class CommonDataModel:
             self.logger.info("Running with an DataCollection object")
         elif isinstance(inputs,DataCollection):
             self.logger.info("Running with an DataCollection object")
-        elif hasattr(self,'inputs') and inputs is not None:
-            self.logger.warning("overwriting inputs")
-            self.inputs = inputs
+        elif hasattr(self,'inputs'):
+            if inputs is not None:
+                self.logger.warning("overwriting inputs")
+                self.inputs = inputs
         else:
-            self.logger.error(inputs)
             raise NoInputFiles("setting up inputs that are not valid!")
             
         #register opereation tools
@@ -281,23 +281,6 @@ class CommonDataModel:
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-<<<<<<< HEAD
-=======
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
-
-        #switch to process the data in chunks or not
-        if isinstance(self.inputs,DataCollection):
-            self.process_chunked_data()
-        else:
-            self.process_flat_data()
->>>>>>> dev/scaleOut/rework_data_objects
-
         self.save = save
         
         if object_list != None:
@@ -313,7 +296,7 @@ class CommonDataModel:
             self.count_objects()
 
             #switch to process the data in chunks or not
-            if isinstance(self.inputs,InputData):
+            if isinstance(self.inputs,DataCollection):
                 self.process_chunked_data()
             else:
                 self.process_flat_data()
@@ -422,7 +405,6 @@ class CommonDataModel:
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df(force_rebuild=False)
-            print (df)
                         
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 

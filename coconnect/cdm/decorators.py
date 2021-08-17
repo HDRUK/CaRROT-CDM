@@ -1,5 +1,15 @@
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation, DrugExposure
-    
+
+def from_table(table):
+    def decorator(defs):
+        def wrapper(obj):
+            df = obj.inputs[table]
+            for colname in df.columns:
+                obj[colname].series = df[colname]
+            return defs
+        return wrapper
+    return decorator
+
 def define_person(defs):
     p = Person()
     p.define = defs

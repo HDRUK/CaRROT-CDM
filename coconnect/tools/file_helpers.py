@@ -155,7 +155,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = local.DataBrick(df)
+        retval[key] = local.DataBrick(df,name=key)
 
     return retval
 

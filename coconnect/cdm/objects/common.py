@@ -96,13 +96,6 @@ class DestinationTable(object):
             if getattr(self,field).required == True
         ]
 
-    @classmethod
-    def from_file(cls,df):
-        obj = cls()
-        for colname in df.columns:
-            obj[colname].series = df[colname]
-        return obj
-            
     def get_field_names(self):
         """
         From the current object, loop over all member objects and find those that are instances
@@ -199,7 +192,7 @@ class DestinationTable(object):
         #or define functions have been specified for this object
         # it will build the inputs from these functions
         self.define(self)
-       
+
         #build the dataframe for this object
         df = self.get_df()
         return df
@@ -214,7 +207,8 @@ class DestinationTable(object):
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
             return self.__df 
-        
+
+                
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
