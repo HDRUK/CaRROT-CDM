@@ -49,14 +49,15 @@ class Person(DestinationTable):
         """
         df = super().get_df(**kwargs)
 
-        if self.automatically_generate_missing_rules == True:
-            if df['year_of_birth'].isnull().all():
-                df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
-                
-            if df['month_of_birth'].isnull().all():
-                df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
-                
-            if df['day_of_birth'].isnull().all():
-                df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
+        if hasattr(self,'automatically_generate_missing_rules'):
+            if self.automatically_generate_missing_rules == True:
+                if df['year_of_birth'].isnull().all():
+                    df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
+                    
+                if df['month_of_birth'].isnull().all():
+                    df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
+                    
+                if df['day_of_birth'].isnull().all():
+                    df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
         
         return df

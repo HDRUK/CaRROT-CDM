@@ -12,7 +12,7 @@ from coconnect.tools.profiling import Profiler
 from coconnect.io.plugins.local import DataCollection
 
 from coconnect import __version__ as cc_version
-from .objects import DestinationTable
+from .objects import DestinationTable, get_cdm_class
 
 class NoInputFiles(Exception):
     pass
@@ -456,7 +456,6 @@ class CommonDataModel:
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
             
-            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
@@ -469,7 +468,8 @@ class CommonDataModel:
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
         #finalised full dataframe for this table
-        self[destination_table] = df_destination
+        self[destination_table] = get_cdm_class(destination_table).from_df(df_destination)
+        #self[destination_table] = df_destination
 
     def save_logs(self,f_out=None,extra=""):
         """
@@ -532,7 +532,12 @@ class CommonDataModel:
 
         file_extension = self.get_outfile_extension()
         
-        for name,df in self.__df_map.items():
+        for name,obj in self.__df_map.items():
+            if obj is None:
+                continue
+
+            df = obj.get_df()
+            
             if df is None:
                 continue
             fname = f'{f_out}/{name}.{file_extension}'
