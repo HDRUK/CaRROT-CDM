@@ -9,6 +9,9 @@ class OperationTools:
     get_month = lambda self,df : pd.to_datetime(df).dt.month.astype('Int64')
     get_day = lambda self,df : pd.to_datetime(df).dt.day.astype('Int64')
 
+    def keys(self):
+        return [ key for key in dir(self) if key.startswith('get') ]
+    
     def get_datetime_from_age(self,df,norm=None):
         if norm is None:
             #set normalisation to middle of 2020
