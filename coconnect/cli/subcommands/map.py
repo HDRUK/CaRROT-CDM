@@ -71,7 +71,35 @@ def test(ctx):
     ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
     for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
         tools.diff_csv(fname,fname)
-          
+
+
+@click.command()
+@click.option("--input",
+              required=True,
+              help='input csv file')
+@click.option("--column",
+              required=True,
+              help="which column of the input data to modify")
+@click.option("--operation",
+              required=True,
+              help="which operation to apply to the column")
+def format(column,operation,input):
+    """
+    Useful formatting command for applying an operation on some data before being passed into the ETL-Tool
+
+    """
+    optools = coconnect.cdm.OperationTools()
+    allowed_operations = optools.keys()
+    if operation not in allowed_operations:
+        raise Exception(f"Operation '{operation}' is not a known operation. Choose from {allowed_operations}")
+    df_input = pd.read_csv(input)
+    df_input[column] = optools[operation](df_input[column])
+    n = 5 if len(df_input) > 5 else len(df_input)
+    print (df_input[column].sample(n))
+    df_input.to_csv(input)
+    
+    
+        
 @click.command()
 @click.option("--rules",
               required=True,
@@ -396,5 +424,6 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(format,"format")
 map.add_command(gui,"gui")
 map.add_command(test,"test")
