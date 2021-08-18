@@ -29,14 +29,51 @@ class DataFormatter(collections.OrderedDict):
     The lamba functions encode how to transform and format a pandas series given the datatype.
 
     """
+
+    def apply_if_needed(self,series,function,nsample=50):
+        """
+        Apply a formatting function to a series if it is needed.
+        Args:
+            series (pandas.Series) : input data series
+            function (built-in function): formatting function to be applied
+            nsample (int): number of rows to sample to make checks on (default = 50)
+        Returns:
+           series : modified or original pandas.Series object
+
+        """
+        # get the number of rows of the datframe
+        n = len(series)
+        # if this is a sufficiently large dataframe
+        if n > nsample:
+            #sample the series
+            series_slice = series.sample(nsample)
+            #format the sample of the series
+            series_slice_formatted = function(series_slice)
+            #if the pre- and post-formatting of the series are equal
+            #dont waste time formatting the entire series, just return it as it is
+            if series_slice.equals(series_slice_formatted):
+                self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
+                                  f'{series.name}" is  already formatted!!')
+                return series
+
+        return function(series)
+
+
+        
+    
     def __init__(self):
         super().__init__()
+        self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
         self['Float'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
         self['Text20'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
         self['Text50'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['Text60'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+
+        format_timestamp = lambda x : pd.to_datetime(x,errors='coerce')\
+                                        .dt.strftime('%Y-%m-%d %H:%M:%S')
+        self['Timestamp'] = lambda x : self.apply_if_needed(x,format_timestamp)
+
         self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
 
