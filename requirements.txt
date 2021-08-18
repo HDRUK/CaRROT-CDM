@@ -10,3 +10,4 @@ psutil
 pysimplegui
 requests
 openpyxl
+snakeviz
