@@ -1,5 +1,5 @@
 condition_occurrence_id	person_id	condition_concept_id	condition_start_date	condition_start_datetime	condition_end_date	condition_end_datetime	condition_type_concept_id	stop_reason	provider_id	visit_occurrence_id	condition_source_value	condition_source_concept_id	condition_status_source_value	condition_status_concept_id
-1	101	254761		2020-11-15 00:00:00		2020-11-15 00:00:00					Y	254761		
-2	102	254761		2020-01-04 00:00:00		2020-01-04 00:00:00					Y	254761		
-3	103	254761		2020-03-27 00:00:00		2020-03-27 00:00:00					Y	254761		
-4	105	254761		2020-07-27 00:00:00		2020-07-27 00:00:00					Y	254761		
+1	101	254761		2020-11-15T00:00:00.000000		2020-11-15T00:00:00.000000					Y	254761		
+2	102	254761		2020-01-04T00:00:00.000000		2020-01-04T00:00:00.000000					Y	254761		
+3	103	254761		2020-03-27T00:00:00.000000		2020-03-27T00:00:00.000000					Y	254761		
+4	105	254761		2020-07-27T00:00:00.000000		2020-07-27T00:00:00.000000					Y	254761		
