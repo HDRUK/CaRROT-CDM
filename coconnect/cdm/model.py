@@ -29,8 +29,9 @@ class CommonDataModel:
     """
 
     @classmethod
-    def load(cls,inputs):
-        cdm = cls(inputs=inputs)
+    def load(cls,**kwargs):
+        cdm = cls(**kwargs)
+        inputs = kwargs['inputs']
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
             obj = get_cdm_decorator(destination_table)(load_file(fname))
@@ -39,6 +40,7 @@ class CommonDataModel:
     
     def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
                  inputs=None, use_profiler=False,
+                 do_formatting=True,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -58,6 +60,8 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+
+        self.do_formatting = do_formatting
         
         self.profiler = None
         if use_profiler:

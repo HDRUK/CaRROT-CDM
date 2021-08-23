@@ -93,6 +93,8 @@ class DestinationTable(object):
         self.dtypes = DataFormatter()
         self.fields = self.get_field_names()
 
+        self.do_formatting = True
+
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
 
@@ -265,7 +267,8 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        df = self.format(df)
+        if self.do_formatting:
+            df = self.format(df)
         df = self.finalise(df)
                 
         #register the df
@@ -273,7 +276,9 @@ class DestinationTable(object):
         return df
 
     def format(self,df):
+        self.logger.info("Formatting table")
         for col in df.columns:
+            self.logger.debug(f"Formatting {col}")
             
             #if is already all na/nan, dont bother trying to format
             if df[col].isna().all():

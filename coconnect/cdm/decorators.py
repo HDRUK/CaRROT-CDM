@@ -4,6 +4,7 @@ def load_file(fname):
     def func(self):
         for colname in self.inputs[fname]:
             self[colname].series = self.inputs[fname][colname]
+    func.__name__ = fname
     return func
 
 def define_person(defs):
