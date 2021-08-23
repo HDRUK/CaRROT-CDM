@@ -27,7 +27,7 @@ class CommonDataModel:
 
     """
 
-    def __init__(self, name=None, output_folder="output_data{os.path.sep}",
+    def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
                  inputs=None, use_profiler=False,
                  automatically_generate_missing_rules=False):
         """
