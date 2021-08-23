@@ -1,5 +1,11 @@
 from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation, DrugExposure
-    
+
+def load_file(fname):
+    def func(self):
+        for colname in self.inputs[fname]:
+            self[colname].series = self.inputs[fname][colname]
+    return func
+
 def define_person(defs):
     p = Person()
     p.define = defs

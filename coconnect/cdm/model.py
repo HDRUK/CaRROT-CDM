@@ -13,8 +13,8 @@ from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
-from .objects import get_cdm_class
-from .decorators import *
+from .objects import get_cdm_class, get_cdm_decorator
+from .decorators import load_file
 
 class NoInputFiles(Exception):
     pass
@@ -33,17 +33,10 @@ class CommonDataModel:
 
     @classmethod
     def load(cls,inputs):
-        def func(self):
-            for colname in self.inputs['person.tsv']:
-                self[colname].series = self.inputs['person.tsv'][colname]
-                print ('made',colname)
-        
         cdm = cls(inputs=inputs)
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
-            if destination_table == 'person':
-                obj = define_person(func)#get_cdm_class(destination_table)()
-                print (obj)
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
             cdm.add(obj)
         return cdm
     
