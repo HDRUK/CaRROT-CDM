@@ -13,7 +13,8 @@ from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
-
+from .objects import get_cdm_class
+from .decorators import *
 
 class NoInputFiles(Exception):
     pass
@@ -30,13 +31,31 @@ class CommonDataModel:
 
     """
 
+    @classmethod
+    def load(cls,inputs):
+        def func(self):
+            for colname in self.inputs['person.tsv']:
+                self[colname].series = self.inputs['person.tsv'][colname]
+                print ('made',colname)
+        
+        cdm = cls(inputs=inputs)
+        for fname in inputs.keys():
+            destination_table,_ = os.path.splitext(fname)
+            if destination_table == 'person':
+                obj = define_person(func)#get_cdm_class(destination_table)()
+                print (obj)
+            cdm.add(obj)
+        return cdm
+    
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
                  person_id_map=None,
-                 inputs=None, use_profiler=False,
-                 format_level=None,do_mask_person_id=True,
+                 inputs=None,
+                 use_profiler=False,
+                 format_level=None,
+                 do_mask_person_id=True,
                  automatically_generate_missing_rules=True):
         """
         CommonDataModel class initialisation 
@@ -98,13 +117,10 @@ class CommonDataModel:
             self.logger.info("Running with an InputData object")
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
-        elif self.inputs is None or inputs is None: 
-            self.logger.error(inputs)
-            raise NoInputFiles("setting up inputs that are not valid!")
 
-        if hasattr(self,'inputs'):
+        if hasattr(self,'inputs') and inputs is not None:
             self.logger.waring("overwriting inputs")
-
+            
         self.inputs = inputs
             
         #register opereation tools

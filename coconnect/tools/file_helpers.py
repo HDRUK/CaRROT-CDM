@@ -29,6 +29,11 @@ class InputData:
             key:self[key]
             for key in self.keys()
         }
+
+    def __iter__(self):
+        return iter(self.__file_readers)
+    
+    #def __next__(self)
         
     def keys(self):
         return self.__file_readers.keys()
