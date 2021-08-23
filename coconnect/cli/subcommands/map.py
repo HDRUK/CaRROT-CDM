@@ -148,15 +148,11 @@ def format_input_data(column,operation,input):
               default=None,
               type=int,
               help="the total number of rows to process")
-@click.option("--log-level","-l",
-              type=click.Choice(['0','1','2','3']),
-              default='2',
-              help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,log_level,
+def run(ctx,rules,inputs,
         output_folder,csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -165,8 +161,7 @@ def run(ctx,rules,inputs,log_level,
 
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
-    #change the global log level
-    coconnect.params['debug_level'] = int(log_level)
+
     #load the json loads
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
@@ -196,7 +191,7 @@ def run(ctx,rules,inputs,log_level,
             raise ValueError(f"number_of_rows_per_chunk must be an Integer or 'auto', you inputted '{number_of_rows_per_chunk}'")
         
         #turn off chunking if 0 or negative chunksizes are given
-        if number_of_rows_per_chunk < 0 :
+        if number_of_rows_per_chunk <= 0 :
             number_of_rows_per_chunk = None
     
     
