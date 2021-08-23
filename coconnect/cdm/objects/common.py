@@ -3,7 +3,6 @@ import json
 import pandas as pd
 import numpy as np
 import collections
-from enum import Enum 
 from coconnect.cdm.operations import OperationTools
 from coconnect.tools.logger import Logger
 
