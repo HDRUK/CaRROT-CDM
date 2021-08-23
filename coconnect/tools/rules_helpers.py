@@ -55,6 +55,11 @@ def apply_rules(this):
                 # value level mapping
                 # - term_mapping is a dictionary between values and concepts
                 # - map values in the input data, based on this map
+
+                #need to make the value a string for mapping
+                #pandas has a weird behaviour that when the value is an Int
+                #the resulting series is a float64
+                term_mapping = {k:str(v) for k,v in term_mapping.items()}
                 series = series.map(term_mapping)
             else:
                 # field level mapping.

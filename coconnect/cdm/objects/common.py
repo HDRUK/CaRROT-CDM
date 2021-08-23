@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import collections
+from enum import Enum 
 from coconnect.cdm.operations import OperationTools
 from coconnect.tools.logger import Logger
 
@@ -18,8 +19,13 @@ class FailedRequiredCheck(Exception):
 class FormattingError(Exception):
     pass
 
+class DataStandardError(Exception):
+    pass
+
 class BadInputs(Exception):
     pass
+
+
 
 class DataFormatter(collections.OrderedDict):
     """
@@ -30,9 +36,9 @@ class DataFormatter(collections.OrderedDict):
 
     """
 
-    def apply_if_needed(self,series,function,nsample=50):
+    def check_formatting(self,series,function,nsample=50):
         """
-        Apply a formatting function to a series if it is needed.
+        Apply a formatting function to a subset of a series
         Args:
             series (pandas.Series) : input data series
             function (built-in function): formatting function to be applied
@@ -43,37 +49,41 @@ class DataFormatter(collections.OrderedDict):
         """
         # get the number of rows of the datframe
         n = len(series)
-        # if this is a sufficiently large dataframe
-        if n > nsample:
-            #sample the series
-            series_slice = series.sample(nsample)
-            #format the sample of the series
-            series_slice_formatted = function(series_slice)
-            #if the pre- and post-formatting of the series are equal
-            #dont waste time formatting the entire series, just return it as it is
-            if series_slice.equals(series_slice_formatted):
-                self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
-                                  f'{series.name}" is  already formatted!!')
-                return series
-
-        return function(series)
+        nsample = nsample if n > nsample else n
 
 
+        #sample the series
+        series_slice = series.sample(nsample)
+        #format the sample of the series
+        series_slice_formatted = function(series_slice)
+        #if the pre- and post-formatting of the series are equal
+        #dont waste time formatting the entire series, just return it as it is
+
+        series_slice_values = series_slice.dropna().astype(str).values
+        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
         
+        if np.array_equal(series_slice_values,series_slice_formatted_values):
+            self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
+                              f'{series.name}" is  already formatted!!')
+            return series
+        else:
+            self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
+            df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
+            df.columns = ['original','should be']
+            self.logger.warning(f"\n {df}")
+            raise DataStandardError(f"{series.name} has not been formatted correctly")
     
     def __init__(self):
         super().__init__()
         self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['Float'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
-        self['Text20'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
-        self['Text50'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['Text60'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
+        self['Float']   = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['Text50']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
 
-        format_timestamp = lambda x : pd.to_datetime(x,errors='coerce')\
+        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce')\
                                         .dt.strftime('%Y-%m-%d %H:%M:%S')
-        self['Timestamp'] = lambda x : self.apply_if_needed(x,format_timestamp)
-
         self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
 
@@ -117,6 +127,8 @@ class DestinationTable(object):
         self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
+        self.do_formatting = True
+        self.check_formatting = False
         self.fields = self.get_field_names()
 
         if len(self.fields) == 0:
@@ -299,8 +311,12 @@ class DestinationTable(object):
         return df
 
     def format(self,df):
+        if self.do_formatting == False and self.check_formatting == False:
+            self.logger.debug('not formatting dataframe as formatter level is set to off')
+            return df
+        
+        self.logger.info("Now formatting")
         for col in df.columns:
-            
             #if is already all na/nan, dont bother trying to format
             if df[col].isna().all():
                 continue
@@ -308,11 +324,16 @@ class DestinationTable(object):
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
-
+            
             nbefore = len(df[col])
             nsample = 5 if nbefore > 5 else nbefore
             sample = df[col].sample(nsample)
-            df[col] = formatter_function(df[col])
+
+            self.logger.debug(f"Formatting {col}")
+            if self.do_formatting:
+                df[col] = formatter_function(df[col])
+            elif self.check_formatting:
+                df[col] = self.dtypes.check_formatting(df[col],formatter_function)
 
             if col in self.required_fields and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
