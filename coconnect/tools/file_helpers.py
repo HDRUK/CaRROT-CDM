@@ -8,6 +8,8 @@ class MissingInputFiles(Exception):
     pass
 class DifferingColumns(Exception):
     pass
+class DifferingRows(Exception):
+    pass
 
 
 class InputData:
