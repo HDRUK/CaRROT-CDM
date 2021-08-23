@@ -138,6 +138,18 @@ class DestinationTable(object):
     """
     Common object that all CDM objects (tables) inherit from.
     """
+
+    @classmethod
+    def from_df(cls,df):
+        obj = cls()
+        obj.__df = df
+        for colname in df.columns:
+            obj[colname].series = df[colname]
+        return obj
+
+    def __len__(self):
+        return len(self.__df)
+
     def __init__(self,_type,_version='v5_3_1'):
         """
         Initialise the CDM DestinationTable Object class
