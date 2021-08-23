@@ -71,14 +71,7 @@ jobs:
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
-               if [[ -z $(coconnect display diff $filename coconnect/data/test/expected_outputs/$fname) ]];
-               then
-                  echo "$fname is good"
-               else
-                  echo "$fname failed!"
-                  coconnect display diff $filename coconnect/data/test/expected_outputs/$fname
-                  exit
-               fi
+               coconnect display diff $filename coconnect/data/test/expected_outputs/$fname
           done
 
       - uses: actions/upload-artifact@v2
