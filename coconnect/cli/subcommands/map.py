@@ -95,10 +95,8 @@ def format(inputs):
         inputs = tools.load_tsv(inputs)
 
 
-    cdm = coconnect.cdm.CommonDataModel()
-    print (cdm)
-
-    
+    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs)
+    cdm.process()
         
 @click.command()
 @click.option("--input",

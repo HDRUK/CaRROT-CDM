@@ -66,13 +66,12 @@ class DestinationTable(object):
     Common object that all CDM objects (tables) inherit from.
     """
 
-    @classmethod
-    def from_df(cls,df):
-        obj = cls()
-        obj.__df = df
-        for colname in df.columns:
-            obj[colname].series = df[colname]
-        return obj
+    #@classmethod
+    #def from_file(cls,df):
+    #    obj = cls()
+    #    for colname in df.columns:
+    #        obj[colname].series = df[colname]
+    #    return obj
 
     def __len__(self):
         return len(self.__df)
