@@ -97,7 +97,7 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
 
     logger = Logger("coconnect.tools.load_csv")
     
@@ -139,7 +139,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             fname = obj['file']
             fields = obj['fields']
             
-        df = pd.read_csv(load_path+fname,chunksize=chunksize,nrows=nrows,dtype=str,usecols=fields)
+        df = pd.read_csv(load_path+fname,sep=sep,chunksize=chunksize,nrows=nrows,dtype=str,usecols=fields)
 
         if isinstance(df,pd.DataFrame):
             #this should be removed
@@ -149,6 +149,11 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
         retval[key] = df
 
     return retval
+
+def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+    sep="\t"
+    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
+                    lower_col_names=lower_col_names,load_path=load_path,rules=rules)
 
 
 def get_file_map_from_dir(_dir):

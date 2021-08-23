@@ -74,6 +74,33 @@ def test(ctx):
 
 
 @click.command()
+@click.argument("inputs",nargs=-1)
+def format(inputs):
+
+    types = list(set([
+        os.path.splitext(fname)[1]
+        for fname in inputs
+    ]))
+    if len(types) > 1:
+        raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
+    types = types[0]
+    
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    if types == '.csv':
+        inputs = tools.load_csv(inputs)
+    else:
+        inputs = tools.load_tsv(inputs)
+
+
+    cdm = coconnect.cdm.CommonDataModel()
+    print (cdm)
+
+    
+        
+@click.command()
 @click.option("--input",
               required=True,
               help='input csv file')
@@ -83,7 +110,7 @@ def test(ctx):
 @click.option("--operation",
               required=True,
               help="which operation to apply to the column")
-def format(column,operation,input):
+def format_input_data(column,operation,input):
     """
     Useful formatting command for applying an operation on some data before being passed into the ETL-Tool
 
