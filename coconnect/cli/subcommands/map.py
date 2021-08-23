@@ -13,7 +13,6 @@ def map():
     pass
 
 
-
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
               help="give the name of the dataset, this will be the name of the .py class file created")
@@ -94,8 +93,7 @@ def format(inputs):
     else:
         inputs = tools.load_tsv(inputs)
 
-
-    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs)
+    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs,do_formatting=False)
     cdm.process()
         
 @click.command()

@@ -32,14 +32,16 @@ class CommonDataModel:
     """
 
     @classmethod
-    def load(cls,inputs):
-        cdm = cls(inputs=inputs)
+    def load(cls,**kwargs):
+        cdm = cls(**kwargs)
+        inputs = kwargs['inputs']
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
             obj = get_cdm_decorator(destination_table)(load_file(fname))
             cdm.add(obj)
         return cdm
     
+
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,

@@ -167,6 +167,8 @@ class DestinationTable(object):
         self.format_level = FormatterLevel(1)
         self.fields = self.get_field_names()
 
+        self.do_formatting = True
+
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
 
@@ -339,7 +341,8 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        df = self.format(df)
+        if self.do_formatting:
+            df = self.format(df)
         df = self.finalise(df)
                 
         #register the df
