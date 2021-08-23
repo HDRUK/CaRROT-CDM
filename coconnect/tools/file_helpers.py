@@ -8,6 +8,8 @@ class MissingInputFiles(Exception):
     pass
 class DifferingColumns(Exception):
     pass
+class DifferingRows(Exception):
+    pass
 
 
 class InputData:
@@ -228,7 +230,7 @@ def diff_csv(file1,file2,separator=None,nrows=None):
         m = m.rename(columns={'_merge':'Only Contained Within'})
         m.index.name = 'Row Number'
         logger.error(m.reset_index().to_dict(orient='records'))
-        raise Exception("differences detected")
+        raise DifferingRows("Something not right with the rows, changes detected.")
         
     elif len(df1.columns) != len(df2.columns):
         
