@@ -131,7 +131,7 @@ class DestinationTable(object):
         self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
-        self.format_level = True
+        self.format_level = FormatterLevel(1)
         self.fields = self.get_field_names()
 
         if len(self.fields) == 0:
