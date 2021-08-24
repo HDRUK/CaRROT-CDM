@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import collections
+from enum import Enum
 from coconnect.cdm.operations import OperationTools
 from coconnect.tools.logger import Logger
 
@@ -25,6 +26,10 @@ class BadInputs(Exception):
     pass
 
 
+class FormatterLevel(Enum):
+    OFF = 0
+    ON  = 1
+    CHECK = 2
 
 class DataFormatter(collections.OrderedDict):
     """
@@ -126,7 +131,7 @@ class DestinationTable(object):
         self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
-        self.do_formatting = True
+        self.format_level = True
         self.check_formatting = False
         self.fields = self.get_field_names()
 
@@ -310,11 +315,15 @@ class DestinationTable(object):
         return df
 
     def format(self,df):
-        if self.do_formatting == False and self.check_formatting == False:
-            self.logger.debug('not formatting dataframe as formatter level is set to off')
-            return df
         
-        self.logger.info("Now formatting")
+        if self.format_level is FormatterLevel.OFF:
+            self.logger.debug('Not formatting data columns')
+            return df
+        elif self.format_level is FormatterLevel.ON:
+            self.logger.info("Automatically formatting data columns.")
+        elif self.format_level is FormatterLevel.CHECK:
+            self.logger.info("Performing checks on data formatting.")
+            
         for col in df.columns:
             #if is already all na/nan, dont bother trying to format
             if df[col].isna().all():
@@ -328,10 +337,11 @@ class DestinationTable(object):
             nsample = 5 if nbefore > 5 else nbefore
             sample = df[col].sample(nsample)
 
-            self.logger.debug(f"Formatting {col}")
-            if self.do_formatting:
+            if self.format_level is FormatterLevel.ON:
+                self.logger.debug(f"Formatting {col}")
                 df[col] = formatter_function(df[col])
-            elif self.check_formatting:
+            elif self.format_level is FormatterLevel.CHECK:
+                self.logger.debug(f"Checking formatting of {col}")
                 df[col] = self.dtypes.check_formatting(df[col],formatter_function)
 
             if col in self.required_fields and df[col].isna().all():
