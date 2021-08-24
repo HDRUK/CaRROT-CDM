@@ -30,7 +30,7 @@ def apply_rules(this):
     this.logger.info("Called apply_rules")
 
     rules = this.rules
-    
+    this._meta['source_files'] = {}
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']
         source_field_name = rule['source_field']
@@ -68,4 +68,5 @@ def apply_rules(this):
                 series.values[:] = term_mapping
 
         this[destination_field].series = series
+        this._meta['source_files'][destination_field] = {'table':source_table_name,'field':source_field_name}
         this.logger.info(f"Mapped {destination_field}")

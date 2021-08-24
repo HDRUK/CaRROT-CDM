@@ -132,7 +132,6 @@ class DestinationTable(object):
 
         self.dtypes = DataFormatter()
         self.format_level = True
-        self.check_formatting = False
         self.fields = self.get_field_names()
 
         if len(self.fields) == 0:
@@ -342,7 +341,13 @@ class DestinationTable(object):
                 df[col] = formatter_function(df[col])
             elif self.format_level is FormatterLevel.CHECK:
                 self.logger.debug(f"Checking formatting of {col}")
-                df[col] = self.dtypes.check_formatting(df[col],formatter_function)
+                try:
+                    df[col] = self.dtypes.check_formatting(df[col],formatter_function)
+                except Exception as e:
+                    if 'source_files' in self._meta:
+                        self.logger.error("This is coming from the source file (table & column) ...")
+                        self.logger.error(self._meta['source_files'][col])
+                    raise(e) 
 
             if col in self.required_fields and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
