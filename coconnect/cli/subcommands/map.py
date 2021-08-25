@@ -73,8 +73,10 @@ def test(ctx):
 
 
 @click.command()
-@click.argument("inputs",nargs=-1)
-def format(inputs):
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def format(inputs,number_of_rows_per_chunk,output_folder):
 
     types = list(set([
         os.path.splitext(fname)[1]
@@ -89,11 +91,14 @@ def format(inputs):
         for x in inputs
     }
     if types == '.csv':
-        inputs = tools.load_csv(inputs)
+        inputs = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
     else:
-        inputs = tools.load_tsv(inputs)
+        inputs = tools.load_tsv(inputs,chunksize=number_of_rows_per_chunk)
 
-    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs,do_formatting=False)
+    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+                                                      output_folder=output_folder,
+                                                      format_level=1)
+    #cdm.save_files = False
     cdm.process()
         
 @click.command()

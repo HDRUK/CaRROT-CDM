@@ -31,19 +31,9 @@ class CommonDataModel:
 
     When self.process() is executed by the user, all added objects are defined, merged, formatted and finalised, before being dumped to an output file (.tsv file by default).
 
-    """
-    @classmethod
-    def load(cls,**kwargs):
-        cdm = cls(**kwargs)
-        inputs = kwargs['inputs']
-        for fname in inputs.keys():
-            destination_table,_ = os.path.splitext(fname)
-            obj = get_cdm_decorator(destination_table)(load_file(fname))
-            cdm.add(obj)
-        return cdm
-    
+    """    
     def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
-                 inputs=None, use_profiler=False,format_level=None,
+                 inputs=None, use_profiler=False,format_level=None, save_files=True,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -63,6 +53,7 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+        self.save_files = save_files
 
         if format_level == None:
             format_level = 0
@@ -171,6 +162,26 @@ class CommonDataModel:
             self.logger.info(f"Writen the memory/cpu statistics to {fname}")
             self.logger.info("Finished")
 
+    @classmethod
+    def from_existing(cls,**kwargs):
+        """
+        Initialise the CDM model from existing data in the CDM format
+        """
+        cdm = cls(**kwargs)
+        if 'inputs' not in kwargs:
+            raise NoInputFiles("you need to specify some inputs")
+        inputs = kwargs['inputs']
+        #loop over all input names
+        for fname in inputs.keys():
+            #obtain the name of the destination table
+            #e.g fname='person.tsv' we want 'person'
+            destination_table,_ = os.path.splitext(fname)
+            #
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+
+            
         
     def __getitem__(self,key):
         """
@@ -289,7 +300,7 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self):
+    def process(self,save_files=True):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
@@ -334,9 +345,10 @@ class CommonDataModel:
             mode = 'w'
             if i>0:
                 mode='a'
-                
-            self.save_to_file(mode=mode)
-            self.save_logs(extra=f'_slice_{i}')
+
+            if self.save_files:
+                self.save_to_file(mode=mode)
+                self.save_logs(extra=f'_slice_{i}')
             i+=1
             
             try:
@@ -356,8 +368,9 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
-        self.save_to_file()
-        self.save_logs()
+        if self.save_files:
+            self.save_to_file()
+            self.save_logs()
                 
             
     def process_table(self,destination_table):
