@@ -73,11 +73,67 @@ def test(ctx):
 
 
 @click.command()
+@click.option("--config","-c",required=True,type=str)
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def transform(inputs,config,number_of_rows_per_chunk,output_folder):
+
+    logger = tools.logger.Logger("transform")
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    if os.path.isfile(config):
+        config = json.load(open(config))
+    else:
+        config = json.loads(config)
+
+    logger.info(json.dumps(config,indent=6))
+        
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    input_data = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
+
+    operation_tools = coconnect.cdm.OperationTools()
+
+    header=True
+    mode='w'
+
+    i = 0 
+    while True:
+        if i > 0:
+            mode = 'a'
+            header=False
+        i+=1
+        for fname,rules in config.items():
+            logger.info(f"Working on {fname}") 
+            df = input_data[fname]
+            for colname,operations in rules.items():
+                series = df[colname]
+                for operation in operations:
+                    logger.info(f".. transforming '{colname}' with operation '{operation}'")
+                    fn_operation = operation_tools[operation]
+                    series = fn_operation(series)
+                df[colname] = series
+            fout = f"{output_folder}/{fname}"
+            df.to_csv(fout,header=header,mode=mode,index=False)
+
+        try:
+            input_data.next()
+        except StopIteration:
+            break
+
+@click.command()
 @click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
 @click.option("--output-folder","-o",required=True,type=str)
 @click.argument("inputs",nargs=-1,required=True)
 def format(inputs,number_of_rows_per_chunk,output_folder):
-
+    """
+    Format a CDM model by passing all CDM objects and applying formatting.
+    """
     types = list(set([
         os.path.splitext(fname)[1]
         for fname in inputs
@@ -438,12 +494,13 @@ def gui(ctx):
         break
         
     window.close()
-
     
 
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
+
+
 
 py.add_command(make_class,"make")
 py.add_command(register_class,"register")
@@ -453,5 +510,6 @@ py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
 map.add_command(format,"format")
+map.add_command(transform,"transform")
 map.add_command(gui,"gui")
 map.add_command(test,"test")
