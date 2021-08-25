@@ -20,5 +20,6 @@ from .decorators import (
     define_measurement,
     define_observation,
     define_drug_exposure,
-    load_file
+    load_file,
+    from_table
 )

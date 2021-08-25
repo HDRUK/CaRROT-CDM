@@ -202,6 +202,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
                          usecols=fields)
 
         df.attrs = {'original_file':load_path+fname}
+
         
         if isinstance(df,pd.DataFrame):
             #this should be removed

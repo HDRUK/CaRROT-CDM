@@ -114,10 +114,10 @@ class CommonDataModel:
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
 
-        if hasattr(self,'inputs') and inputs is not None:
-            self.logger.waring("overwriting inputs")
-            
-        self.inputs = inputs
+        if inputs is not None:
+            if hasattr(self,'inputs'):
+                self.logger.warning("overwriting inputs")
+            self.inputs = inputs
             
         #register opereation tools
         self.tools = OperationTools()
@@ -410,7 +410,7 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self,save_files=True):
+    def process(self):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
