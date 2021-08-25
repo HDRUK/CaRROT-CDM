@@ -1,10 +1,10 @@
 observation_id	person_id	observation_concept_id	observation_date	observation_datetime	observation_type_concept_id	value_as_number	value_as_string	value_as_concept_id	qualifier_concept_id	unit_concept_id	provider_id	visit_occurrence_id	observation_source_value	observation_source_concept_id	unit_source_value	qualifier_source_value
-1	107	35825508		1956-11-12 00:00:00									Asian	35825508		
-2	104	35825531		1975-06-07 00:00:00									Bangladeshi	35825531		
-3	103	35826241		1997-05-11 00:00:00									Indian	35826241		
-4	101	35827394		1951-12-25 00:00:00									White	35827394		
-5	105	35827394		1976-04-23 00:00:00									White	35827394		
-6	110	35827394		1993-09-07 00:00:00									White	35827394		
-7	102	35825567		1981-11-19 00:00:00									Black	35825567		
-8	106	35825567		1966-09-29 00:00:00									Black	35825567		
-9	108	35827395		1985-03-01 00:00:00									White and Asian	35827395		
+1	107	35825508		1956-11-12T00:00:00.000000									Asian	35825508		
+2	104	35825531		1975-06-07T00:00:00.000000									Bangladeshi	35825531		
+3	103	35826241		1997-05-11T00:00:00.000000									Indian	35826241		
+4	101	35827394		1951-12-25T00:00:00.000000									White	35827394		
+5	105	35827394		1976-04-23T00:00:00.000000									White	35827394		
+6	110	35827394		1993-09-07T00:00:00.000000									White	35827394		
+7	102	35825567		1981-11-19T00:00:00.000000									Black	35825567		
+8	106	35825567		1966-09-29T00:00:00.000000									Black	35825567		
+9	108	35827395		1985-03-01T00:00:00.000000									White and Asian	35827395		

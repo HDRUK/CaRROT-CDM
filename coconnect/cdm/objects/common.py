@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import collections
+from enum import Enum
 from coconnect.cdm.operations import OperationTools
 from coconnect.tools.logger import Logger
 
@@ -18,8 +19,17 @@ class FailedRequiredCheck(Exception):
 class FormattingError(Exception):
     pass
 
+class DataStandardError(Exception):
+    pass
+
 class BadInputs(Exception):
     pass
+
+
+class FormatterLevel(Enum):
+    OFF = 0
+    ON  = 1
+    CHECK = 2
 
 class DataFormatter(collections.OrderedDict):
     """
@@ -29,14 +39,55 @@ class DataFormatter(collections.OrderedDict):
     The lamba functions encode how to transform and format a pandas series given the datatype.
 
     """
+
+    def check_formatting(self,series,function,nsample=50):
+        """
+        Apply a formatting function to a subset of a series
+        Args:
+            series (pandas.Series) : input data series
+            function (built-in function): formatting function to be applied
+            nsample (int): number of rows to sample to make checks on (default = 50)
+        Returns:
+           series : modified or original pandas.Series object
+
+        """
+        # get the number of rows of the datframe
+        n = len(series)
+        nsample = nsample if n > nsample else n
+
+
+        #sample the series
+        series_slice = series.sample(nsample)
+        #format the sample of the series
+        series_slice_formatted = function(series_slice)
+        #if the pre- and post-formatting of the series are equal
+        #dont waste time formatting the entire series, just return it as it is
+
+        series_slice_values = series_slice.dropna().astype(str).values
+        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
+        
+        if np.array_equal(series_slice_values,series_slice_formatted_values):
+            self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
+                              f'{series.name}" is  already formatted!!')
+            return series
+        else:
+            self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
+            df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
+            df.columns = ['original','should be']
+            self.logger.warning(f"\n {df}")
+            raise DataStandardError(f"{series.name} has not been formatted correctly")
+    
     def __init__(self):
         super().__init__()
+        self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['Float'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
-        self['Text20'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
-        self['Text50'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
-        self['Text60'] = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+        self['Float']   = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
+        self['Text50']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
+        self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
+
+        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce')\
+                                        .dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
         self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
 
 
@@ -91,9 +142,8 @@ class DestinationTable(object):
         self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
+        self.format_level = FormatterLevel(1)
         self.fields = self.get_field_names()
-
-        self.do_formatting = True
 
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
@@ -267,8 +317,7 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        if self.do_formatting:
-            df = self.format(df)
+        df = self.format(df)
         df = self.finalise(df)
                 
         #register the df
@@ -276,10 +325,15 @@ class DestinationTable(object):
         return df
 
     def format(self,df):
-        self.logger.info("Formatting table")
-        for col in df.columns:
-            self.logger.debug(f"Formatting {col}")
+        if self.format_level is FormatterLevel.OFF:
+            self.logger.debug('Not formatting data columns')
+            return df
+        elif self.format_level is FormatterLevel.ON:
+            self.logger.info("Automatically formatting data columns.")
+        elif self.format_level is FormatterLevel.CHECK:
+            self.logger.info("Performing checks on data formatting.")
             
+        for col in df.columns:
             #if is already all na/nan, dont bother trying to format
             if df[col].isna().all():
                 continue
@@ -287,11 +341,23 @@ class DestinationTable(object):
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
-
+            
             nbefore = len(df[col])
             nsample = 5 if nbefore > 5 else nbefore
             sample = df[col].sample(nsample)
-            df[col] = formatter_function(df[col])
+
+            if self.format_level is FormatterLevel.ON:
+                self.logger.debug(f"Formatting {col}")
+                df[col] = formatter_function(df[col])
+            elif self.format_level is FormatterLevel.CHECK:
+                self.logger.debug(f"Checking formatting of {col}")
+                try:
+                    df[col] = self.dtypes.check_formatting(df[col],formatter_function)
+                except Exception as e:
+                    if 'source_files' in self._meta:
+                        self.logger.error("This is coming from the source file (table & column) ...")
+                        self.logger.error(self._meta['source_files'][col])
+                    raise(e) 
 
             if col in self.required_fields and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")

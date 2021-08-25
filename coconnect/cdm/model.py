@@ -12,7 +12,12 @@ from coconnect.tools.profiling import Profiler
 from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
-from .objects import DestinationTable,get_cdm_class,get_cdm_decorator
+from .objects import (
+    DestinationTable,
+    FormatterLevel,
+    get_cdm_class,
+    get_cdm_decorator
+)
 from .decorators import load_file
 
 class NoInputFiles(Exception):
@@ -27,7 +32,6 @@ class CommonDataModel:
     When self.process() is executed by the user, all added objects are defined, merged, formatted and finalised, before being dumped to an output file (.tsv file by default).
 
     """
-
     @classmethod
     def load(cls,**kwargs):
         cdm = cls(**kwargs)
@@ -39,8 +43,7 @@ class CommonDataModel:
         return cdm
     
     def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
-                 inputs=None, use_profiler=False,
-                 do_formatting=True,
+                 inputs=None, use_profiler=False,format_level=None,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -61,8 +64,15 @@ class CommonDataModel:
 
         self.output_folder = output_folder
 
-        self.do_formatting = do_formatting
+        if format_level == None:
+            format_level = 0
+        try:
+            format_level = int(format_level)
+        except ValueError:
+            self.logger.error(f"You as specifying format_level='{format_level}' -- this should be an integer!")
+            raise ValueError("format_level not set as an int ")
         
+        self.format_level = FormatterLevel(format_level)
         self.profiler = None
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")

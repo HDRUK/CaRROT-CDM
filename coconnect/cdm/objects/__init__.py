@@ -34,4 +34,4 @@ def get_cdm_decorator(key):
 def get_cdm_class(key):
     return __cdm_object_map[key]
 
-from .common import DestinationTable
+from .common import DestinationTable, DataFormatter, FormatterLevel

@@ -8,6 +8,8 @@ class MissingInputFiles(Exception):
     pass
 class DifferingColumns(Exception):
     pass
+class DifferingRows(Exception):
+    pass
 
 
 class InputData:
@@ -144,8 +146,9 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
             fname = obj['file']
             fields = obj['fields']
             
-        df = pd.read_csv(load_path+fname,sep=sep,chunksize=chunksize,nrows=nrows,dtype=str,usecols=fields)
-
+        df = pd.read_csv(load_path+fname,sep=sep,chunksize=chunksize,nrows=nrows,keep_default_na=False,dtype=str,usecols=fields)
+        df.meta = {'original_file':load_path+fname}
+        
         if isinstance(df,pd.DataFrame):
             #this should be removed
             if lower_col_names:
@@ -238,7 +241,7 @@ def diff_csv(file1,file2,separator=None,nrows=None):
         m = m.rename(columns={'_merge':'Only Contained Within'})
         m.index.name = 'Row Number'
         logger.error(m.reset_index().to_dict(orient='records'))
-        raise Exception("differences detected")
+        raise DifferingRows("Something not right with the rows, changes detected.")
         
     elif len(df1.columns) != len(df2.columns):
         
