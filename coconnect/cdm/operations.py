@@ -3,11 +3,11 @@ import datetime
 
 class OperationTools:
 
-    get_datetime = lambda self,df : pd.to_datetime(df).dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
-    get_date = lambda self,df : pd.to_datetime(df).dt.strftime('%Y-%m-%d')
-    get_year = lambda self,df : pd.to_datetime(df).dt.year
-    get_month = lambda self,df : pd.to_datetime(df).dt.month
-    get_day = lambda self,df : pd.to_datetime(df).dt.day
+    get_datetime = lambda self,df : pd.to_datetime(df,errors='coerce').dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
+    get_date = lambda self,df : pd.to_datetime(df,errors='coerce').dt.strftime('%Y-%m-%d')
+    get_year = lambda self,df : pd.to_datetime(df,errors='coerce').dt.year
+    get_month = lambda self,df : pd.to_datetime(df,errors='coerce').dt.month
+    get_day = lambda self,df : pd.to_datetime(df,errors='coerce').dt.day
 
     def keys(self):
         return [ key for key in dir(self) if key.startswith('get') ]
