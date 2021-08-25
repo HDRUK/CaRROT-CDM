@@ -71,6 +71,7 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+        self.save_files = save_files
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
@@ -196,6 +197,26 @@ class CommonDataModel:
             self.logger.info(f"Writen the memory/cpu statistics to {fname}")
             self.logger.info("Finished")
 
+    @classmethod
+    def from_existing(cls,**kwargs):
+        """
+        Initialise the CDM model from existing data in the CDM format
+        """
+        cdm = cls(**kwargs)
+        if 'inputs' not in kwargs:
+            raise NoInputFiles("you need to specify some inputs")
+        inputs = kwargs['inputs']
+        #loop over all input names
+        for fname in inputs.keys():
+            #obtain the name of the destination table
+            #e.g fname='person.tsv' we want 'person'
+            destination_table,_ = os.path.splitext(fname)
+            #
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+
+            
         
     def __getitem__(self,key):
         """
@@ -389,7 +410,7 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self):
+    def process(self,save_files=True):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
@@ -440,6 +461,7 @@ class CommonDataModel:
                 
             self.save_dataframes(mode=mode)
             self.save_logs(extra=f'_slice_{i}')
+
             i+=1
             
             try:
