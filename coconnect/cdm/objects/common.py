@@ -72,6 +72,8 @@ class DataFormatter(collections.OrderedDict):
             return series
         else:
             self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
+            #print (series_slice_values)
+            #print (series_slice_formatted_values)
             df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
             df.columns = ['original','should be']
             self.logger.warning(f"\n {df}")

@@ -147,7 +147,6 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
             fields = obj['fields']
             
         df = pd.read_csv(load_path+fname,sep=sep,chunksize=chunksize,nrows=nrows,keep_default_na=False,dtype=str,usecols=fields)
-        df.meta = {'original_file':load_path+fname}
         
         if isinstance(df,pd.DataFrame):
             #this should be removed

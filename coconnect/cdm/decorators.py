@@ -16,22 +16,28 @@ def load_file(fname):
     return func
 
 
-def from_table(table):
-    def decorator(defs):
-        def wrapper(obj):
-            df = obj.inputs[table]
-            for colname in df.columns:
-                obj[colname].series = df[colname]
-            return defs
-        wrapper.__name__ = defs.__name__
-        return wrapper
-    return decorator
+def from_table(obj,table):
+    df = obj.inputs[table]
+    for colname in df.columns:
+        obj[colname].series = df[colname]
+    return obj
 
-def define_person(defs):
-    p = Person()
-    p.define = defs
-    p.set_name(defs.__name__)
-    return p
+
+def define_person(input=None):
+    print ("define person")
+    def decorator(defs):
+        print ("in decorator")
+        def wrapper(obj):
+            if input is not None:
+                obj = from_table(obj,input)
+            defs(obj)
+
+        p = Person()
+        p.define = wrapper 
+        p.set_name(defs.__name__)
+        return p
+    print (decorator)
+    return decorator
 
 def define_condition_occurrence(defs):
     c = ConditionOccurrence()
