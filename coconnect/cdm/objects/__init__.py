@@ -5,7 +5,7 @@ from .measurement import Measurement
 from .observation import Observation
 from .drug_exposure import DrugExposure
 
-import coconnect.cdm.decorators as decorators
+from .. import decorators 
 
 import sys
 this = sys.modules[__name__]
@@ -35,3 +35,4 @@ def get_cdm_class(key):
     return __cdm_object_map[key]
 
 from .common import DestinationTable, DataFormatter, FormatterLevel
+
