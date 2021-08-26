@@ -3,6 +3,7 @@ import glob
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
+from coconnect.io import local
 
 class MissingInputFiles(Exception):
     pass
@@ -49,7 +50,7 @@ class InputData:
         if all([x.empty for x in self.__dataframe.values()]):
             self.logger.debug("All input files have now been processed.")
             raise StopIteration
-        
+
         self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
 
         
@@ -68,7 +69,7 @@ class InputData:
             #if we're handling non-chunked data
             #return an empty dataframe if we've already loaded this dataframe
             if key in self.__dataframe.keys():
-                return pd.DataFrame()
+                return pd.DataFrame(columns=self.__dataframe[key].columns)
             #otherwise return the dataframe as it's the first time we're getting it
             return obj
             
@@ -136,7 +137,7 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
             if k in source_map
         }
 
-    retval = InputData(chunksize)
+    retval = local.DataCollection(chunksize=chunksize)
         
     for key,obj in _map.items():
         fields = None
@@ -145,15 +146,24 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
         else:
             fname = obj['file']
             fields = obj['fields']
-            
-        df = pd.read_csv(load_path+fname,sep=sep,chunksize=chunksize,nrows=nrows,keep_default_na=False,dtype=str,usecols=fields)
-        
+
+        sep = ','
+        if fname.endswith('tsv'):
+            sep = '\t'
+        df = pd.read_csv(load_path+fname,
+                         sep=sep,
+                         chunksize=chunksize,
+                         nrows=nrows,
+                         keep_default_na=False,
+                         dtype=str,
+                         usecols=fields)
+
         if isinstance(df,pd.DataFrame):
             #this should be removed
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = df
+        retval[key] = local.DataBrick(df,name=key)
 
     return retval
 

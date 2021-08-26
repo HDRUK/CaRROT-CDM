@@ -14,6 +14,7 @@ from .objects import (
 )
 
 from .decorators import (
+    from_table,
     define_person,
     define_condition_occurrence,
     define_visit_occurrence,

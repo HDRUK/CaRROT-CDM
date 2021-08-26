@@ -9,9 +9,10 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-from coconnect.tools.file_helpers import InputData
+from coconnect.io.plugins.local import DataCollection
 
 from coconnect import __version__ as cc_version
+
 from .objects import (
     DestinationTable,
     FormatterLevel,
@@ -42,7 +43,7 @@ class CommonDataModel:
                  output_database=None,
                  inputs=None, use_profiler=False,
                  format_level=None, save_files=True,
-                 automatically_generate_missing_rules=False):
+                 fill_missing_columns=False):
         """
         CommonDataModel class initialisation 
         Args:
@@ -96,23 +97,29 @@ class CommonDataModel:
         self._outfile_separator = '\t'
 
         #perform some checks on the input data
-        if isinstance(inputs,dict):
-            self.logger.info("Running with an InputData object")
-        elif isinstance(inputs,InputData):
-            self.logger.info("Running with an InputData object")
-
         if inputs is not None:
             if hasattr(self,'inputs'):
-                self.logger.warning("overwriting inputs")
+                self.logger.warning("overwriting existing inputs")
+
+            if isinstance(inputs,dict):
+                self.logger.info("Running with an DataCollection object")
+            elif isinstance(inputs,DataCollection):
+                self.logger.info("Running with an DataCollection object")
+            else:
+                raise NoInputFiles("setting up inputs that are not valid!")
+                
             self.inputs = inputs
+
+        if not hasattr(self,'inputs'):
+            raise NoInputFiles('No input files were given')
             
         #register opereation tools
         self.tools = OperationTools()
 
         #allow rules to be generated automatically or not
-        self.automatically_generate_missing_rules = automatically_generate_missing_rules
-        if self.automatically_generate_missing_rules:
-            self.logger.info(f"Turning on automatic rule generation")
+        self.fill_missing_columns = fill_missing_columns
+        #if self.fill_missing_columns:
+        self.logger.info(f"Turning on automatic column filling generation {self.fill_missing_columns}")
 
         #define a person_id masker, if the person_id are to be masked
         self.person_id_masker = None
@@ -169,6 +176,8 @@ class CommonDataModel:
         Class destructor:
               Stops the profiler from running before deleting self
         """
+        if not hasattr(self,'profiler'):
+            return
         if self.profiler:
             self.profiler.stop()
             df_profile = self.profiler.get_df()
@@ -248,8 +257,44 @@ class CommonDataModel:
 
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
+
+
+    def find_one(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna).sample(frac=1).iloc[0]
         
-    def get_objects(self,destination_table):
+    def find(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna)
+
+    def filter(self,config,cols=None,dropna=False):
+        retval = None
+        for obj in config:
+            if isinstance(obj,str):
+                df = self[obj].get_df().set_index('person_id')
+                if retval is None:
+                    retval = df
+                else:
+                    retval = retval.merge(df,left_index=True,right_index=True)
+            elif isinstance(obj,dict):
+                for key,value in obj.items():
+                    df = self[key].filter(value).set_index('person_id')
+                    if retval is None:
+                        retval = df
+                    else:
+                        retval = retval.merge(df,left_index=True,right_index=True)
+            else:
+                raise NotImplementedError("need to pass a json object to filter()")
+
+        if dropna:
+            retval = retval.dropna(axis=1)
+        if cols is not None:
+            retval = retval[cols]
+        return retval
+        
+    def get_all_objects(self):
+        return [ obj for collection in self.__objects.values() for obj in collection.values()]
+
+        
+    def get_objects(self,destination_table=None):
         """
         For a given destination table:
         * Retrieve all associated objects that have been registered with the class
@@ -261,6 +306,9 @@ class CommonDataModel:
                    e.g. [<person_0>, <person_1>] 
                    which would be objects for male and female mapping
         """
+        if destination_table == None:
+            return self.get_all_objects()
+        
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -322,27 +370,68 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self):
+    def process(self,object_list=None,save=None):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
+        if save is not None:
+            self.save_files = save
+        
+        if object_list != None:
+            for obj in object_list:
+                self.process_individual(obj)
+        else:                
+            #determine the order to execute tables in
+            #only thing that matters is to execute the person table first
+            # - this is if we want to mask the person_ids and need to save a record of
+            #   the link between the unmasked and masked
+            self.execution_order = self.get_execution_order()
+            self.logger.info(f"Starting processing in order: {self.execution_order}")
+            self.count_objects()
 
-        #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
-        else:
-            self.process_flat_data()
+            #switch to process the data in chunks or not
+            if isinstance(self.inputs,DataCollection):
+                self.process_chunked_data()
+            else:
+                self.process_flat_data()
 
-    
+    def process_individual(self,obj):
+        i = 0 
+        while True:
+            destination_table = obj.name
+            df = obj.execute(self)
+            self[destination_table] = df
+            
+            mode = 'w'
+            if i>0:
+                mode='a'
+
+            i+=1
+            
+            if len(df) > 0:
+                self.save_to_file(mode=mode)
+
+            try:
+                self.inputs.next()
+            except StopIteration:
+                break
+
+    def get_execution_order(self):
+        return sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            
+    def get(self):
+        self.execution_order = self.get_execution_order()
+        for destination_table in self.execution_order:
+            self.process_table(destination_table)
+
+        try:
+            self.inputs.next()
+        except StopIteration:
+            self.logger.info("Now finished all inputs")
+        
+                
     def process_chunked_data(self):
         """
         Process chunked data, processes as follows
@@ -357,9 +446,8 @@ class CommonDataModel:
 
         i=0
         while True:
-        
             for destination_table in self.execution_order:
-                self[destination_table] = self.process_table(destination_table)
+                self.process_table(destination_table)
                 if not self[destination_table] is None:
                     nrows = len(self[destination_table])
                     self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
@@ -371,7 +459,6 @@ class CommonDataModel:
             if self.save_files:
                 self.save_dataframes(mode=mode)
                 self.save_logs(extra=f'_slice_{i}')
-
             i+=1
             
             try:
@@ -388,7 +475,7 @@ class CommonDataModel:
         * Save files and logs
         """
         for destination_table in self.execution_order:
-            self[destination_table] = self.process_table(destination_table)
+            self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
 
@@ -428,6 +515,7 @@ class CommonDataModel:
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df(force_rebuild=False)
+                        
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:
@@ -439,12 +527,11 @@ class CommonDataModel:
 
         if len(dfs) == 0:
             return None
-            
         #merge together
-        self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         if len(dfs) == 1:
             df_destination = dfs[0]
         else:
+            self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
             df_destination = pd.concat(dfs,ignore_index=True)
 
         #register the total length of the output dataframe
@@ -469,7 +556,6 @@ class CommonDataModel:
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
             
-            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
@@ -481,8 +567,11 @@ class CommonDataModel:
             self.logs['meta']['total_data_processed'][destination_table] = 0
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
-        #return the finalised full dataframe for this table
-        return df_destination
+        #finalised full dataframe for this table
+        obj = get_cdm_class(destination_table).from_df(df_destination)
+        obj.update(self)
+        self[destination_table] = obj
+
 
     def save_logs(self,f_out=None,extra=""):
         """
@@ -606,7 +695,12 @@ class CommonDataModel:
 
         file_extension = self.get_outfile_extension()
         
-        for name,df in self.__df_map.items():
+        for name,obj in self.__df_map.items():
+            if obj is None:
+                continue
+
+            df = obj.get_df()
+            
             if df is None:
                 continue
             fname = f'{f_out}/{name}.{file_extension}'
@@ -617,6 +711,7 @@ class CommonDataModel:
                 self.logger.info(f'saving {name} to {fname}')
             else:
                 self.logger.info(f'updating {name} in {fname}')
+
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
             self.logger.debug(df.dropna(axis=1,how='all'))
