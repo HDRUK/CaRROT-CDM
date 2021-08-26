@@ -87,7 +87,6 @@ class DataFormatter(collections.OrderedDict):
         self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
         self['Text50']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
-
         self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce')\
                                         .dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
         self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
@@ -335,10 +334,9 @@ class DestinationTable(object):
         elif self.format_level is FormatterLevel.CHECK:
             self.logger.info("Performing checks on data formatting.")
             
-        for col in df.columns:
+        for col in self.fields:
             #if is already all na/nan, dont bother trying to format
-            if df[col].isna().all():
-                continue
+            is_nan_already = df[col].isna().all()
             
             obj = getattr(self,col)
             dtype = obj.dtype
@@ -361,7 +359,9 @@ class DestinationTable(object):
                         self.logger.error(self._meta['source_files'][col])
                     raise(e) 
 
-            if col in self.required_fields and df[col].isna().all():
+            if col in self.required_fields \
+               and not is_nan_already \
+               and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                 self.logger.info(f"Sample of this column before formatting:")
                 self.logger.error(sample)

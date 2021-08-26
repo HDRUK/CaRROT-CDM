@@ -20,6 +20,11 @@ from .objects import (
 )
 from .decorators import load_file
 
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.schema import CreateSchema
+from sqlalchemy_utils import database_exists, create_database
+
+
 class NoInputFiles(Exception):
     pass
 
@@ -32,8 +37,11 @@ class CommonDataModel:
     When self.process() is executed by the user, all added objects are defined, merged, formatted and finalised, before being dumped to an output file (.tsv file by default).
 
     """    
-    def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
-                 inputs=None, use_profiler=False,format_level=None, save_files=True,
+    def __init__(self, name=None,
+                 output_folder=f"output_data{os.path.sep}",
+                 output_database=None,
+                 inputs=None, use_profiler=False,
+                 format_level=None, save_files=True,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -47,12 +55,26 @@ class CommonDataModel:
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
+        self.profiler = None
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+        self.output_database = output_database
+        self.psql_engine = None
+        if self.output_database is not None:
+            self.logger.info(f"Running with the output set to '{self.output_database}'")
+            try:
+                self.psql_engine = create_engine(self.output_database)
+            except Exception as err:
+                self.logger.critical(f"Failed to make a connection to {self.output_database}")
+                raise(err)
+        else:
+            self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
+
+
         self.save_files = save_files
 
         if format_level == None:
@@ -64,7 +86,7 @@ class CommonDataModel:
             raise ValueError("format_level not set as an int ")
         
         self.format_level = FormatterLevel(format_level)
-        self.profiler = None
+
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")
             self.profiler = Profiler(name=name)
@@ -347,8 +369,9 @@ class CommonDataModel:
                 mode='a'
 
             if self.save_files:
-                self.save_to_file(mode=mode)
+                self.save_dataframes(mode=mode)
                 self.save_logs(extra=f'_slice_{i}')
+
             i+=1
             
             try:
@@ -368,10 +391,10 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
+
         if self.save_files:
-            self.save_to_file()
+            self.save_dataframes()
             self.save_logs()
-                
             
     def process_table(self,destination_table):
         """
@@ -505,6 +528,67 @@ class CommonDataModel:
             self.logger.warning("Defaulting to csv")
             return 'csv'
         
+
+    def save_dataframes(self,mode='w'):
+        if self.psql_engine is not None:
+            self.save_to_psql(mode='r')
+        else:
+            self.save_to_file(mode=mode)
+
+    def save_to_psql(self,mode='r'):
+
+        insp  = inspect(self.psql_engine)
+        existing_tables = insp.get_table_names()
+        
+        if mode == 'a':
+            if_exists = 'append'
+        elif mode == 'r':
+            if_exists = 'replace'
+        else:
+            if_exists = 'fail'
+
+
+        for name,df in self.__df_map.items():
+
+            table_exists = name in existing_tables
+            
+            if mode == 'a' and table_exists:
+                if_exists = 'append'
+            elif mode == 'r':
+                if_exists = 'replace'
+            else:
+                if_exists = 'fail'
+
+            
+            if df is None:
+                continue
+            
+            pk = df.columns[0]
+            df.set_index(pk,inplace=True)
+
+            self.logger.info(f'updating {name} in {self.psql_engine}')
+            #name = sql_map[name]
+
+            if table_exists:
+                last_row_existing = pd.read_sql(f"select {pk} from {name} "
+                                                f"order by {pk} desc limit 1",
+                                                self.psql_engine)
+                
+                if len(last_row_existing) > 0 and mode == 'a':
+                    last_pk_existing = last_row_existing.iloc[0,0]
+                    first_pk_new = df.index[0]
+                    index_diff = last_pk_existing - first_pk_new
+                    if index_diff >= 0:
+                        self.logger.info("increasing index as already exists in psql")
+                        df.index += index_diff + 1
+                        
+            df.to_sql(name, self.psql_engine,if_exists=if_exists) 
+            _df = pd.read_sql(f"select * from {name}",self.psql_engine)
+            print (_df)
+            self.logger.debug(df.dropna(axis=1,how='all'))
+
+        self.logger.info("finished save to psql")
+
     def save_to_file(self,f_out=None,mode='w'):
         """
         Save the dataframe processed by the CommonDataModel to files.
