@@ -14,7 +14,7 @@ from coconnect.tools.file_helpers import InputData
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import CreateSchema
 from sqlalchemy_utils import database_exists, create_database
 
@@ -49,6 +49,7 @@ class CommonDataModel:
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
+        self.profiler = None
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
@@ -59,12 +60,15 @@ class CommonDataModel:
         self.psql_engine = None
         if self.output_database is not None:
             self.logger.info(f"Running with the output set to '{self.output_database}'")
-            self.psql_engine = create_engine(self.output_database)
+            try:
+                self.psql_engine = create_engine(self.output_database)
+            except Exception as err:
+                self.logger.critical(f"Failed to make a connection to {self.output_database}")
+                raise(err)
         else:
             self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
 
 
-        self.profiler = None
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")
             self.profiler = Profiler(name=name)
@@ -494,14 +498,30 @@ class CommonDataModel:
             self.save_to_file(mode=mode)
 
     def save_to_psql(self,mode='r'):
-        if_exists = 'fail'
+
+        insp  = inspect(self.psql_engine)
+        existing_tables = insp.get_table_names()
+        
         if mode == 'a':
             if_exists = 'append'
         elif mode == 'r':
             if_exists = 'replace'
+        else:
+            if_exists = 'fail'
 
 
         for name,df in self.__df_map.items():
+
+            table_exists = name in existing_tables
+            
+            if mode == 'a' and table_exists:
+                if_exists = 'append'
+            elif mode == 'r':
+                if_exists = 'replace'
+            else:
+                if_exists = 'fail'
+
+            
             if df is None:
                 continue
             
@@ -510,21 +530,23 @@ class CommonDataModel:
 
             self.logger.info(f'updating {name} in {self.psql_engine}')
             #name = sql_map[name]
-            
-            last_row_existing = pd.read_sql(f"select {pk} from {name} "
-                                            f"order by {pk} desc limit 1",
-                                            self.psql_engine)
 
-            if len(last_row_existing) > 0 and mode == 'a':
-                last_pk_existing = last_row_existing.iloc[0,0]
-                first_pk_new = df.index[0]
-                index_diff = last_pk_existing - first_pk_new
-                if index_diff >= 0:
-                    self.logger.info("increasing index as already exists in psql")
-                    df.index += index_diff + 1
-            
+            if table_exists:
+                last_row_existing = pd.read_sql(f"select {pk} from {name} "
+                                                f"order by {pk} desc limit 1",
+                                                self.psql_engine)
+                
+                if len(last_row_existing) > 0 and mode == 'a':
+                    last_pk_existing = last_row_existing.iloc[0,0]
+                    first_pk_new = df.index[0]
+                    index_diff = last_pk_existing - first_pk_new
+                    if index_diff >= 0:
+                        self.logger.info("increasing index as already exists in psql")
+                        df.index += index_diff + 1
+                        
             df.to_sql(name, self.psql_engine,if_exists=if_exists) 
-            #_df = pd.read_sql(f"select * from {name}",self.psql_engine)
+            _df = pd.read_sql(f"select * from {name}",self.psql_engine)
+            print (_df)
             self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to psql")
