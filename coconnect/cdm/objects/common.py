@@ -65,6 +65,12 @@ class DataFormatter(collections.OrderedDict):
 
         series_slice_values = series_slice.dropna().astype(str).values
         series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
+
+        print ("===================")
+        print (series_slice)
+        print (series_slice_formatted.dropna())
+        print (series_slice_formatted_values)
+
         
         if np.array_equal(series_slice_values,series_slice_formatted_values):
             self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
@@ -72,8 +78,6 @@ class DataFormatter(collections.OrderedDict):
             return series
         else:
             self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
-            #print (series_slice_values)
-            #print (series_slice_formatted_values)
             df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
             df.columns = ['original','should be']
             self.logger.warning(f"\n {df}")
@@ -367,7 +371,8 @@ class DestinationTable(object):
             self.logger.info("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
             self.logger.info("Performing checks on data formatting.")
-            
+
+        print (self.fields)
         for col in self.fields:
             #if is already all na/nan, dont bother trying to format
             is_nan_already = df[col].isna().all()
@@ -389,8 +394,9 @@ class DestinationTable(object):
                     df[col] = self.dtypes.check_formatting(df[col],formatter_function)
                 except Exception as e:
                     if 'source_files' in self._meta:
-                        self.logger.error("This is coming from the source file (table & column) ...")
-                        self.logger.error(self._meta['source_files'][col])
+                        if col in self._meta['source_files']:
+                            self.logger.error("This is coming from the source file (table & column) ...")
+                            self.logger.error(self._meta['source_files'][col])
                     raise(e) 
 
             if col in self.required_fields \

@@ -1,4 +1,5 @@
 import pandas as pd
+import types
 from coconnect.tools.logger import Logger
 
 class DataBrick:
@@ -15,6 +16,11 @@ class DataBrick:
                 self.__df = self.__df_handler.get_chunk(chunksize)
             except StopIteration:
                 #otherwise, if at the end of the file reader, return an empty frame
+                self.__df = pd.DataFrame(columns=self.__df.columns)
+        elif isinstance(self.__df_handler,types.GeneratorType):
+            try:
+                self.__df = next(self.__df_handler)
+            except StopIteration:
                 self.__df = pd.DataFrame(columns=self.__df.columns)
         else:
             #if we're handling non-chunked data
@@ -86,7 +92,6 @@ class DataCollection:
                 brick.get_chunk(self.chunksize)
                 for brick in self.__bricks.values()
             ]
-    
         df = brick.get_df()
         self.logger.info(f"Got brick {brick}")
         return df

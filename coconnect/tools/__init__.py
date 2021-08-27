@@ -13,6 +13,7 @@ from .file_helpers import (
     load_json,
     load_csv,
     load_tsv,
+    load_sql,
     get_separator_from_filename,
     get_file_map_from_dir,
     get_mapped_fields_from_rules,

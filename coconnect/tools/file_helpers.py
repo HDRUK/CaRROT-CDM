@@ -2,6 +2,10 @@ import os
 import glob
 import json
 import pandas as pd
+
+from sqlalchemy import create_engine, inspect
+from sqlalchemy_utils import database_exists
+
 from coconnect.tools.logger import Logger
 from coconnect.io import local
 
@@ -105,9 +109,10 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
 
-    logger = Logger("coconnect.tools.load_csv")
+def load_data(_map,_type='csv',chunksize=None,nrows=None,load_path="",rules=None):
+
+    logger = Logger("coconnect.tools.load_data")
     
     if rules is not None:
         logger.debug("rules .json file supplied")
@@ -147,9 +152,14 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
             fname = obj['file']
             fields = obj['fields']
 
-        sep = ','
-        if fname.endswith('tsv'):
+
+        if _type == 'csv':
+            sep = ','
+        elif _type == 'tsv':
             sep = '\t'
+        else:
+            raise NotImplementedError(f"Cant process type='{_type}'")
+
         df = pd.read_csv(load_path+fname,
                          sep=sep,
                          chunksize=chunksize,
@@ -158,19 +168,29 @@ def load_csv(_map,sep=',',chunksize=None,nrows=None,lower_col_names=False,load_p
                          dtype=str,
                          usecols=fields)
 
-        if isinstance(df,pd.DataFrame):
-            #this should be removed
-            if lower_col_names:
-                df.columns = df.columns.str.lower()
-
         retval[key] = local.DataBrick(df,name=key)
 
     return retval
 
-def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
-    sep="\t"
-    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
-                    lower_col_names=lower_col_names,load_path=load_path,rules=rules)
+def load_sql(connection,chunksize=None,nrows=None):
+    sql_engine = create_engine(connection)
+    sql_inspect =  inspect(sql_engine)
+    retval = local.DataCollection(chunksize=chunksize)
+    for table in sql_inspect.get_table_names():
+        df = pd.read_sql(f"select * from {table}",
+                         sql_engine,
+                         chunksize=chunksize
+                         )
+        retval[table] = local.DataBrick(df,name=table)
+    return retval
+    
+def load_csv(_map,chunksize=None,nrows=None,load_path="",rules=None):
+    return load_data(_map,_type='csv',chunksize=chunksize,nrows=nrows,load_path=load_path,rules=rules)
+
+
+def load_tsv(_map,chunksize=None,nrows=None,load_path="",rules=None):
+    return load_data(_map,_type='tsv',chunksize=chunksize,nrows=nrows,
+                    load_path=load_path,rules=rules)
 
 
 def get_file_map_from_dir(_dir):

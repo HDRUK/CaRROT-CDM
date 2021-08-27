@@ -637,8 +637,12 @@ class CommonDataModel:
             if_exists = 'fail'
 
 
-        for name,df in self.__df_map.items():
-
+        for name,obj in self.__df_map.items():
+            if obj is None:
+                continue
+            
+            df = obj.get_df()
+            
             table_exists = name in existing_tables
             
             if mode == 'a' and table_exists:
@@ -651,7 +655,8 @@ class CommonDataModel:
             
             if df is None:
                 continue
-            
+
+            print (df)
             pk = df.columns[0]
             df.set_index(pk,inplace=True)
 

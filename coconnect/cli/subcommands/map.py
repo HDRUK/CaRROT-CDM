@@ -217,7 +217,6 @@ def format_input_data(column,operation,input):
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,format_level,
-        output_folder,
         output_folder,output_database,
         csv_separator,use_profiler,
         number_of_rows_per_chunk,

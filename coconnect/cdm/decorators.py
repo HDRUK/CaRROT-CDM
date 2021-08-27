@@ -8,12 +8,12 @@ from .objects import (
 )
 
 
-# def load_file(fname):
-#     def func(self):
-#         for colname in self.inputs[fname]:
-#             self[colname].series = self.inputs[fname][colname]
-#     func.__name__ = fname
-#     return func
+def load_file(fname):
+    def func(self):
+        for colname in self.inputs[fname]:
+            self[colname].series = self.inputs[fname][colname]
+    func.__name__ = fname
+    return func
 
 
 # def from_table(obj,table):
@@ -45,7 +45,8 @@ def from_table(table):
             df = obj.inputs[table]
             for colname in df.columns:
                 obj[colname].series = df[colname]
-            return defs
+            defs(obj)
+                
         wrapper.__name__ = defs.__name__
         return wrapper
     return decorator
