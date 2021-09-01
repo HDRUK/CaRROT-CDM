@@ -7,6 +7,9 @@ from .objects import (
     DrugExposure
 )
 
+class LoadTableError(Exception):
+    pass
+
 
 def load_file(fname):
     def func(self):
@@ -39,12 +42,23 @@ def load_file(fname):
 #     print (decorator)
 #     return decorator
 
-def from_table(table):
+def load_table(table,filter=None):
     def decorator(defs):
         def wrapper(obj):
-            df = obj.inputs[table]
+            try:
+                df = obj.inputs[table]
+            except Exception as err:
+                raise LoadTableError(f"Using the decorator {load_table} gave the error:\n"+str(err))
+
+            
+            if filter is not None:
+                for key,value in filter.items():
+                    df = df[df[key]==value]
+
+                print (df)
             for colname in df.columns:
                 obj[colname].series = df[colname]
+
             defs(obj)
                 
         wrapper.__name__ = defs.__name__

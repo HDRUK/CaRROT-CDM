@@ -2,6 +2,9 @@ import pandas as pd
 import types
 from coconnect.tools.logger import Logger
 
+class TableDoesNotExist(Exception):
+    pass
+
 class DataBrick:
     def __init__(self,df_handler,name=None):
         self.name = name
@@ -85,6 +88,8 @@ class DataCollection:
 
                     
     def __getitem__(self,key):
+        if key not in self.__bricks.keys():
+            raise TableDoesNotExist(f'You have not loaded the table "{key}"')
         brick = self.__bricks[key]
         if any([brick.get_df() is None for brick in self.__bricks.values()]):
             self.logger.info(f"Retrieving initial dataframes for the first time")

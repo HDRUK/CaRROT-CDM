@@ -111,7 +111,9 @@ class CommonDataModel:
             self.inputs = inputs
 
         if not hasattr(self,'inputs'):
-            raise NoInputFiles('No input files were given')
+            raise NoInputFiles('No input files were loaded.')
+        elif 'inputs' not in self.__dict__.keys():
+            self.inputs = self.inputs
             
         #register opereation tools
         self.tools = OperationTools()
@@ -231,7 +233,7 @@ class CommonDataModel:
         if key not in self.__df_map.keys():
             return None
         else:
-            return self.__df_map[key]
+            return self.__df_map[key].get_df()
 
     def __setitem__(self,key,obj):
         """

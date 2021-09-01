@@ -14,12 +14,11 @@ from .objects import (
 )
 
 from .decorators import (
-    from_table,
     define_person,
     define_condition_occurrence,
     define_visit_occurrence,
     define_measurement,
     define_observation,
     define_drug_exposure,
-    from_table
+    load_table
 )

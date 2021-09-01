@@ -291,6 +291,10 @@ class DestinationTable(object):
                 df = df[df[col] == value]
             
         return df
+
+
+    def set_df(self,df):
+        self.__df = df
     
     def get_df(self,force_rebuild=False,dropna=False,**kwargs):
         """
