@@ -489,11 +489,13 @@ class CommonDataModel:
 
     def save_dataframes(self,mode='w'):
         if self.psql_engine is not None:
-            self.save_to_psql(mode='r')
+            self.save_to_psql(mode='a')
         else:
             self.save_to_file(mode=mode)
 
-    def save_to_psql(self,mode='r'):
+    def save_to_psql(self,mode='a'):
+
+        #mode = 'a'
         if_exists = 'fail'
         if mode == 'a':
             if_exists = 'append'
@@ -509,7 +511,6 @@ class CommonDataModel:
             df.set_index(pk,inplace=True)
 
             self.logger.info(f'updating {name} in {self.psql_engine}')
-            #name = sql_map[name]
             
             last_row_existing = pd.read_sql(f"select {pk} from {name} "
                                             f"order by {pk} desc limit 1",
