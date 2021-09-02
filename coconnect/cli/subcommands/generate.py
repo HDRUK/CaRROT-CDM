@@ -100,7 +100,6 @@ def ccom(report_id,number_of_events,output_directory,
             df_synthetic[col_name] = values
 
         df_synthetic = pd.concat(df_synthetic.values(),axis=1)
-        print (fill_column_with_values)
         for col_name in fill_column_with_values:
             if col_name in df_synthetic.columns:
                 df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
