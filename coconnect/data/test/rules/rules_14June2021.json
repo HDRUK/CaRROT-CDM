@@ -265,6 +265,38 @@
                               "source_field": "PersonID"
                         }
                   }
+            ],
+	    "measurement": [
+		  {
+			"value_as_number": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "IgG"
+			},
+			"measurement_source_value": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "IgG"
+			},
+			"measurement_concept_id": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "IgG",
+			      "term_mapping": 37398191
+			      }
+			},
+			"measurement_source_concept_id": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "IgG",
+			      "term_mapping": 37398191
+			      }
+			},
+			"measurement_datetime": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "date"
+			},
+			"person_id": {
+			      "source_table": "covid19_antibody.csv",
+			      "source_field": "PersonID"
+			}
+		  }
             ]
       }
 }
