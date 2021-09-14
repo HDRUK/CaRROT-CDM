@@ -60,9 +60,14 @@ class DataFormatter(collections.OrderedDict):
         series_slice = series.sample(nsample)
         #format the sample of the series
         series_slice_formatted = function(series_slice)
-        #if the pre- and post-formatting of the series are equal
-        #dont waste time formatting the entire series, just return it as it is
 
+        #if it's just formatting of a number, just return the series if no error has been raised
+        if series_slice_formatted.dtype == 'Float64':
+            return series
+
+        #if it's formatting of text i.e. date string 
+        #and the pre- and post-formatting of the series are equal
+        #dont waste time formatting the entire series, just return it as it is
         series_slice_values = series_slice.dropna().astype(str).values
         series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
         
@@ -77,18 +82,18 @@ class DataFormatter(collections.OrderedDict):
             self.logger.warning(f"\n {df}")
             raise DataStandardError(f"{series.name} has not been formatted correctly")
     
-    def __init__(self):
+    def __init__(self,errors='raise'):
         super().__init__()
         self.logger = Logger("Column Formatter")
-        self['Integer'] = lambda x : pd.to_numeric(x,errors='coerce').astype('Int64')
-        self['Float']   = lambda x : pd.to_numeric(x,errors='coerce').astype('Float64')
+        self['Integer'] = lambda x : pd.to_numeric(x,errors=errors).astype('Int64')
+        self['Float']   = lambda x : pd.to_numeric(x,errors=errors).astype('Float64')
         self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
         self['Text50']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
 
-        self['Timestamp'] = lambda x : pd.to_datetime(x,errors='coerce')\
+        self['Timestamp'] = lambda x : pd.to_datetime(x,errors=errors)\
                                         .dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
-        self['Date'] = lambda x : pd.to_datetime(x,errors='coerce').dt.date
+        self['Date'] = lambda x : pd.to_datetime(x,errors=errors).dt.date
 
 
 class DestinationField(object):
