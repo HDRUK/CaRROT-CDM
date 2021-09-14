@@ -1,0 +1,11 @@
+measurement_id	person_id	measurement_concept_id	measurement_date	measurement_datetime	measurement_type_concept_id	operator_concept_id	value_as_number	value_as_concept_id	unit_concept_id	range_low	range_high	provider_id	visit_occurrence_id	measurement_source_value	measurement_source_concept_id	unit_source_value	value_source_value
+1	101	37398191		2020-11-29 00:00:00			3.63							3.63	37398191		
+2	102	37398191		2020-04-15 00:00:00			6.72							6.72	37398191		
+3	103	37398191		2020-10-04 00:00:00			30.3							30.30	37398191		
+4	104	37398191		2020-08-07 00:00:00			0.01							0.01	37398191		
+5	105	37398191		2020-10-08 00:00:00			10.08							10.08	37398191		
+6	106	37398191		2020-02-15 00:00:00			0.0							0.00	37398191		
+7	107	37398191		2021-03-01 00:00:00			0.0							0.00	37398191		
+8	108	37398191		2020-04-25 00:00:00			0.1							0.10	37398191		
+9	109	37398191		2021-07-01 00:00:00			20.13							20.13	37398191		
+10	110	37398191		2020-04-16 00:00:00			0.25							0.25	37398191		
