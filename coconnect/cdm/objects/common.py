@@ -92,7 +92,7 @@ class DataFormatter(collections.OrderedDict):
         self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
 
         self['Timestamp'] = lambda x : pd.to_datetime(x,errors=errors)\
-                                        .dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                                        .dt.strftime('%Y-%m-%d %H:%M:%S.%f')
         self['Date'] = lambda x : pd.to_datetime(x,errors=errors).dt.date
 
 
