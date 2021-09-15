@@ -14,6 +14,11 @@ from coconnect.tools.file_helpers import InputData
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable
 
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.schema import CreateSchema
+from sqlalchemy_utils import database_exists, create_database
+
+
 class NoInputFiles(Exception):
     pass
 
@@ -27,7 +32,9 @@ class CommonDataModel:
 
     """
 
-    def __init__(self, name=None, output_folder=f"output_data{os.path.sep}",
+    def __init__(self, name=None, 
+                 output_folder=f"output_data{os.path.sep}",
+                 output_database=None,
                  inputs=None, use_profiler=False,
                  automatically_generate_missing_rules=False):
         """
@@ -42,14 +49,26 @@ class CommonDataModel:
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
+        self.profiler = None
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
-        
-        self.profiler = None
+        self.output_database = output_database
+        self.psql_engine = None
+        if self.output_database is not None:
+            self.logger.info(f"Running with the output set to '{self.output_database}'")
+            try:
+                self.psql_engine = create_engine(self.output_database)
+            except Exception as err:
+                self.logger.critical(f"Failed to make a connection to {self.output_database}")
+                raise(err)
+        else:
+            self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
+
+
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")
             self.profiler = Profiler(name=name)
@@ -314,7 +333,7 @@ class CommonDataModel:
             if i>0:
                 mode='a'
                 
-            self.save_to_file(mode=mode)
+            self.save_dataframes(mode=mode)
             self.save_logs(extra=f'_slice_{i}')
             i+=1
             
@@ -335,7 +354,7 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
-        self.save_to_file()
+        self.save_dataframes()
         self.save_logs()
                 
             
@@ -471,6 +490,67 @@ class CommonDataModel:
             self.logger.warning("Defaulting to csv")
             return 'csv'
         
+
+    def save_dataframes(self,mode='w'):
+        if self.psql_engine is not None:
+            self.save_to_psql(mode='a')
+        else:
+            self.save_to_file(mode=mode)
+
+    def save_to_psql(self,mode='a'):
+        #creat an inspector based on the psql engine
+        insp  = inspect(self.psql_engine)
+        #get the names of existing tables
+        existing_tables = insp.get_table_names()
+
+        #set the method of pandas based on the mode supplied
+        if mode == 'a':
+            if_exists = 'append'
+        elif mode == 'r':
+            if_exists = 'replace'
+        elif mode == 'w':
+            if_exists = 'fail'
+        else:
+            raise Exception(f"Unknown mode for dumping to psql, mode = '{mode}'")
+
+        #loop over all created dataframes in the CDM
+        for name,df in self.__df_map.items():
+            #skip dead dataframes
+            if df is None:
+                continue
+
+            #check if the table exists already
+            table_exists = name in existing_tables
+
+            #index the dataframe
+            pk = df.columns[0]
+            df.set_index(pk,inplace=True)
+            self.logger.info(f'updating {name} in {self.psql_engine}')
+
+            #check if the table already exists in the psql database
+            if table_exists:
+                #get the last row
+                last_row_existing = pd.read_sql(f"select {pk} from {name} "
+                                                f"order by {pk} desc limit 1",
+                                                self.psql_engine)
+                
+                #if there's already a row and the mode is set to append
+                if len(last_row_existing) > 0 and mode == 'a':
+                    #get the cell value of the (this will be the id, e.g. condition_occurrence_id)
+                    last_pk_existing = last_row_existing.iloc[0,0]
+                    #get the index integer of this current dataframe
+                    first_pk_new = df.index[0]
+                    #workout and increase the indexing so the indexes are new
+                    index_diff = last_pk_existing - first_pk_new
+                    if index_diff >= 0:
+                        self.logger.info("increasing index as already exists in psql")
+                        df.index += index_diff + 1
+
+            #dump to sql
+            df.to_sql(name, self.psql_engine,if_exists=if_exists) 
+
+        self.logger.info("finished save to psql")
+
     def save_to_file(self,f_out=None,mode='w'):
         """
         Save the dataframe processed by the CommonDataModel to files.
