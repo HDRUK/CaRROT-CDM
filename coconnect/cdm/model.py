@@ -12,7 +12,7 @@ from coconnect.tools.profiling import Profiler
 from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
-from .objects import DestinationTable
+from .objects import DestinationTable, FormatterLevel
 
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import CreateSchema
@@ -35,7 +35,7 @@ class CommonDataModel:
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
-                 inputs=None, use_profiler=False,
+                 inputs=None, use_profiler=False,format_level=None,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -56,6 +56,18 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+
+        if format_level == None:
+            format_level = 0
+        try:
+            format_level = int(format_level)
+        except ValueError:
+            self.logger.error(f"You as specifying format_level='{format_level}' -- this should be an integer!")
+            raise ValueError("format_level not set as an int ")
+        
+        self.format_level = FormatterLevel(format_level)
+        self.profiler = None
+
         self.output_database = output_database
         self.psql_engine = None
         if self.output_database is not None:
@@ -67,7 +79,6 @@ class CommonDataModel:
                 raise(err)
         else:
             self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
-
 
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")

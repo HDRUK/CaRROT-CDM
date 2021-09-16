@@ -83,6 +83,10 @@ def test(ctx):
 @click.option("--use-profiler",
               is_flag=True,
               help="turn on saving statistics for profiling CPU and memory usage")
+@click.option("format_level","--format-level",
+              default='2',
+              type=click.Choice(['0','1','2']),
+              help="Choose the level of formatting to apply on the output data. 0 - no formatting. 1 - automatic formatting. 2 (default) - check formatting (will crash if input data is not already formatted).")
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
@@ -100,7 +104,7 @@ def test(ctx):
                 required=True,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,
+def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,
         number_of_rows_per_chunk,
@@ -181,6 +185,7 @@ def run(ctx,rules,inputs,
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
+                                        format_level=format_level,
                                         output_folder=output_folder,
                                         output_database=output_database,
                                         use_profiler=use_profiler)
