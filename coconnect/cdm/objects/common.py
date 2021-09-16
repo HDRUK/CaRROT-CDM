@@ -70,7 +70,7 @@ class DataFormatter(collections.OrderedDict):
         #dont waste time formatting the entire series, just return it as it is
         series_slice_values = series_slice.dropna().astype(str).values
         series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
-        
+
         if np.array_equal(series_slice_values,series_slice_formatted_values):
             self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
                               f'{series.name}" is  already formatted!!')
@@ -328,11 +328,14 @@ class DestinationTable(object):
             self.logger.info("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
             self.logger.info("Performing checks on data formatting.")
-            
+
+
         for col in self.fields:
             #if is already all na/nan, dont bother trying to format
             is_nan_already = df[col].isna().all()
-            
+            if is_nan_already:
+                continue
+                        
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
