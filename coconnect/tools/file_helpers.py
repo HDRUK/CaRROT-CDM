@@ -15,7 +15,7 @@ class DifferingRows(Exception):
 class InputData:
     def __init__(self,chunksize):
         self.chunksize = chunksize
-        
+
         self.__file_readers = {}
         self.__dataframe = {}
 

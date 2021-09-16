@@ -311,10 +311,13 @@ class CommonDataModel:
         self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
-
+        
         #switch to process the data in chunks or not
         if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
+            if self.inputs.chunksize == None:
+                self.process_flat_data()
+            else:
+                self.process_chunked_data()
         else:
             self.process_flat_data()
 
