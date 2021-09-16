@@ -90,6 +90,9 @@ def test(ctx):
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
+@click.option("output_database","--database",
+              default=None,
+              help="define the output database where to insert data into")
 @click.option("-nc","--number-of-rows-per-chunk",
               default='auto',
               help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking.")
@@ -102,7 +105,8 @@ def test(ctx):
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,format_level,
-        output_folder,csv_separator,use_profiler,
+        output_folder,output_database,
+        csv_separator,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -183,6 +187,7 @@ def run(ctx,rules,inputs,format_level,
                                         inputs=inputs,
                                         format_level=format_level,
                                         output_folder=output_folder,
+                                        output_database=output_database,
                                         use_profiler=use_profiler)
     
     #allow the csv separator to be changed

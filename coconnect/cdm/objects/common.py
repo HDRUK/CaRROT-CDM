@@ -84,6 +84,7 @@ class DataFormatter(collections.OrderedDict):
     
     def __init__(self,errors='raise'):
         super().__init__()
+
         self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors=errors).astype('Int64')
         self['Float']   = lambda x : pd.to_numeric(x,errors=errors).astype('Float64')
@@ -328,10 +329,9 @@ class DestinationTable(object):
         elif self.format_level is FormatterLevel.CHECK:
             self.logger.info("Performing checks on data formatting.")
             
-        for col in df.columns:
+        for col in self.fields:
             #if is already all na/nan, dont bother trying to format
-            if df[col].isna().all():
-                continue
+            is_nan_already = df[col].isna().all()
             
             obj = getattr(self,col)
             dtype = obj.dtype
@@ -354,7 +354,9 @@ class DestinationTable(object):
                         self.logger.error(self._meta['source_files'][col])
                     raise(e) 
 
-            if col in self.required_fields and df[col].isna().all():
+            if col in self.required_fields \
+               and not is_nan_already \
+               and df[col].isna().all():
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                 self.logger.info(f"Sample of this column before formatting:")
                 self.logger.error(sample)
