@@ -30,6 +30,9 @@ def synthetic():
 def ccom(report_id,number_of_events,output_directory,
          fill_column_with_values,token,
          url):
+
+    fill_column_with_values = list(fill_column_with_values)
+    
     token = os.environ.get("COCONNECT_TOKEN") or token
     if token == None:
         raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
@@ -52,12 +55,21 @@ def ccom(report_id,number_of_events,output_directory,
     else:
         print (json.dumps(response.json(),indent=6))
         
-    tables = {
-        table['name']:table['id']
-        for table in response.json()
-        }
+    for table in response.json():
+        name = table['name']
+        _id = table['id']
 
-    for name,_id in tables.items():
+        #get which is the person_id and automatically fill this with incrementing values
+        #so they are not all NaN in the synthetic data (because of List Truncated...)
+        person_id = table['person_id']
+        _url = f"{url}/api/scanreportfieldsfilter/?id={person_id}&fields=name"
+        person_id = requests.get(
+            _url, headers=headers,
+            allow_redirects=True,
+        ).json()[0]['name']
+
+        fill_column_with_values.append(person_id)
+        
         _url = f"{url}/api/scanreportvaluesfilterscanreporttable/?scan_report_table={_id}&fields=value,frequency,scan_report_field"
         response = requests.get(
             _url, headers=headers,
