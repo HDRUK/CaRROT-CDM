@@ -174,7 +174,7 @@ def get_mapped_fields_from_rules(rules):
     sources = [
         (x['source_table'],x['source_field'])
         for cdm_obj_set in rules['cdm'].values()
-        for cdm_obj in cdm_obj_set
+        for cdm_obj in cdm_obj_set.values()
         for x in cdm_obj.values()
     ]
     

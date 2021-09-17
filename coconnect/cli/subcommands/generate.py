@@ -66,7 +66,7 @@ def ccom(report_id,number_of_events,output_directory,
         person_id = requests.get(
             _url, headers=headers,
             allow_redirects=True,
-        ).json()[0]['name']
+        ).json()[0]['name'].lstrip('\ufeff')
 
         fill_column_with_values.append(person_id)
         
@@ -97,8 +97,19 @@ def ccom(report_id,number_of_events,output_directory,
             if col_name == '': continue
             
             _df = df.loc[[col_name]]
+            _df['value'].replace('',np.nan,inplace=True)
+
+            _df = _df.dropna()
+            
+            
+            if len(_df) > number_of_events:
+                _df = _df.sample(frac=1)[:number_of_events]
+
+            
             frequency = _df['frequency']
             total = frequency.sum()
+
+            
             if total > 0 :
                 frequency = number_of_events*frequency / total
                 frequency = frequency.astype(int)
@@ -108,6 +119,7 @@ def ccom(report_id,number_of_events,output_directory,
             values = _df['value'].repeat(frequency)\
                                  .sample(frac=1)\
                                  .reset_index(drop=True)
+
             values.name = col_name
             df_synthetic[col_name] = values
 
