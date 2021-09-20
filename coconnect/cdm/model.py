@@ -311,10 +311,13 @@ class CommonDataModel:
         self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
-
+        
         #switch to process the data in chunks or not
         if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
+            if self.inputs.chunksize == None:
+                self.process_flat_data()
+            else:
+                self.process_chunked_data()
         else:
             self.process_flat_data()
 
@@ -592,6 +595,11 @@ class CommonDataModel:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
+
+            if 'output_files' not in self.logs['meta']:
+                self.logs['meta']['output_files'] = {}
+
+            self.logs['meta']['output_files'][name] = fname
             self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
