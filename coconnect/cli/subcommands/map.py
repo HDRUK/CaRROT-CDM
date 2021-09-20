@@ -352,6 +352,7 @@ def gui(ctx):
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select an output folder:')],
         [sg.Input(key='_OUTPUT_',default_text='.'), sg.FolderBrowse(initial_folder=os.getcwd())],
+        [sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
         #[[sg.T('Change the default data chunksize:'),
         #  sg.Slider(range=(0,1000000),
         #            default_value=100000,
@@ -385,10 +386,16 @@ def gui(ctx):
         if inputs == '':
             sg.Popup(f'Error: please select at least one file or directory for the inputs')
             continue
-        
         inputs = inputs.split(';')
-        ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
-        sg.Popup("Done!")
+
+        mask_person_id = values['_MASK_PERSON_ID_']
+
+        try:
+            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            sg.Popup("Done!")
+        except Exception as err:
+            sg.popup_error("An exception occurred!",err)
+            
         break
         
     window.close()

@@ -67,7 +67,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
+          coconnect map run --mask-person-id --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
@@ -97,7 +97,7 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: |
-          coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
+          coconnect map run --mask-person-id --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
       - run: |
           $files = Get-ChildItem tests\*.tsv
           Foreach ($file in $files )
