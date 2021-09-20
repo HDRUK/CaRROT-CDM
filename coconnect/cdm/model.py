@@ -273,6 +273,7 @@ class CommonDataModel:
                 }
                 
                 if destination_table == 'person':
+                    os.makedirs(self.output_folder,exist_ok=True)
                     dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
                     dfp.index.name = 'original_id'
                     fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
