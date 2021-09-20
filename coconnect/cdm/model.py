@@ -35,7 +35,8 @@ class CommonDataModel:
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
-                 inputs=None, use_profiler=False,format_level=None,
+                 inputs=None, use_profiler=False,
+                 format_level=None,do_mask_person_id=False,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -57,6 +58,8 @@ class CommonDataModel:
 
         self.output_folder = output_folder
 
+        self.do_mask_person_id = do_mask_person_id
+        
         if format_level == None:
             format_level = 0
         try:
@@ -263,6 +266,9 @@ class CommonDataModel:
                     x:i+1
                     for i,x in enumerate(df['person_id'].unique())
                 }
+                with open(f"{self.output_folder}{os.path.sep}masked_person_ids.json","w") as f:
+                    json.dump(self.person_id_masker,f,indent=6)
+                
             #apply the masking
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
@@ -425,7 +431,9 @@ class CommonDataModel:
         
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
-        #df_destination = self.mask_person_id(df_destination)
+        if self.do_mask_person_id:
+            df_destination = self.mask_person_id(df_destination)
+
         #get the primary columnn
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
         primary_column = df_destination.columns[0]

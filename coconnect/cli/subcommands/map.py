@@ -100,6 +100,9 @@ def test(ctx):
               default=None,
               type=int,
               help="the total number of rows to process")
+@click.option("--mask-person-id",
+              is_flag=True,
+              help="turn on masking of person_ids")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
@@ -107,6 +110,7 @@ def test(ctx):
 def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,
+        mask_person_id,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -186,6 +190,7 @@ def run(ctx,rules,inputs,format_level,
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         format_level=format_level,
+                                        do_mask_person_id=mask_person_id,
                                         output_folder=output_folder,
                                         output_database=output_database,
                                         use_profiler=use_profiler)
