@@ -201,7 +201,7 @@ def run(ctx,rules,inputs,format_level,
         #loop over each object instance in the rule set
         #for example, condition_occurrence may have multiple rulesx
         #for multiple condition_ocurrences e.g. Headache, Fever ..
-        for i,rules in enumerate(rules_set):
+        for name,rules in rules_set.items():
             #make a new object for the cdm object
             #Example:
             # destination_table : person
@@ -209,7 +209,7 @@ def run(ctx,rules,inputs,format_level,
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
             #set the name of the object
-            obj.set_name(f"{destination_table}_{i}")
+            obj.set_name(name)
             
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
