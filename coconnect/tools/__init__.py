@@ -21,7 +21,8 @@ from .file_helpers import (
 from .rules_helpers import(
     get_source_field,
     get_source_table,
-    apply_rules
+    apply_rules,
+    load_from_file
 )
 
 _DEBUG = False

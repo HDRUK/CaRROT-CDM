@@ -99,8 +99,15 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=[]):
 
+    if isinstance(_map,list):
+        _map = {
+            x:x
+            for x in _map
+        }
+
+    
     logger = Logger("coconnect.tools.load_csv")
     
     if rules is not None:
@@ -141,7 +148,15 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             fname = obj['file']
             fields = obj['fields']
 
-        df = pd.read_csv(load_path+fname,chunksize=chunksize,nrows=nrows,keep_default_na=False,dtype=str,usecols=fields)
+        df = pd.read_csv(load_path+fname,
+                         chunksize=chunksize,
+                         nrows=nrows,
+                         sep=sep,
+                         keep_default_na=False,
+                         na_values=na_values,
+                         dtype=str,
+                         usecols=fields)
+        
         df.meta = {'original_file':load_path+fname}
         
         if isinstance(df,pd.DataFrame):
@@ -244,3 +259,5 @@ def diff_csv(file1,file2,separator=None,nrows=None):
             if not (df1.iloc[i] == df2.iloc[i]).any():
                 print ('Row',i,'is in a different location')
         raise Exception("differences detected")
+
+    

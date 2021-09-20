@@ -5,6 +5,8 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.dummy import  DummyOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.utils.task_group import TaskGroup
+        
 
 from airflow.utils.dates import days_ago
 from airflow.models import Variable
@@ -181,14 +183,14 @@ def coconnect_report_getters():
 
 
 def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
-
     
-    def run_cdm(name,destination_table,rules):
-        input_map = {
-            os.path.basename(x):x
-            for x in glob.glob(f'{f_inputs}/*.csv')
-        }
-        inputs = coconnect.tools.load_csv(input_map,
+    f_input_map = {
+        os.path.basename(x):x
+        for x in glob.glob(f'{f_inputs}/*.csv')
+    }
+    
+    def run_cdm(name,destination_table,rules,ti):
+        inputs = coconnect.tools.load_csv(f_input_map,
                                           chunksize=None)
         
         cdm = coconnect.cdm.CommonDataModel(inputs=inputs,
@@ -201,33 +203,99 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
         obj.define = lambda self : coconnect.tools.apply_rules(self)
         cdm.add(obj)
         cdm.process()
+
+        return { name:cdm.logs['meta']['output_files']}
     
-    def merge_tables(**kwargs):
-        print ('hiya')
-        return True
+    def merge_tables(files, **kwargs):
+        print (files)
+        files = files.replace("'",'"')
+        files = json.loads(files)
 
+        #invert data
+        objects = {}
+        inputs = []
+        for jobs in files:
+            job_name = list(jobs.keys())[0]
+            jobs = jobs[job_name]
+            for destination_table,fname in jobs.items():
+                if destination_table not in objects:
+                    objects[destination_table] = {}
+                objects[destination_table][job_name] = fname
+                inputs.append(fname)
 
+        inputs = coconnect.tools.load_csv(inputs,
+                                          sep='\t',
+                                          na_values=[''],
+                                          chunksize=100)
+
+        cdm = coconnect.cdm.CommonDataModel(inputs=inputs,
+                                            format_level=0,
+                                            output_folder=f"{f_output_folder}/"
+        )
+        
+        for destination_table,objs in objects.items():
+            for name,fname in objs.items():
+                obj = coconnect.cdm.get_cdm_class(destination_table)()
+                obj.set_name(name)
+                obj.fname = fname
+                obj.define =  lambda x : coconnect.tools.load_from_file(x)
+                cdm.add(obj)
+        cdm.process()
+        return cdm.logs['meta']['output_files']
     
     def coconnect_etl():
+
+
+        with TaskGroup(group_id='extract') as extract:
+                for name,f_in in f_input_map.items():
+                    salt = DummyOperator(task_id=f"salt_{name}")
+            
+        
         config = json.load(open(f_rules))
-        for destination_table,rules_set in config['cdm'].items():
-            merge = PythonOperator(task_id=f'merge_{destination_table}',
-                                   python_callable=merge_tables)
+
+        with TaskGroup(group_id='transform') as transform:
+
+            finish = DummyOperator(task_id=f"finish_merge")
             
+            for destination_table,rules_set in config['cdm'].items():
+                tasks = {}
+                for name,rules in rules_set.items():
+                    task_id = re.sub("[^a-zA-Z0-9 ]+", "", name).replace(" ","_")
+                    run = PythonOperator(task_id=task_id,
+                                         python_callable=run_cdm,
+                                         op_kwargs={
+                                             'destination_table':destination_table,
+                                             'name':name,
+                                             'rules':rules
+                                         },
+                                         retries=0)
+                    tasks[f"transform.{task_id}"] = run
+
+                tasks_str = '["'+'","'.join(list(tasks.keys()))+'"]'
+                merge = PythonOperator(task_id=f'merge_{destination_table}',
+                                       python_callable=merge_tables,
+                                       op_kwargs={
+                                           'files':'{{ ti.xcom_pull(task_ids='+tasks_str+') }}'
+                                       })
+                
+                for run in tasks.values():
+                    run >> merge >> finish
+                    
+
+            mask_person = DummyOperator(task_id=f'mask_person')
+            finish >> mask_person 
+            for destination_table in config['cdm'].keys():
+                if destination_table == 'person': continue
+                mask_table = DummyOperator(task_id=f'mask_{destination_table}')
+                mask_person >> mask_table
+
+        with TaskGroup(group_id='load') as load:
+            for destination_table in config['cdm'].keys():
+                upload = DummyOperator(task_id=f'upload_{destination_table}')
             
-            for name,rules in rules_set.items():
-                task_id = re.sub("[^a-zA-Z0-9 ]+", "", name).replace(" ","_")
-                run = PythonOperator(task_id=task_id,
-                                     python_callable=run_cdm,
-                                     op_kwargs={
-                                         'destination_table':destination_table,
-                                         'name':name,
-                                         'rules':rules
-                                 },
-                                 retries=0)
-                
-                run >> merge
-                
+        extract >> transform >> load 
+        
+            
     d = dag(dag_name,
             default_args=default_args,
             schedule_interval=None,

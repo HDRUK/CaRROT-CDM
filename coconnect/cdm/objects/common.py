@@ -265,7 +265,7 @@ class DestinationTable(object):
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
             return self.__df 
-        
+
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
@@ -286,7 +286,8 @@ class DestinationTable(object):
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:
-            return None
+            self.logger.warning("no objects defined")
+            return pd.DataFrame(columns = self.fields)
 
         #check the lengths of the dataframes
         lengths = list(set([len(df) for df in dfs.values()]))
