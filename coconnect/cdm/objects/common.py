@@ -336,7 +336,11 @@ class DestinationTable(object):
             is_nan_already = df[col].isna().all()
             if is_nan_already:
                 continue
-                        
+
+            #dont try and format the person_id if we're going to mask it later
+            if col == 'person_id' and self.do_mask_person_id:
+                continue
+            
             obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
