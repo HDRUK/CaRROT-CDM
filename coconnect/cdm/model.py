@@ -251,7 +251,7 @@ class CommonDataModel:
         ]
 
     
-    def mask_person_id(self,df):
+    def mask_person_id(self,df,destination_table):
         """
         Given a dataframe object, apply a masking map on the person_id, if one has been created
         Args:
@@ -259,16 +259,31 @@ class CommonDataModel:
         Returns:
             pandas.Dataframe: modified dataframe with person id masked
         """
+
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
-            if self.person_id_masker is None:
+            if self.person_id_masker is None or destination_table == 'person':
+                start_index = 1
+                if self.person_id_masker is not None:
+                    start_index = list(self.person_id_masker.values())[-1] + 1
+
                 self.person_id_masker = {
-                    x:i+1
+                    x:i+start_index
                     for i,x in enumerate(df['person_id'].unique())
                 }
-                with open(f"{self.output_folder}{os.path.sep}masked_person_ids.json","w") as f:
-                    json.dump(self.person_id_masker,f,indent=6)
                 
+                if destination_table == 'person':
+                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
+                    dfp.index.name = 'original_id'
+                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
+                    header = True
+                    mode = 'w'
+                    if start_index > 1:
+                        header = False
+                        mode = 'a'
+                        
+                    dfp.to_csv(fname,header=header,mode=mode)
+                    
             #apply the masking
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
@@ -432,7 +447,7 @@ class CommonDataModel:
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
         if self.do_mask_person_id:
-            df_destination = self.mask_person_id(df_destination)
+            df_destination = self.mask_person_id(df_destination,destination_table)
 
         #get the primary columnn
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
