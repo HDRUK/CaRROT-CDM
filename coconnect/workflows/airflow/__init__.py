@@ -182,7 +182,7 @@ def coconnect_report_getters():
                         op_kwargs={'url':'{{ dag_run.conf["url"] }} ','token':'{{ dag_run.conf["token"] }}'})
 
 
-def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
+def create_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
     
     f_input_map = {
         os.path.basename(x):x
@@ -207,7 +207,6 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
         return { name:cdm.logs['meta']['output_files']}
     
     def merge_tables(files, **kwargs):
-        print (files)
         files = files.replace("'",'"')
         files = json.loads(files)
 
@@ -242,21 +241,29 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
                 cdm.add(obj)
         cdm.process()
         return cdm.logs['meta']['output_files']
+
+
+    def mask_tables(f_in,destination_table,**kwargs):
+        f_in = json.loads(f_in.replace("'",'"'))
+        return f_in[destination_table]
+    
     
     def coconnect_etl():
 
+        config = json.load(open(f_rules))
 
+        #extract
         with TaskGroup(group_id='extract') as extract:
                 for name,f_in in f_input_map.items():
                     salt = DummyOperator(task_id=f"salt_{name}")
             
         
-        config = json.load(open(f_rules))
-
+        #transform
         with TaskGroup(group_id='transform') as transform:
 
-            finish = DummyOperator(task_id=f"finish_merge")
-            
+            #finish = DummyOperator(task_id=f"finish_merge")
+
+            merge_tasks = {}
             for destination_table,rules_set in config['cdm'].items():
                 tasks = {}
                 for name,rules in rules_set.items():
@@ -277,29 +284,53 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules):
                                        op_kwargs={
                                            'files':'{{ ti.xcom_pull(task_ids='+tasks_str+') }}'
                                        })
+
+                merge_tasks[destination_table] = merge
                 
                 for run in tasks.values():
-                    run >> merge >> finish
+                    run >> merge 
                     
 
-            mask_person = DummyOperator(task_id=f'mask_person')
-            finish >> mask_person 
+            mask_tasks = {}
             for destination_table in config['cdm'].keys():
-                if destination_table == 'person': continue
-                mask_table = DummyOperator(task_id=f'mask_{destination_table}')
-                mask_person >> mask_table
+                mask = PythonOperator(task_id=f'mask_{destination_table}',
+                                      python_callable=mask_tables,
+                                      op_kwargs = {
+                                          "f_in":'{{ ti.xcom_pull(task_ids="transform.merge_'+destination_table+'") }}',
+                                          "destination_table":destination_table
+                                      })
+                mask_tasks[destination_table] = mask
 
+                
+            for destination_table in mask_tasks.keys():
+                if destination_table == 'person': 
+                    merge_tasks[destination_table] >> mask_tasks[destination_table]
+                else:
+                    [merge_tasks[destination_table] , mask_tasks['person']] >> mask_tasks[destination_table]
+
+        # load
         with TaskGroup(group_id='load') as load:
             for destination_table in config['cdm'].keys():
-                upload = DummyOperator(task_id=f'upload_{destination_table}')
-            
+
+                command = f'echo datasettool2 delete-all-rows {destination_table} --database=bclink'
+                delete = BashOperator(task_id=f'delete_{destination_table}',
+                                      bash_command=command)
+
+                fname = '{{ ti.xcom_pull(task_ids="transform.mask_'+destination_table+'") }} '
+                command = f'echo dataset_tool --load --table={destination_table} --user=data --data_file={fname} --support  --bcqueue --bcqueue-res-path=./logs/{destination_table}  bclink'
+                
+                upload = BashOperator(task_id=f'upload_{destination_table}',
+                                      bash_command=command)
+
+                delete >> upload
+                
         extract >> transform >> load 
         
             
     d = dag(dag_name,
             default_args=default_args,
-            schedule_interval=None,
+            schedule_interval=timedelta(**f_schedule),
             start_date=days_ago(2),
-            tags=['example'])(coconnect_etl)()
+            tags=[dag_name,'dataset'])(coconnect_etl)()
 
     return d
