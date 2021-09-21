@@ -10,7 +10,7 @@ import os
 @click.option("--output-folder","-o",help="path of the output folder",required=True,type=str)
 @click.option("--chunksize",help="set the chunksize when loading data",type=int,default=None)
 @click.argument("input",required=True)
-def salt(input,output_folder,chunksizse,salt,person_id):
+def salt(input,output_folder,chunksize,salt,person_id):
 
     #create the dir
     os.makedirs(output_folder,exist_ok=True)
