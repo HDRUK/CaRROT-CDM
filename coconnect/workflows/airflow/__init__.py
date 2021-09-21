@@ -1,4 +1,5 @@
 from datetime import timedelta
+from textwrap import dedent
 from airflow import DAG
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
@@ -181,6 +182,50 @@ def coconnect_report_getters():
                         python_callable=get_reports,
                         op_kwargs={'url':'{{ dag_run.conf["url"] }} ','token':'{{ dag_run.conf["token"] }}'})
 
+
+def create_simple_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
+    
+    with DAG(
+            dag_name,
+            default_args=default_args,
+            description='A simple tutorial DAG',
+            schedule_interval=timedelta(days=1),
+            start_date=days_ago(2),
+            tags=['example'],
+    ) as dag:
+
+        salt = BashOperator(
+            task_id='run_pseudonymisation',
+            bash_command=f'echo "salting dataset"'
+        )
+
+        run = BashOperator(
+            task_id='run_python_tool',
+            bash_command=f'coconnect map run --rules {f_rules} --output-folder {f_output_folder} {f_inputs} ',
+        )
+
+        config = json.load(open(f_rules))
+        tables = list(config['cdm'].keys())
+
+        templated_command = dedent(
+            """
+        {% for table in params.tables %}
+            echo {{ table }} 
+            echo datasettool2 delete-all-rows {{ table }}  --database=bclink
+            echo dataset_tool --load --table={{ table }} --user=data --data_file="{{ params.output }}{{ table }}.tsv" --support  --bcqueue --bcqueue-res-path=./logs/{{ table }}  bclink
+        {% endfor %}
+           """
+        )
+
+        upload = BashOperator(
+            task_id=f'insert_into_bclink',
+            bash_command=templated_command,
+            params={'tables': tables,"output":f_output_folder},
+        )
+        salt >> run >> upload
+        
+        return dag
+    
 
 def create_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
     
