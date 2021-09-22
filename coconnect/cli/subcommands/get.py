@@ -21,7 +21,7 @@ def get():
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default="https://ccom.azurewebsites.net")
-def json(report_id,token,url):
+def _json(report_id,token,url):
 
     token = os.environ.get("COCONNECT_TOKEN") or token
     if token == None:
@@ -37,7 +37,9 @@ def json(report_id,token,url):
     response = requests.get(
         f"{url}/api/json/?id={report_id}",
         headers=headers
-    )
-    print (response.json())
+    ).json()[0]
+
+    print (json.dumps(response,indent=6))
+
     
-get.add_command(json,"json")
+get.add_command(_json,"json")

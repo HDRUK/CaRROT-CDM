@@ -3,7 +3,7 @@ from textwrap import dedent
 from airflow import DAG
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import  DummyOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.task_group import TaskGroup
@@ -110,7 +110,10 @@ def make_dag(**kwargs):
     
     return create_template(f_name,f_inputs,f_outputs,f_rules)
 
-    
+
+def decide_trigger(**kwargs):
+    return 'finish'
+
 @dag(default_args=default_args,
      schedule_interval=None,
      start_date=days_ago(2),
@@ -142,10 +145,15 @@ def coconnect_report_manager():
         task_id=f"make_dag",
         python_callable=make_dag
     )
+
+    decide = BranchPythonOperator(
+        task_id=f"decision_trigger",
+        python_callable=decide_trigger
+    )
     
     trigger_dag = TriggerDagRunOperator(
         task_id=f"trigger_dag",
-        trigger_dag_id="Simple_Panther",
+        trigger_dag_id='{{ ti.xcom_pull("make_dag") }}',
         wait_for_completion=True,
         retries=0
     )
@@ -156,7 +164,9 @@ def coconnect_report_manager():
     )
 
     
-    start >> download_json >> run_synthetic >> create_dag >> trigger_dag >> finish
+    start >> download_json >> run_synthetic >> create_dag >> decide
+    trigger_dag >> finish
+    decide >> [ trigger_dag, finish] 
     
     
 

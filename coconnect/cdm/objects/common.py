@@ -68,9 +68,10 @@ class DataFormatter(collections.OrderedDict):
         #if it's formatting of text i.e. date string 
         #and the pre- and post-formatting of the series are equal
         #dont waste time formatting the entire series, just return it as it is
-        series_slice_values = series_slice.dropna().astype(str).values
-        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
+        series_slice_values = series_slice.dropna().astype(str).unique()
+        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).unique()
 
+        
         if np.array_equal(series_slice_values,series_slice_formatted_values):
             self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
                               f'{series.name}" is  already formatted!!')
