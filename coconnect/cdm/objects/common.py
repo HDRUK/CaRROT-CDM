@@ -69,14 +69,15 @@ class DataFormatter(collections.OrderedDict):
         #and the pre- and post-formatting of the series are equal
         #dont waste time formatting the entire series, just return it as it is
         series_slice_values = series_slice.dropna().astype(str).unique()
-        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).unique()
-
+        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).replace('', np.nan).dropna().unique()
         
         if np.array_equal(series_slice_values,series_slice_formatted_values):
             self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
                               f'{series.name}" is  already formatted!!')
             return series
         else:
+            self.logger.debug(series_slice_values)
+            self.logger.debug(series_slice_formatted_values)
             self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
             df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
             df.columns = ['original','should be']
@@ -355,7 +356,7 @@ class DestinationTable(object):
                 self.logger.debug(f"Formatting {col}")
                 df[col] = formatter_function(df[col])
             elif self.format_level is FormatterLevel.CHECK:
-                self.logger.debug(f"Checking formatting of {col}")
+                self.logger.debug(f"Checking formatting of {col} to {dtype}")
                 try:
                     df[col] = self.dtypes.check_formatting(df[col],formatter_function)
                 except Exception as e:
