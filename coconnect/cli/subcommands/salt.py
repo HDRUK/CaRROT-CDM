@@ -3,6 +3,7 @@ import requests
 import coconnect
 import hashlib
 import os
+from coconnect.tools.logger import Logger
 
 @click.command(help="Command to help salt data.")
 @click.option("-s","--salt",help="salt hash",required=True,type=str)
@@ -12,17 +13,20 @@ import os
 @click.argument("input",required=True)
 def salt(input,output_folder,chunksize,salt,person_id):
 
+    log = Logger("Salt")
+    log.info(f"starting on {input}, processing column {person_id}")
+    
     #create the dir
     os.makedirs(output_folder,exist_ok=True)
     f_out = f"{output_folder}{os.path.sep}{os.path.basename(input)}"
-
+    log.info(f"Saving to {output_folder}")
+    
     #load data
     data = coconnect.tools.load_csv(input,chunksize=chunksize)
 
     i = 0 
     while True:
         data[input][person_id] =  data[input][person_id].apply(lambda x: hashlib.sha256(x.encode("UTF-8")).hexdigest())
-
         mode = 'w'
         header=True
         if i > 0 :
@@ -30,7 +34,8 @@ def salt(input,output_folder,chunksize,salt,person_id):
             header=False
         
         data[input].to_csv(f_out,mode=mode,header=header,index=False)
-        
+        log.info(f"Finished {input} of size={len(data[input])} on iteration {i}")
+        print (data[input])
         i+=1
         
         try:

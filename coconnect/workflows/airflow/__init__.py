@@ -168,30 +168,74 @@ def coconnect_report_manager():
     trigger_dag >> finish
     decide >> [ trigger_dag, finish] 
     
+
+def get_url_and_token(ti):
+
+    url = token = None
+
+    try:
+        url = Variable.get("ccom_url")
+        token = Variable.get("ccom_token")
+    except Exception as err:
+        dag_run = ti['dag_run']
+        if "url" in dag_run.conf and "token" in dag_run.conf:
+            url = dag_run.conf["url"]
+            token = dag_run.conf["token"]
+        else:
+            raise Exception(err)
+
+    return url,token
+
     
+def get_reports(**kwargs):
 
-def get_reports(url,token):
-
+    url,token = get_url_and_token(kwargs['ti'])
+    
     headers = get_headers(token)
-    
+    url = f"{url}/api/scanreports/"
+    print (url)
     response = requests.get(url,headers=headers).json()
+    print (json.dumps(response,indent=6))
     reports = {}
     for report in response:
         if report['hidden'] == False:
             continue
         reports[str(report['id'])] = report['dataset']
 
+    print (json.dumps(reports,indent=6))
     return reports
+
+def download_jsons(**kwargs):
+
+    url,token =	get_url_and_token(kwargs['ti'])
+
+    for _id,name in kwargs['ti'].xcom_pull("list_reports").items():
+        _url = f"{url}/api/json/?id={_id}"
+        headers = get_headers(token)
+        response = requests.get(_url,headers=headers)
+        if response.status_code != 200:
+            print (f"failed to get {_id} {name}")
+            continue
+        
+        print (response)
+        print (json.dumps(response.json(),indent=6))
+        print (_id,name)
 
 @dag(default_args=default_args,
      schedule_interval=None,
      start_date=days_ago(2),
      tags=['manager'])
 def coconnect_report_getters():
-    op = PythonOperator(task_id=f"trigger_reports",
-                        python_callable=get_reports,
-                        op_kwargs={'url':'{{ dag_run.conf["url"] }} ','token':'{{ dag_run.conf["token"] }}'})
+    op = PythonOperator(task_id=f"list_reports",
+                        python_callable=get_reports)
+                        #op_kwargs={'url':'{{ dag_run.conf["url"] }}','token':'{{ dag_run.conf["token"] }}'})
 
+    op2 = PythonOperator(task_id=f"download_jsons",
+                        python_callable=download_jsons)
+                        #op_kwargs={'url':'{{ dag_run.conf["url"] }}','token':'{{ dag_run.conf["token"] }}'})
+
+    
+    op >> op2 
 
 def create_simple_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
     
@@ -354,12 +398,16 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4})
                                           "f_in":'{{ ti.xcom_pull(task_ids="transform.merge_'+destination_table+'") }}',
                                           "destination_table":destination_table
                                       })
+
+                
                 mask_tasks[destination_table] = mask
 
                 
             for destination_table in mask_tasks.keys():
-                if destination_table == 'person': 
-                    merge_tasks[destination_table] >> mask_tasks[destination_table]
+                if destination_table == 'person':
+                    #dedup = DummyOperator(task_id='dedup_calc_and_check')
+                    #mask = DummyOperator(task_id='handle_masked_ids')
+                    merge_tasks[destination_table]  >> mask_tasks[destination_table]
                 else:
                     [merge_tasks[destination_table] , mask_tasks['person']] >> mask_tasks[destination_table]
 
@@ -378,6 +426,7 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4})
                                       bash_command=command)
 
                 delete >> upload
+            mask = DummyOperator(task_id='upload_masked_ids')
                 
         extract >> transform >> load 
         
