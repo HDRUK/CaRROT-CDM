@@ -339,9 +339,8 @@ class DestinationTable(object):
             obj = getattr(self,col)
 
             #dont try any formatting for primary keys that need to be integers
-            if obj.pk == True:
+            if obj.pk == True or col == 'person_id':
                 continue
-
             
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]

@@ -240,9 +240,9 @@ class CommonDataModel:
             return int(self.indexing_conf[destination_table])
         else:
             self.logger.warning(self.indexing_conf)
-            self.logger.warning(f"indexing configuration has be parsed, \
-                                  but this table ({destination_table})\
-                                  has not be passed, so starting from 1")
+            self.logger.warning("indexing configuration has be parsed "
+                                f"but this table ({destination_table}) "
+                                "has not be passed, so starting from 1")
             return 1
             
     def get_objects(self,destination_table):
@@ -465,9 +465,8 @@ class CommonDataModel:
 
         #register the total length of the output dataframe
         logs['ntotal'] = len(df_destination)
-        
-        #! this section of code may need some work ...
-        #person_id masking turned off... assume we dont need this (?)
+
+        #mask the person id
         if self.do_mask_person_id:
             df_destination = self.mask_person_id(df_destination,destination_table)
 
@@ -486,8 +485,6 @@ class CommonDataModel:
                 start_index += nrows_processed_so_far
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
-            
-            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
