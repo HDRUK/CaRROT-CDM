@@ -109,7 +109,12 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
     
     logger = Logger("coconnect.tools.load_csv")
-    
+
+    if isinstance(_map,list) or isinstance(_map,tuple):
+        _map = { x:x for x in _map}
+    elif isinstance(_map,str):
+        _map = { _map:_map }
+        
     if rules is not None:
         logger.debug("rules .json file supplied")
         rules = load_json(rules)

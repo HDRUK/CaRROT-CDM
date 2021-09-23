@@ -35,7 +35,8 @@ class CommonDataModel:
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
-                 inputs=None, use_profiler=False,format_level=None,
+                 inputs=None, use_profiler=False,
+                 format_level=None,do_mask_person_id=False,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -57,6 +58,8 @@ class CommonDataModel:
 
         self.output_folder = output_folder
 
+        self.do_mask_person_id = do_mask_person_id
+        
         if format_level == None:
             format_level = 0
         try:
@@ -248,7 +251,7 @@ class CommonDataModel:
         ]
 
     
-    def mask_person_id(self,df):
+    def mask_person_id(self,df,destination_table):
         """
         Given a dataframe object, apply a masking map on the person_id, if one has been created
         Args:
@@ -256,13 +259,32 @@ class CommonDataModel:
         Returns:
             pandas.Dataframe: modified dataframe with person id masked
         """
+
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
-            if self.person_id_masker is None:
+            if self.person_id_masker is None or destination_table == 'person':
+                start_index = 1
+                if self.person_id_masker is not None:
+                    start_index = list(self.person_id_masker.values())[-1] + 1
+
                 self.person_id_masker = {
-                    x:i+1
+                    x:i+start_index
                     for i,x in enumerate(df['person_id'].unique())
                 }
+                
+                if destination_table == 'person':
+                    os.makedirs(self.output_folder,exist_ok=True)
+                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
+                    dfp.index.name = 'original_id'
+                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
+                    header = True
+                    mode = 'w'
+                    if start_index > 1:
+                        header = False
+                        mode = 'a'
+                        
+                    dfp.to_csv(fname,header=header,mode=mode)
+                    
             #apply the masking
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
@@ -311,10 +333,13 @@ class CommonDataModel:
         self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
-
+        
         #switch to process the data in chunks or not
         if isinstance(self.inputs,InputData):
-            self.process_chunked_data()
+            if self.inputs.chunksize == None:
+                self.process_flat_data()
+            else:
+                self.process_chunked_data()
         else:
             self.process_flat_data()
 
@@ -425,7 +450,9 @@ class CommonDataModel:
         
         #! this section of code may need some work ...
         #person_id masking turned off... assume we dont need this (?)
-        #df_destination = self.mask_person_id(df_destination)
+        if self.do_mask_person_id:
+            df_destination = self.mask_person_id(df_destination,destination_table)
+
         #get the primary columnn
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
         primary_column = df_destination.columns[0]
@@ -592,6 +619,11 @@ class CommonDataModel:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
+
+            if 'output_files' not in self.logs['meta']:
+                self.logs['meta']['output_files'] = {}
+
+            self.logs['meta']['output_files'][name] = fname
             self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
