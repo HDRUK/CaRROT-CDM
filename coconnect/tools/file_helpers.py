@@ -84,17 +84,14 @@ class InputData:
     
 
 def load_json(f_in):
-    try:
+
+    if os.path.exists(f_in):
         data = json.load(open(f_in))
-    except FileNotFoundError as err:
+    else:
         try:
-            data_dir = os.path.abspath(
-                os.path.join(
-                    os.path.dirname(__file__),'..','data')
-                )
-            data =  json.load(open(f'{data_dir}{os.path.sep}{f_in}'))
-        except FileNotFoundError:
-            raise FileNotFoundError(err)
+            data = json.loads(f_in)
+        except Exception as err:
+            raise FileNotFoundError(f"{f_in} not found. Or cannot parse as json")
 
     return data
 

@@ -76,6 +76,9 @@ def test(ctx):
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
+@click.option("--indexing-conf",
+              default=None,
+              help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
               default=None,
               type=click.Choice([';',':','\t',',',' ',]),
@@ -100,9 +103,9 @@ def test(ctx):
               default=None,
               type=int,
               help="the total number of rows to process")
-@click.option("--mask-person-id",
+@click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
-              help="turn on masking of person_ids")
+              help="turn off automatic conversion (creation) of person_id to (as) Integer")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
@@ -110,7 +113,7 @@ def test(ctx):
 def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,
-        mask_person_id,
+        no_mask_person_id,indexing_conf,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -123,6 +126,9 @@ def run(ctx,rules,inputs,format_level,
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
+    if indexing_conf is not None:
+        indexing_conf = tools.load_json(indexing_conf)
+    
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
         #get the fields that are going to be used/loaded
@@ -190,7 +196,8 @@ def run(ctx,rules,inputs,format_level,
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         format_level=format_level,
-                                        do_mask_person_id=mask_person_id,
+                                        do_mask_person_id=not no_mask_person_id,
+                                        indexing_conf=indexing_conf,
                                         output_folder=output_folder,
                                         output_database=output_database,
                                         use_profiler=use_profiler)
