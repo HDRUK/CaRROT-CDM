@@ -232,6 +232,7 @@ class CommonDataModel:
 
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
+
         if self.indexing_conf == None:
             self.logger.debug(f"no indexing specified, so starting the index for {destination_table} from 1")
             return 1
