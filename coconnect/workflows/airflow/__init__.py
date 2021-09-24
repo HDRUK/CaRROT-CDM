@@ -80,7 +80,7 @@ def get_dir():
     return f'{_dir}/data'
 
 def get_json(_id,url,token):
-
+    
     _url = f'{url}/api/json/?id={_id}'
     headers = get_headers(token)
     response = requests.get(_url,headers=headers).json()[0]
@@ -114,62 +114,125 @@ def make_dag(**kwargs):
 def decide_trigger(**kwargs):
     return 'finish'
 
+
+#def coconnect_report_manager():
+
+
 @dag(default_args=default_args,
      schedule_interval=None,
      start_date=days_ago(2),
      tags=['manager'])
-def coconnect_report_manager():
-    start = BashOperator(
+def etl():
+
+    url,token = get_url_and_token()
+    _id = '{{ dag_run.conf["report_id"] }}'
+
+    def get_info_from_scan_report(_id):
+        _url = f'{url}/api/scanreports/{_id}'
+        print (_url)
+        headers = get_headers(token)
+        response = requests.get(_url,headers=headers)
+        print (response)
+        info = response.json()
+
+        dataset = info['dataset']
+        created = info['updated_at']
+
+        _dir = get_dir()
+        _dir = f'{_dir}/{dataset}/{created}'
+        os.makedirs(_dir,exist_ok=True)
+
+        info['workdir'] = _dir
+        
+        return info
+
+
+    def get_json(_id,previous_step,**kwargs):
+        _url = f'{url}/api/json/?id={_id}'
+        headers = get_headers(token)
+        response = requests.get(_url,headers=headers).json()[0]
+        print (json.dumps(response,indent=6))
+
+        ti = kwargs['ti']
+        info = ti.xcom_pull(previous_step)
+        _dir = info['workdir']
+        
+        f_name = f"{_dir}/rules.json"
+        with open(f_name,'w') as outfile:
+            json.dump(response, outfile, indent=6)
+    
+        return f_name
+    
+
+    start = PythonOperator(
         task_id=f"start",
-        bash_command='echo Starting workflow for report_id = {{ dag_run.conf["report_id"] }} '
+        python_callable=get_info_from_scan_report,
+        op_kwargs={
+            '_id': _id,
+        }
     )
     
     download_json = PythonOperator(
         task_id=f"get_json",
         python_callable=get_json,
         op_kwargs={
-            '_id':'{{ dag_run.conf["report_id"] }}',
-            'url':' {{ dag_run.conf["url"] }}',
-            'token': '{{ dag_run.conf["token"] }}'
+            '_id': _id,
+            'previous_step':'start'
         }
     )
-    
-    run_synthetic = BashOperator(
+
+    nevents = 100
+    output_directory = '{{ ti.xcom_pull("start")["workdir"] }}/input_data/'
+    generate_synthetic = BashOperator(
         task_id=f"generate_synthetic",
-        bash_command='coconnect generate synthetic ccom --token {{ dag_run.conf["token"] }} \
-        --url {{ dag_run.conf["url"] }} --number-of-events 100 --report-id ''{{ dag_run.conf["report_id"] }}\
-        --output-directory \"{{ ti.xcom_pull("get_json")["dir"] }}/input_data/\" '
-    )
-    
-    create_dag = PythonOperator(
-        task_id=f"make_dag",
-        python_callable=make_dag
+        bash_command=f'coconnect generate synthetic ccom --token {token} \
+        --url {url}  --number-of-events {nevents} --report-id {_id} \
+        --output-directory \"{output_directory}\" '
     )
 
-    decide = BranchPythonOperator(
-        task_id=f"decision_trigger",
-        python_callable=decide_trigger
-    )
+    output_directory = '{{ ti.xcom_pull("start")["workdir"] }}/output_data/'
+    inputs = '{{ ti.xcom_pull("start")["workdir"] }}/input_data/'
+    rules = '{{ ti.xcom_pull("get_json") }}'
     
-    trigger_dag = TriggerDagRunOperator(
-        task_id=f"trigger_dag",
-        trigger_dag_id='{{ ti.xcom_pull("make_dag") }}',
-        wait_for_completion=True,
-        retries=0
-    )
-
-    finish = BashOperator(
-        task_id=f"finish",
-        bash_command='echo done!'
+    run_coconnect_tools = BashOperator(
+        task_id=f"run_coconnect_tools",
+        bash_command=f'coconnect map run --output-folder \"{output_directory}\" --rules \"{rules}\" \
+        \"{inputs}\" '
     )
 
     
-    start >> download_json >> run_synthetic >> create_dag >> decide
-    trigger_dag >> finish
-    decide >> [ trigger_dag, finish] 
+    start >> [ download_json, generate_synthetic] >> run_coconnect_tools
+    
+    
+    # create_dag = PythonOperator(
+    #     task_id=f"make_dag",
+    #     python_callable=make_dag
+    # )
+
+    # decide = BranchPythonOperator(
+    #     task_id=f"decision_trigger",
+    #     python_callable=decide_trigger
+    # )
+    
+    # trigger_dag = TriggerDagRunOperator(
+    #     task_id=f"trigger_dag",
+    #     trigger_dag_id='{{ ti.xcom_pull("make_dag") }}',
+    #     wait_for_completion=True,
+    #     retries=0
+    # )
+
+    # finish = BashOperator(
+    #     task_id=f"finish",
+    #     bash_command='echo done!'
+    # )
+
+    
+    start #>> download_json >> run_synthetic >> create_dag >> decide
+    #trigger_dag >> finish
+    #decide >> [ trigger_dag, finish] 
     
 
-def get_url_and_token(ti):
+def get_url_and_token(ti=None):
 
     url = token = None
 
@@ -177,12 +240,15 @@ def get_url_and_token(ti):
         url = Variable.get("ccom_url")
         token = Variable.get("ccom_token")
     except Exception as err:
+        pass
+
+    if ti is not None:
         dag_run = ti['dag_run']
         if "url" in dag_run.conf and "token" in dag_run.conf:
             url = dag_run.conf["url"]
             token = dag_run.conf["token"]
         else:
-            raise Exception(err)
+            raise Exception("no token or url given")
 
     return url,token
 
