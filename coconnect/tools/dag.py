@@ -3,7 +3,7 @@ import json
 
 colorscheme = 'gnbu9'
 
-def make_dag(data,render=False):
+def make_dag(data,name='dag',render=False):
     _format = 'svg'
     if render == True:
         _format = 'pdf'
@@ -71,7 +71,7 @@ def make_dag(data,render=False):
     
                 
     if render:
-        dot.render('person.gv', view=True)  
+        dot.render(f'{name}.gv', view=True)  
         return
     #    
     #return dot.pipe().decode('utf-8')

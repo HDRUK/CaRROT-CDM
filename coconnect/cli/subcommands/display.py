@@ -55,7 +55,7 @@ def plot(fnames,x,y,save_plot):
 @click.argument("rules")
 def dag(rules):
     data = tools.load_json(rules)
-    tools.make_dag(data['cdm'],render=True) 
+    tools.make_dag(data['cdm'],name=data['metadata']['dataset'],render=True) 
 
 
 @click.command(help="Show the OMOP mapping json")
