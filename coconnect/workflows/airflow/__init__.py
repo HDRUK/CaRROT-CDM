@@ -227,7 +227,7 @@ def etl():
     # )
 
     
-    start #>> download_json >> run_synthetic >> create_dag >> decide
+    #start #>> download_json >> run_synthetic >> create_dag >> decide
     #trigger_dag >> finish
     #decide >> [ trigger_dag, finish] 
     
@@ -253,55 +253,49 @@ def get_url_and_token(ti=None):
     return url,token
 
     
-def get_reports(**kwargs):
-
-    url,token = get_url_and_token(kwargs['ti'])
-    
-    headers = get_headers(token)
-    url = f"{url}/api/scanreports/"
-    print (url)
-    response = requests.get(url,headers=headers).json()
-    print (json.dumps(response,indent=6))
-    reports = {}
-    for report in response:
-        if report['hidden'] == False:
-            continue
-        reports[str(report['id'])] = report['dataset']
-
-    print (json.dumps(reports,indent=6))
-    return reports
-
-def download_jsons(**kwargs):
-
-    url,token =	get_url_and_token(kwargs['ti'])
-
-    for _id,name in kwargs['ti'].xcom_pull("list_reports").items():
-        _url = f"{url}/api/json/?id={_id}"
-        headers = get_headers(token)
-        response = requests.get(_url,headers=headers)
-        if response.status_code != 200:
-            print (f"failed to get {_id} {name}")
-            continue
-        
-        print (response)
-        print (json.dumps(response.json(),indent=6))
-        print (_id,name)
 
 @dag(default_args=default_args,
      schedule_interval=None,
      start_date=days_ago(2),
      tags=['manager'])
 def coconnect_report_getters():
-    op = PythonOperator(task_id=f"list_reports",
-                        python_callable=get_reports)
-                        #op_kwargs={'url':'{{ dag_run.conf["url"] }}','token':'{{ dag_run.conf["token"] }}'})
 
-    op2 = PythonOperator(task_id=f"download_jsons",
-                        python_callable=download_jsons)
-                        #op_kwargs={'url':'{{ dag_run.conf["url"] }}','token':'{{ dag_run.conf["token"] }}'})
+    url,token = get_url_and_token()
 
-    
-    op >> op2 
+    def get_reports():
+        headers = get_headers(token)
+        _url = f"{url}/api/scanreports/"
+        print (_url)
+        response = requests.get(_url,headers=headers).json()
+        print (json.dumps(response,indent=6))
+        reports = {}
+        for report in response:
+            if report['hidden'] == False:
+                continue
+            reports[str(report['id'])] = (report['dataset'],report['updated_at'])
+
+        print (json.dumps(reports,indent=6))
+        return reports
+
+    start = DummyOperator(task_id="start")
+
+    reports = get_reports()
+    task_ids = []
+    for _id,(name,date) in reports.items():
+        name = f"{name}_{date}"
+        task_id = re.sub("[^a-zA-Z0-9 ]+", "", name).replace(" ","_")
+
+        task_ids.append(task_id)
+        op = TriggerDagRunOperator(
+            task_id=f"trigger_{task_id}",
+            trigger_dag_id='etl',
+            conf={"report_id":_id},
+            wait_for_completion=True,
+            retries=0
+        )
+
+        
+        start >> op
 
 def create_simple_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
     

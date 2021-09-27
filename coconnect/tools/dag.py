@@ -1,60 +1,78 @@
 from graphviz import Digraph
 import json
 
+colorscheme = 'gnbu9'
+
 def make_dag(data,render=False):
     _format = 'svg'
     if render == True:
         _format = 'pdf'
-                
+
     dot = Digraph(strict=True,format=_format)
-    dot.attr(rankdir='RL', size='8,5')
+    dot.attr(rankdir='RL')#, size='20,8')
+            
+    # #dot.attr(rankdir='RL', size='8,16',compound='true')
 
     
-    for destination_table_name,destination_tables in data.items():
-        dot.node(destination_table_name,shape='box')
+    with dot.subgraph(name='cluster_0') as dest, dot.subgraph(name='cluster_1') as inp:
+        
+        #dest.attr(style='dotted',penwidth='4', label='CDM')
+        #inp.attr(style='filled', fillcolor='lightgrey', penwidth='0', label='Input')
+        
+        dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Destination')
+        inp.attr(style='filled', fillcolor='2', colorscheme='greens9', penwidth='0', label='Source')
+        
+        for destination_table_name,destination_tables in data.items():
+            dest.node(destination_table_name,
+                      shape='folder',style='filled',
+                      fontcolor='white',colorscheme=colorscheme,
+                      fillcolor='9')
 
-        #destination_table = destination_tables[0]
+            for ref_name,destination_table in destination_tables.items():
+                for destination_field,source in destination_table.items():
+                    source_field = source['source_field']
+                    source_table = source['source_table']
+                    
+                    table_name = f"{destination_table_name}_{destination_field}"
+                    dest.node(table_name,
+                             label=destination_field,style='filled,rounded', colorscheme=colorscheme,
+                             fillcolor='7',shape='box',fontcolor='white')
 
-        for destination_table in destination_tables:
-            for destination_field,source in destination_table.items():
-                source_field = source['source_field']
-                source_table = source['source_table']
+                    dest.edge(destination_table_name,table_name,arrowhead='inv')
 
-                table_name = f"{destination_table_name}_{destination_field}"#_{source_table}"
-                #table_name = f"{destination_field}_{source_table}"
-                dot.node(table_name,
-                         label=destination_field,style='filled', fillcolor='yellow',shape='box')
+                    source_field_name =  f"{source_table}_{source_field}"
+                    inp.node(source_field_name,source_field,
+                             colorscheme=colorscheme,
+                             style='filled,rounded',fillcolor='5',shape='box')
+                    
+                    if 'operations' in source:
+                        operations = source['operations']
 
-                dot.edge(destination_table_name,table_name,dir='back')
+                    if 'term_mapping' in source and source['term_mapping'] is not None:
+                        term_mapping = source['term_mapping']
+                        dot.edge(table_name,source_field_name,dir='back',color='red',penwidth='2')
+                    else:                                                    
+                        dot.edge(table_name,source_field_name,dir='back',penwidth='2')
+                    
+                    inp.node(source_table,shape='tab',fillcolor='4',colorscheme=colorscheme,style='filled')
+                    inp.edge(source_field_name,source_table,dir='back',arrowhead='inv')
 
-                source_field_name =  f"{source_table}_{source_field}"
+
+    #dot.subgraph(destinations)
+    #dot.subgraph(sources)
+
+    #destinations = dot.subgraph(name='cdm')
+    #destinations = Digraph('cdm')
+    #destinations.attr(style='dotted',rank='same',label='process #2')
+    #dot.subgraph(destinations)
+    #sources = Digraph('sources')
+    #sources.attr(style='dotted',rank='same',label='process #1')
+
+    
                 
-                dot.node(source_field_name,source_field)
-
-                if 'operations' in source:
-                    operations = source['operations']
-
-                if 'term_mapping' in source and source['term_mapping'] is not None:
-                    term_mapping = source['term_mapping']
-                    #tmap = f'{table_name}_{source_table}_{source_field}'
-                    #dot.node(tmap,label=json.dumps(term_mapping),style='filled', fillcolor='azure2',shape='box')
-                    #dot.edge(tmap,source_field,dir='back')
-                    #dot.edge(table_name,tmap,dir='back')
-                    #for i,(k,v) in enumerate(term_mapping.items()):
-                    #    label = f'"{k}":"{v}"'
-                    dot.edge(table_name,source_field_name,dir='back',color='red')
-                        
-                else:                                                    
-                    dot.edge(table_name,source_field_name,dir='back')
-
-                
-                dot.node(source_table,shape='box')
-                dot.edge(source_field_name,source_table,dir='back')
-
-
     if render:
         dot.render('person.gv', view=True)  
         return
-        
-    return dot.pipe().decode('utf-8')
+    #    
+    #return dot.pipe().decode('utf-8')
 
