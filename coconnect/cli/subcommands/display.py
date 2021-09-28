@@ -3,11 +3,42 @@ import click
 import pandas
 import json
 import coconnect.tools as tools
-
+import coconnect
+import pandas as pd
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
     pass
+
+@click.group(help='Commands for displaying various help for the CDM')
+def cdm():
+    pass
+
+
+@click.command(help="Display a table for the CDM")
+@click.argument('name',required=True)
+@click.option('--markdown',is_flag=True)
+@click.option('--latex',is_flag=True)
+def table(name,markdown,latex):
+    obj = coconnect.cdm.get_cdm_class(name)()
+    data = []
+    for field in obj.fields:
+        pk = obj[field].pk
+        if pk == True:
+            pk = '✔'
+        else:
+            pk = ' '
+            
+        data.append([field,pk,obj[field].dtype])
+
+    df = pd.DataFrame(data, columns=['name','pk','dtype']).set_index('name')
+    
+    if markdown:
+        df = df.to_markdown()
+    elif latex:
+        df = df.to_latex()
+
+    print (df)
 
 @click.command(help="Display a dataframe")
 @click.argument('fname')
@@ -114,7 +145,10 @@ def flatten(rules):
         
         exit(0)
 
-                
+
+cdm.add_command(table,"table")
+display.add_command(cdm,"cdm")
+
 display.add_command(dataframe,"dataframe")
 display.add_command(dag,"dag")
 display.add_command(print_json,"json")
