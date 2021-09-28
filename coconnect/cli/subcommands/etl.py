@@ -30,17 +30,25 @@ def bclink():
 
 @click.command(help='Run with a yaml configuration file')
 @click.argument('config_file')
-@click.option('--clean',help='clean all the BCLink tables first by removing all existing rows',is_flag=True)
 @click.pass_context
-def from_yaml(ctx,config_file,clean):
+def from_yaml(ctx,config_file):
     with open(config_file) as stream:
         data = yaml.safe_load(stream)
 
         rules = data['rules']
         input_folder = data['input']
         output_folder = data['output']
-        table_map = data['bclink tables']
+     
+        if 'bclink tables' in data:
+            table_map = data['bclink tables']
+        else:
+            table_map = None
 
+        if 'clean' in data:
+            clean = data['clean']
+        else:
+            clean = False
+            
         ctx.invoke(manual,
                    rules=rules,
                    input_folder=input_folder,
