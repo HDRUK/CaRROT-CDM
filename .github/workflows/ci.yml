@@ -38,10 +38,10 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - run: coconnect display json example/sample_config/lion_structural_mapping.json
-      - run: coconnect map py make --name Lion --register  example/sample_config/lion_structural_mapping.json
+      - run: coconnect display json coconnect/data/example/sample_config/lion_structural_mapping.json
+      - run: coconnect map py make --name Lion --register  coconnect/data/example/sample_config/lion_structural_mapping.json
       - run: coconnect map py list
-      - run: coconnect map py run --conf Lion.py example/sample_input_data/*.csv
+      - run: coconnect map py run --conf Lion.py coconnect/data/example/sample_input_data/*.csv
       - uses: actions/upload-artifact@v2
         with:
           name: outputs
