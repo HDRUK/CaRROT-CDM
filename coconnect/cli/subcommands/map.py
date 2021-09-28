@@ -128,7 +128,12 @@ def run(ctx,rules,inputs,format_level,
 
     if indexing_conf is not None:
         if indexing_conf.endswith(".csv") and os.path.exists(indexing_conf):
-            indexing_conf = pd.read_csv(indexing_conf,header=None,index_col=0)[1].to_dict()
+            try:
+                indexing_conf = pd.read_csv(indexing_conf,header=None,index_col=0)[1].to_dict()
+            except pd.errors.EmptyDataError:
+                indexing_conf = None
+                pass
+                
         else:
             indexing_conf = tools.load_json(indexing_conf)
     
