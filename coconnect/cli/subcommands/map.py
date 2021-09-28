@@ -127,15 +127,17 @@ def run(ctx,rules,inputs,format_level,
     name = config['metadata']['dataset']
 
     if indexing_conf is not None:
-        if indexing_conf.endswith(".csv") and os.path.exists(indexing_conf):
+        if isinstance(indexing_conf,dict):
+            pass
+        elif indexing_conf.endswith(".json") and os.path.exists(indexing_conf):
+            indexing_conf = tools.load_json(indexing_conf)
+        elif indexing_conf.endswith(".csv") and os.path.exists(indexing_conf):
             try:
                 indexing_conf = pd.read_csv(indexing_conf,header=None,index_col=0)[1].to_dict()
             except pd.errors.EmptyDataError:
                 indexing_conf = None
                 pass
                 
-        else:
-            indexing_conf = tools.load_json(indexing_conf)
     
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
