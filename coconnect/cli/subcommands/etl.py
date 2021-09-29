@@ -3,6 +3,7 @@ import os
 import io
 import time
 import coconnect
+import coconnect.tools.bclink_helpers as bclink_helpers
 from coconnect.tools.logger import Logger
 from .map import run
 import pandas as pd
@@ -58,9 +59,27 @@ def check_yaml(ctx,config_file):
         if len(missing)>0:
             logger.error(f"{missing} are missing from the bclink table map")
 
-        cmd = ['create_indexer.sh'] + list(table_map.values())
-        stdout,_ = run_cmd(cmd,logger)
-        print (stdout)
+        #index_map = bclink_helpers.get_indicies(table_map)
+        #logger.info("Retrieved the index map:")
+        #logger.info(json.dumps(index_map,indent=6))
+
+        for table in table_map.values():
+            stdout,stderr = bclink_helpers.clean_table(table)
+       
+        msgs = bclink_helpers.load_tables(table_map,"results/001")
+        print (msgs)
+
+        #for table in table_map.values():
+        #    stats = bclink_helpers.get_table_jobs(table)
+        #    print (stats)
+
+        #for table in table_map.values():
+        #    stdout,stderr = bclink_helpers.clean_table(table)
+        #    for msg in stderr.splitlines():
+        #        logger.info(msg)
+        #index_map = bclink_helpers.get_indicies(table_map)
+        #logger.info("Retrieved the index map:")
+        #logger.info(json.dumps(index_map,indent=6))
 
 
 
