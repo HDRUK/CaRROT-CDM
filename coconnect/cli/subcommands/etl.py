@@ -1,7 +1,9 @@
 import click
 import os
+import shutil
 import io
 import time
+import datetime
 import coconnect
 import coconnect.tools.bclink_helpers as bclink_helpers
 from coconnect.tools.logger import Logger
@@ -89,36 +91,84 @@ def check_yaml(ctx,config_file):
 def from_yaml(ctx,config_file):
     logger = Logger("from_yaml")
     with open(config_file) as stream:
-        data = yaml.safe_load(stream)
+        config = yaml.safe_load(stream)
 
-        logger.info(json.dumps(data,indent=6))
+        logger.info(json.dumps(config,indent=6))
 
-        rules = data['rules']
+        rules = config['rules']
      
-        if 'bclink tables' in data:
-            table_map = data['bclink tables']
+        if 'bclink tables' in config:
+            table_map = config['bclink tables']
         else:
             table_map = None
 
-        if 'clean' in data:
-            clean = data['clean']
+        if 'clean' in config:
+            clean = config['clean']
         else:
             clean = False
 
+        data = config['data']
+        if isinstance(data,list):
+            for i,obj in enumerate(data):
+                input_folder = obj['input']
+                output_folder = obj['output']
+                ctx.invoke(manual,
+                           rules=rules,
+                           input_folder=input_folder,
+                           output_folder=output_folder,
+                           table_map=table_map,
+                           clean=clean if i==0 else False)
+        else:
 
-        for i,obj in enumerate(data['data']):
-            input_folder = obj['input']
-            output_folder = obj['output']
+            watch = data['watch']
+            tdelta = datetime.timedelta(**watch)
+            input_folder = data['input']
+            output_folder = data['output']
 
-            if clean and i>0:
-                clean=False
-            
-            ctx.invoke(manual,
-                       rules=rules,
-                       input_folder=input_folder,
-                       output_folder=output_folder,
-                       table_map=table_map,
-                       clean=clean)
+            if clean:
+                if os.path.exists(output_folder) and os.path.isdir(output_folder):
+                    shutil.rmtree(output_folder)
+
+                for table in table_map.values():
+                    logger.info(f"cleaning table {table}")
+                    stdout,stderr = bclink_helpers.clean_table(table)
+                    for msg in stdout.splitlines():
+                        logger.info(msg)
+                    for msg in stderr.splitlines():
+                        logger.warning(msg)
+                    
+
+
+            logger.info(f"Watching {input_folder} every {tdelta}")
+
+            while True:
+                subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
+                logger.info(f"Found and checking subfolders {list(subfolders.values())}")
+                
+                jobs = []
+                for name,path in subfolders.items():
+                    if not os.path.exists(f"{output_folder}/{name}"):
+                        logger.info(f"Creating a new task for processing {path} {name}")
+                        jobs.append({
+                            'input':path,
+                            'output':f"{output_folder}/{name}" 
+                        })
+                    else:
+                        logger.warning(f"Already found a results folder for {path} ({output_folder}/{name}). Assuming this data has already been processed!")
+
+                
+                
+                for job in jobs:
+                    ctx.invoke(manual,
+                               rules=rules,
+                               input_folder=job['input'],
+                               output_folder=job['output'],
+                               table_map=table_map,
+                               clean=False)
+
+                logger.info(f"Now waiting {tdelta}....")
+                time.sleep(tdelta.total_seconds())
+
     
 @click.command(help='Run manually')
 @click.option('--rules','-r',help='location of the json rules file',required=True)
