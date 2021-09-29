@@ -1,22 +1,28 @@
 import click
 import os
+import io
+import time
 import coconnect
 from coconnect.tools.logger import Logger
 from .map import run
+import pandas as pd
 import yaml
+import json
 import subprocess
 from subprocess import Popen, PIPE
 
 
-def run_cmd(cmd,logger):
+def run_cmd(cmd,logger=None):
     session = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = (x.decode("utf-8") for x in session.communicate())
-    for msg in stdout.split('\n'):
-        if msg != '':
-            logger.info(msg)
-    for msg in stderr.split('\n'):
-        if msg != '':
-            logger.warning(msg)
+
+    if logger != None:
+        for msg in stdout.split('\n'):
+            if msg != '':
+                logger.info(msg)
+        for msg in stderr.split('\n'):
+            if msg != '':
+                logger.warning(msg)
     
     return stdout,stderr
 
@@ -24,20 +30,51 @@ def run_cmd(cmd,logger):
 def etl():
     pass
 
+class UserNotSupported(Exception):
+    pass
+
 @click.group(help='Commands run ETL of a dataset for bclink')
 def bclink():
+    user = os.environ.get("USER")
+    if user != 'bcos_srv':
+        raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
     pass
+
+@click.command(help='Check the parameters in the yaml configuration file')
+@click.argument('config_file')
+@click.pass_context
+def check_yaml(ctx,config_file):
+    logger = Logger("check_yaml")
+    with open(config_file) as stream:
+        data = yaml.safe_load(stream)
+        rules = coconnect.tools.load_json(data['rules'])
+        destination_tables = list(rules['cdm'].keys())
+        if 'bclink tables' in data:
+            table_map = data['bclink tables']
+        else:
+            table_map = {x:x for x in destination_tables}
+
+        missing = set(destination_tables) - set(table_map.keys())
+        if len(missing)>0:
+            logger.error(f"{missing} are missing from the bclink table map")
+
+        cmd = ['create_indexer.sh'] + list(table_map.values())
+        stdout,_ = run_cmd(cmd,logger)
+        print (stdout)
+
+
 
 @click.command(help='Run with a yaml configuration file')
 @click.argument('config_file')
 @click.pass_context
 def from_yaml(ctx,config_file):
+    logger = Logger("from_yaml")
     with open(config_file) as stream:
         data = yaml.safe_load(stream)
 
+        logger.info(json.dumps(data,indent=6))
+
         rules = data['rules']
-        input_folder = data['input']
-        output_folder = data['output']
      
         if 'bclink tables' in data:
             table_map = data['bclink tables']
@@ -48,13 +85,21 @@ def from_yaml(ctx,config_file):
             clean = data['clean']
         else:
             clean = False
+
+
+        for i,obj in enumerate(data['data']):
+            input_folder = obj['input']
+            output_folder = obj['output']
+
+            if clean and i>0:
+                clean=False
             
-        ctx.invoke(manual,
-                   rules=rules,
-                   input_folder=input_folder,
-                   output_folder=output_folder,
-                   table_map=table_map,
-                   clean=clean)
+            ctx.invoke(manual,
+                       rules=rules,
+                       input_folder=input_folder,
+                       output_folder=output_folder,
+                       table_map=table_map,
+                       clean=clean)
     
 @click.command(help='Run manually')
 @click.option('--rules','-r',help='location of the json rules file',required=True)
@@ -70,7 +115,6 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
     logger.info(f'Inputs: {input_folder}')
     logger.info(f'Output: {output_folder}')
     logger.info(f'Clean Tables: {clean}')
-      
     config = coconnect.tools.load_json(rules)
     destination_tables = list(config['cdm'].keys())
 
@@ -109,16 +153,40 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
     #run the transform
     ctx.invoke(run,rules=rules,inputs=[input_folder],output_folder=output_folder,indexing_conf=indexer)
 
-    #run the load
+    #submit jobs to load
     for table,table_name in table_map.items():
         data_file = f"{output_folder}/{table}.tsv"
         if not os.path.exists(data_file):
             logger.error(f"{data_file} does not exist, so cannot load it into bclink")
             continue
-        cmd = ['load_tables.sh',data_file,table_name]
+        cmd = ['load_tables.sh',data_file,table_name]#,job_name]
         run_cmd(cmd,logger)
-    
 
+    for table,table_name in table_map.items():
+        cmd = f'datasettool2 list-updates --dataset={table_name} --user=data --database=bclink'.split(' ')
+        queue_status,_ = run_cmd(cmd)
+        info = pd.read_csv(io.StringIO(queue_status),
+                           sep='\t',
+                           usecols=['BATCH',
+                                    'UPDDATE',
+                                    'UPD_COMPLETION_DATE',
+                                    'JOB',
+                                    'STATUS',
+                                    'ACTION']).head(5)
+        logger.info(info)
+
+        job_id = info.iloc[0]['JOB']
+        cover = f'/data/var/lib/bcos/download/data/logs/{table_name}/cover.{job_id}'
+        while True:
+            if os.path.exists(cover):
+                break
+            time.sleep(1)
+
+        cmd = ['cat',cover]
+        run_cmd(cmd,logger)
+        
+
+bclink.add_command(check_yaml,'check_yaml')
 bclink.add_command(from_yaml,'from_yaml')
 bclink.add_command(manual,'manual')
 etl.add_command(bclink,'bclink')
