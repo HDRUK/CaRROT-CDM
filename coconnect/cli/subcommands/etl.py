@@ -1,11 +1,15 @@
 import click
 import os
+import daemon
+from daemon.pidfile import TimeoutPIDLockFile
+import lockfile
 import shutil
 import io
 import time
 import datetime
 import coconnect
 import coconnect.tools.bclink_helpers as bclink_helpers
+import coconnect.tools.bash_helpers as bash_helpers
 from coconnect.tools.logger import Logger
 from .map import run
 import pandas as pd
@@ -70,7 +74,7 @@ def check_yaml(ctx,config_file):
        
         msgs = bclink_helpers.load_tables(table_map,"results/001")
         print (msgs)
-
+ 
         #for table in table_map.values():
         #    stats = bclink_helpers.get_table_jobs(table)
         #    print (stats)
@@ -85,89 +89,112 @@ def check_yaml(ctx,config_file):
 
 
 
-@click.command(help='Run with a yaml configuration file')
-@click.argument('config_file')
-@click.pass_context
-def from_yaml(ctx,config_file):
-    logger = Logger("from_yaml")
-    with open(config_file) as stream:
-        config = yaml.safe_load(stream)
-
-        logger.info(json.dumps(config,indent=6))
-
-        rules = config['rules']
+def _from_yaml(ctx,logger,config):
+   
+    logger.info(json.dumps(config,indent=6))
+    
+    rules = config['rules']
      
-        if 'bclink tables' in config:
-            table_map = config['bclink tables']
-        else:
-            table_map = None
+    if 'bclink tables' in config:
+        table_map = config['bclink tables']
+    else:
+        table_map = None
 
-        if 'clean' in config:
-            clean = config['clean']
-        else:
-            clean = False
+    if 'clean' in config:
+        clean = config['clean']
+    else:
+        clean = False
 
-        data = config['data']
-        if isinstance(data,list):
-            for i,obj in enumerate(data):
-                input_folder = obj['input']
-                output_folder = obj['output']
+    data = config['data']
+    if isinstance(data,list):
+        for i,obj in enumerate(data):
+            input_folder = obj['input']
+            output_folder = obj['output']
+            ctx.invoke(manual,
+                       rules=rules,
+                       input_folder=input_folder,
+                       output_folder=output_folder,
+                       table_map=table_map,
+                       clean=clean if i==0 else False)
+    else:
+        watch = data['watch']
+        tdelta = datetime.timedelta(**watch)
+        input_folder = data['input']
+        output_folder = data['output']
+        
+        if clean:
+            if os.path.exists(output_folder) and os.path.isdir(output_folder):
+                shutil.rmtree(output_folder)
+
+            for table in table_map.values():
+                logger.info(f"cleaning table {table}")
+                stdout,stderr = bclink_helpers.clean_table(table)
+                for msg in stdout.splitlines():
+                    logger.info(msg)
+                for msg in stderr.splitlines():
+                    logger.warning(msg)
+                    
+                    
+        logger.info(f"Watching {input_folder} every {tdelta}")
+        while True:
+            subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
+            logger.info(f"Found and checking subfolders {list(subfolders.values())}")
+            
+            jobs = []
+            for name,path in subfolders.items():
+                if not os.path.exists(f"{output_folder}/{name}"):
+                    logger.info(f"Creating a new task for processing {path} {name}")
+                    jobs.append({
+                        'input':path,
+                        'output':f"{output_folder}/{name}" 
+                    })
+                else:
+                    logger.warning(f"Already found a results folder for {path} ({output_folder}/{name}). Assuming this data has already been processed!")
+                
+            for job in jobs:
                 ctx.invoke(manual,
                            rules=rules,
-                           input_folder=input_folder,
-                           output_folder=output_folder,
-                           table_map=table_map,
-                           clean=clean if i==0 else False)
-        else:
-
-            watch = data['watch']
-            tdelta = datetime.timedelta(**watch)
-            input_folder = data['input']
-            output_folder = data['output']
-
-            if clean:
-                if os.path.exists(output_folder) and os.path.isdir(output_folder):
-                    shutil.rmtree(output_folder)
-
-                for table in table_map.values():
-                    logger.info(f"cleaning table {table}")
-                    stdout,stderr = bclink_helpers.clean_table(table)
-                    for msg in stdout.splitlines():
-                        logger.info(msg)
-                    for msg in stderr.splitlines():
-                        logger.warning(msg)
-                    
-
-
-            logger.info(f"Watching {input_folder} every {tdelta}")
-
-            while True:
-                subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
-                logger.info(f"Found and checking subfolders {list(subfolders.values())}")
-                
-                jobs = []
-                for name,path in subfolders.items():
-                    if not os.path.exists(f"{output_folder}/{name}"):
-                        logger.info(f"Creating a new task for processing {path} {name}")
-                        jobs.append({
-                            'input':path,
-                            'output':f"{output_folder}/{name}" 
-                        })
-                    else:
-                        logger.warning(f"Already found a results folder for {path} ({output_folder}/{name}). Assuming this data has already been processed!")
-
-                
-                
-                for job in jobs:
-                    ctx.invoke(manual,
-                               rules=rules,
-                               input_folder=job['input'],
-                               output_folder=job['output'],
+                           input_folder=job['input'],
+                           output_folder=job['output'],
                                table_map=table_map,
-                               clean=False)
+                        clean=False)
+                
+            logger.info(f"Now waiting {tdelta} before looking for new data files....")
+            time.sleep(tdelta.total_seconds())
 
-                logger.info(f"Now waiting {tdelta}....")
-                time.sleep(tdelta.total_seconds())
+
+@click.command(help='Run with a yaml configuration file')
+@click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
+@click.argument('config_file')
+@click.pass_context
+def from_yaml(ctx,config_file,run_as_daemon):
+    logger = Logger("from_yaml")
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+
+    if daemon:
+        stdout = 'coconnect.out'
+        stderr = 'coconnect.log'
+        if 'log' in config:
+            stderr = config['log']
+
+        logger.info(f"running as a daemon process, logging to {stderr}")
+        pidfile = TimeoutPIDLockFile('etl.pid', -1)
+        logger.info(f"process_id in {pidfile}")
+
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            d_ctx = daemon.DaemonContext(
+                working_directory=os.getcwd(),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+                pidfile=TimeoutPIDLockFile('etl.pid', -1)
+            )
+
+            with d_ctx:
+                _from_yaml(ctx,logger,config)
+    else:
+        _from_yaml(ctx,logger,config)
+
 
     
 @click.command(help='Run manually')
@@ -200,21 +227,19 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
         table_map = {x:x for x in destination_tables}
 
     logger.info(f'BCLink Table Map: {table_map}')
-
-    inv_table_map = {v: k for k, v in table_map.items()}
     
     if clean:
-        cmd = ['drop_tables.sh'] + list(table_map.values())
-        run_cmd(cmd,logger)
-
+        for table in table_map.values():
+            stdout,stderr = bclink_helpers.clean_table(table)
+            for msg in stdout.splitlines():
+                logger.info(msg)
+            for msg in stderr.splitlines():
+                logger.warning(msg)
+                
     #calculate the indexing conf
-    cmd = ['create_indexer.sh'] + list(table_map.values())
-    stdout,_ = run_cmd(cmd,logger)
-    indexer = {}
-    for line in stdout.split('\n'):
-        if line == '': continue
-        table,index = line.split(',')
-        indexer[inv_table_map[table]]=int(index)
+    indexer = bclink_helpers.get_indicies(table_map)
+    logger.info("Retrieved the index map:")
+    logger.info(json.dumps(indexer,indent=6))
 
     if not indexer:
         indexer=None
@@ -223,36 +248,29 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
     ctx.invoke(run,rules=rules,inputs=[input_folder],output_folder=output_folder,indexing_conf=indexer)
 
     #submit jobs to load
-    for table,table_name in table_map.items():
-        data_file = f"{output_folder}/{table}.tsv"
-        if not os.path.exists(data_file):
-            logger.error(f"{data_file} does not exist, so cannot load it into bclink")
-            continue
-        cmd = ['load_tables.sh',data_file,table_name]#,job_name]
-        run_cmd(cmd,logger)
+    msgs = bclink_helpers.load_tables(table_map,output_folder)
+    for msg in msgs:
+        logger.info(f"submitted job to bclink queue: {msg}")
 
-    for table,table_name in table_map.items():
-        cmd = f'datasettool2 list-updates --dataset={table_name} --user=data --database=bclink'.split(' ')
-        queue_status,_ = run_cmd(cmd)
-        info = pd.read_csv(io.StringIO(queue_status),
-                           sep='\t',
-                           usecols=['BATCH',
-                                    'UPDDATE',
-                                    'UPD_COMPLETION_DATE',
-                                    'JOB',
-                                    'STATUS',
-                                    'ACTION']).head(5)
-        logger.info(info)
+    for table_name in table_map.values():
+        logger.info(f"Checking jobs submitted for {table_name}")
+        
+        stats = bclink_helpers.get_table_jobs(table_name)
+        logger.info(stats)
 
-        job_id = info.iloc[0]['JOB']
-        cover = f'/data/var/lib/bcos/download/data/logs/{table_name}/cover.{job_id}'
+        job_id = stats.iloc[0]['JOB']
         while True:
-            if os.path.exists(cover):
+            logger.info(f"Getting log for {table_name} id={job_id}")
+            log_msgs = bclink_helpers.check_logs(job_id)
+            if log_msgs is not None:
+                for msg in log_msgs:
+                    logger.info(msg)
                 break
-            time.sleep(1)
+            else:
+                logger.warning(f"Didn't find the log for {table_name} id={job_id} yet")
+                time.sleep(1)
+    
 
-        cmd = ['cat',cover]
-        run_cmd(cmd,logger)
         
 
 bclink.add_command(check_yaml,'check_yaml')

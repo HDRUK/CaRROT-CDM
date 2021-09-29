@@ -13,6 +13,14 @@ def get_indicies(tables):
         if last_index > 0 :
             retval[reverse[table]] = last_index
     return retval
+
+def check_logs(job_id):
+    cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
+    if not os.path.exists(cover):
+        return None
+    cmd = f"cat {cover}"
+    stdout,stderr = run_bash_cmd(cmd)
+    return stdout.splitlines()
         
 def clean_table(table):
     clean = f'datasettool2 delete-all-rows {table} --database=bclink'
