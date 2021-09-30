@@ -8,46 +8,36 @@ except ImportError:
     #latest version gives an import error of package pwd
     #https://stackoverflow.com/questions/39366261/python27win-import-daemon-but-there-is-an-error-no-module-named-pwd
     daemon = None
+
 import lockfile
 import shutil
 import io
 import time
 import datetime
-import coconnect
-import coconnect.tools.bclink_helpers as bclink_helpers
-import coconnect.tools.bash_helpers as bash_helpers
-from coconnect.tools.logger import Logger
-from .map import run
-import pandas as pd
 import yaml
 import json
-import subprocess
-from subprocess import Popen, PIPE
+import pandas as pd
 
+import coconnect
+import coconnect.tools.bclink_helpers as bclink_helpers
+from coconnect.tools.logger import Logger
 
-def run_cmd(cmd,logger=None):
-    session = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
-    stdout, stderr = (x.decode("utf-8") for x in session.communicate())
-
-    if logger != None:
-        for msg in stdout.split('\n'):
-            if msg != '':
-                logger.info(msg)
-        for msg in stderr.split('\n'):
-            if msg != '':
-                logger.warning(msg)
-    
-    return stdout,stderr
-
-@click.group(help='Commands run ETL of a dataset')
-def etl():
-    pass
+from .map import run
 
 class UserNotSupported(Exception):
     pass
 
-@click.group(help='Commands run ETL of a dataset for bclink')
+
+@click.group(help='Command group for running the full ETL of a dataset')
+def etl():
+    pass
+
+
+@click.group(help='Command group for ETL integration with bclink')
 def bclink():
+    #check the username
+    #for bclink, we need to run as bcos_srv to get access to all the datasettool2 etc. tools
+    #and be able to connect with the postgres server without the need for a password
     user = os.environ.get("USER")
     if user != 'bcos_srv':
         raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
@@ -61,6 +51,9 @@ def check_yaml(ctx,config_file):
     with open(config_file) as stream:
         data = yaml.safe_load(stream)
         rules = coconnect.tools.load_json(data['rules'])
+
+        logger.info(json.dumps(data,indent=6))
+
         destination_tables = list(rules['cdm'].keys())
         if 'bclink tables' in data:
             table_map = data['bclink tables']
@@ -71,15 +64,23 @@ def check_yaml(ctx,config_file):
         if len(missing)>0:
             logger.error(f"{missing} are missing from the bclink table map")
 
-        #index_map = bclink_helpers.get_indicies(table_map)
-        #logger.info("Retrieved the index map:")
-        #logger.info(json.dumps(index_map,indent=6))
+        index_map = bclink_helpers.get_indicies(table_map,dry_run=True)
+        for line in index_map.values():
+            logger.info(f"Execute: {line}")
 
-        for table in table_map.values():
-            stdout,stderr = bclink_helpers.clean_table(table)
+        index_map = bclink_helpers.get_indicies(table_map,dry_run=False)
+        logger.info("Will start indices from:")
+        logger.info(json.dumps(index_map,indent=6))
+
+        if data['clean']:
+            logger.info("Cleaning of tables on start-up is turned on...")
+            for table in table_map.values():
+                stdout,stderr = bclink_helpers.clean_table(table,dry_run=True)
+                for msg in stdout.splitlines():
+                    logger.info(f"Execute: {msg}")
        
-        msgs = bclink_helpers.load_tables(table_map,"results/001")
-        print (msgs)
+        #msgs = bclink_helpers.load_tables(table_map,"results/001")
+        #print (msgs)
  
         #for table in table_map.values():
         #    stats = bclink_helpers.get_table_jobs(table)
