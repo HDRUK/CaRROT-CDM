@@ -22,6 +22,7 @@ def dataframe(fname,drop_na,markdown,head,separator):
         separator = tools.get_separator_from_filename(fname)
         
     df = pandas.read_csv(fname,nrows=head,sep=separator)
+    df.set_index(df.columns[0],inplace=True)
     if drop_na:
         df = df.dropna(axis=1,how='all')
     if markdown:
