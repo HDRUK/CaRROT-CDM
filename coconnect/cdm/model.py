@@ -35,8 +35,9 @@ class CommonDataModel:
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
+                 indexing_conf=None,
                  inputs=None, use_profiler=False,
-                 format_level=None,do_mask_person_id=False,
+                 format_level=None,do_mask_person_id=True,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -59,6 +60,7 @@ class CommonDataModel:
         self.output_folder = output_folder
 
         self.do_mask_person_id = do_mask_person_id
+        self.indexing_conf = indexing_conf
         
         if format_level == None:
             format_level = 0
@@ -227,7 +229,22 @@ class CommonDataModel:
 
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
-        
+
+    def get_start_index(self,destination_table):
+        self.logger.debug(f'getting start index for {destination_table}')
+        if self.indexing_conf == None:
+            self.logger.debug(f"no indexing specified, so starting the index for {destination_table} from 1")
+            return 1
+
+        if destination_table in self.indexing_conf:
+            return int(self.indexing_conf[destination_table])
+        else:
+            self.logger.warning(self.indexing_conf)
+            self.logger.warning("indexing configuration has be parsed "
+                                f"but this table ({destination_table}) "
+                                "has not be passed, so starting from 1")
+            return 1
+            
     def get_objects(self,destination_table):
         """
         For a given destination table:
@@ -263,9 +280,10 @@ class CommonDataModel:
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
             if self.person_id_masker is None or destination_table == 'person':
-                start_index = 1
                 if self.person_id_masker is not None:
                     start_index = list(self.person_id_masker.values())[-1] + 1
+                else:
+                    start_index = self.get_start_index(destination_table)
 
                 self.person_id_masker = {
                     x:i+start_index
@@ -279,7 +297,7 @@ class CommonDataModel:
                     fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
                     header = True
                     mode = 'w'
-                    if start_index > 1:
+                    if start_index > self.get_start_index(destination_table):
                         header = False
                         mode = 'a'
                         
@@ -447,9 +465,8 @@ class CommonDataModel:
 
         #register the total length of the output dataframe
         logs['ntotal'] = len(df_destination)
-        
-        #! this section of code may need some work ...
-        #person_id masking turned off... assume we dont need this (?)
+
+        #mask the person id
         if self.do_mask_person_id:
             df_destination = self.mask_person_id(df_destination,destination_table)
 
@@ -459,7 +476,7 @@ class CommonDataModel:
         #if it's not the person_id
         if primary_column != 'person_id':
             #create an index from 1-N
-            start_index = 1
+            start_index = self.get_start_index(destination_table)
             #if we're processing chunked data, and nrows have already been created (processed)
             #start the index from this number
             total_data_processed = self.logs['meta']['total_data_processed']
@@ -468,8 +485,6 @@ class CommonDataModel:
                 start_index += nrows_processed_so_far
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
-            
-            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)

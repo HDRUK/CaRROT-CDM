@@ -76,6 +76,9 @@ def test(ctx):
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
+@click.option("--indexing-conf",
+              default=None,
+              help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
               default=None,
               type=click.Choice([';',':','\t',',',' ',]),
@@ -100,9 +103,9 @@ def test(ctx):
               default=None,
               type=int,
               help="the total number of rows to process")
-@click.option("--mask-person-id",
+@click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
-              help="turn on masking of person_ids")
+              help="turn off automatic conversion (creation) of person_id to (as) Integer")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
@@ -110,7 +113,7 @@ def test(ctx):
 def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,
-        mask_person_id,
+        no_mask_person_id,indexing_conf,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -123,6 +126,9 @@ def run(ctx,rules,inputs,format_level,
     config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
+    if indexing_conf is not None:
+        indexing_conf = tools.load_json(indexing_conf)
+    
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
         #get the fields that are going to be used/loaded
@@ -190,7 +196,8 @@ def run(ctx,rules,inputs,format_level,
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         format_level=format_level,
-                                        do_mask_person_id=mask_person_id,
+                                        do_mask_person_id=not no_mask_person_id,
+                                        indexing_conf=indexing_conf,
                                         output_folder=output_folder,
                                         output_database=output_database,
                                         use_profiler=use_profiler)
@@ -206,7 +213,7 @@ def run(ctx,rules,inputs,format_level,
         #loop over each object instance in the rule set
         #for example, condition_occurrence may have multiple rulesx
         #for multiple condition_ocurrences e.g. Headache, Fever ..
-        for i,rules in enumerate(rules_set):
+        for name,rules in rules_set.items():
             #make a new object for the cdm object
             #Example:
             # destination_table : person
@@ -214,7 +221,7 @@ def run(ctx,rules,inputs,format_level,
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
             #set the name of the object
-            obj.set_name(f"{destination_table}_{i}")
+            obj.set_name(name)
             
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
@@ -345,14 +352,14 @@ def gui(ctx):
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
-        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT ETL-Tool",font = ("Roboto", 25))],
+        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT: Dataset2CDM",font = ("Roboto", 25))],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select the input CSVs:')],
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select an output folder:')],
         [sg.Input(key='_OUTPUT_',default_text='.'), sg.FolderBrowse(initial_folder=os.getcwd())],
-        [sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
+        #[sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
         #[[sg.T('Change the default data chunksize:'),
         #  sg.Slider(range=(0,1000000),
         #            default_value=100000,
@@ -388,10 +395,11 @@ def gui(ctx):
             continue
         inputs = inputs.split(';')
 
-        mask_person_id = values['_MASK_PERSON_ID_']
+        #mask_person_id = values['_MASK_PERSON_ID_']
 
         try:
-            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            #ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
             sg.Popup("Done!")
         except Exception as err:
             sg.popup_error("An exception occurred!",err)

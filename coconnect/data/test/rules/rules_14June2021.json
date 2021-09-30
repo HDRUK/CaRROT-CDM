@@ -4,8 +4,8 @@
             "dataset": "Test"
       },
       "cdm": {
-            "observation": [
-                  {
+            "observation": {
+                  "observation_0": {
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -33,7 +33,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "observation_1":{
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -61,7 +61,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "observation_2":{
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -89,7 +89,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "observation_3":{
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -117,7 +117,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "observation_4":{
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -145,7 +145,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "observation_5":{
                         "observation_concept_id": {
                               "source_table": "Demographics.csv",
                               "source_field": "ethnicity",
@@ -173,9 +173,9 @@
                               "source_field": "PersonID"
                         }
                   }
-            ],
-            "condition_occurrence": [
-                  {
+            },
+            "condition_occurrence": {
+                  "condition_occurrence_0":{
                         "condition_concept_id": {
                               "source_table": "Symptoms.csv",
                               "source_field": "symptom1",
@@ -207,9 +207,9 @@
                               "source_field": "PersonID"
                         }
                   }
-            ],
-            "person": [
-                  {
+            },
+            "person": {
+                  "female":{
                         "birth_datetime": {
                               "source_table": "Demographics.csv",
                               "source_field": "date_of_birth"
@@ -237,7 +237,7 @@
                               "source_field": "PersonID"
                         }
                   },
-                  {
+                  "male":{
                         "birth_datetime": {
                               "source_table": "Demographics.csv",
                               "source_field": "date_of_birth"
@@ -265,9 +265,9 @@
                               "source_field": "PersonID"
                         }
                   }
-            ],
-	    "measurement": [
-		  {
+            },
+	    "measurement": {
+		  "covid_antibody":{
 			"value_as_number": {
 			      "source_table": "covid19_antibody.csv",
 			      "source_field": "IgG"
@@ -295,6 +295,6 @@
 			      "source_field": "PersonID"
 			}
 		  }
-            ]
+            }
       }
 }

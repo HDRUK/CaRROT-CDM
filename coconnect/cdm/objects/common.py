@@ -336,11 +336,12 @@ class DestinationTable(object):
             if is_nan_already:
                 continue
 
-            #dont try and format the person_id if we're going to mask it later
-            if col == 'person_id' and self.do_mask_person_id:
+            obj = getattr(self,col)
+
+            #dont try any formatting for primary keys that need to be integers
+            if obj.pk == True or col == 'person_id':
                 continue
             
-            obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
             
