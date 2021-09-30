@@ -16,29 +16,32 @@ def cdm():
 
 
 @click.command(help="Display a table for the CDM")
-@click.argument('name',required=True)
+@click.argument('names',required=True,nargs=-1)
 @click.option('--markdown',is_flag=True)
 @click.option('--latex',is_flag=True)
-def table(name,markdown,latex):
-    obj = coconnect.cdm.get_cdm_class(name)()
-    data = []
-    for field in obj.fields:
-        pk = obj[field].pk
-        if pk == True:
-            pk = '✔'
-        else:
-            pk = ' '
+def table(names,markdown,latex):
+    for name in names:
+        obj = coconnect.cdm.get_cdm_class(name)()
+        data = []
+        for field in obj.fields:
+            pk = obj[field].pk
+            if pk == True:
+                pk = '✔'
+            else:
+                pk = ' '
             
-        data.append([field,pk,obj[field].dtype])
+            data.append([field,pk,obj[field].dtype])
 
-    df = pd.DataFrame(data, columns=['name','pk','dtype']).set_index('name')
-    
-    if markdown:
-        df = df.to_markdown()
-    elif latex:
-        df = df.to_latex()
-
-    print (df)
+        df = pd.DataFrame(data, columns=['name','pk','dtype'])#.set_index('name')
+        df['table'] = name
+        df.set_index('table',inplace=True)
+        
+        if markdown:
+            df = df.to_markdown()
+        elif latex:
+            df = df.to_latex()
+            
+        print (df)
 
 @click.command(help="Display a dataframe")
 @click.argument('fname')

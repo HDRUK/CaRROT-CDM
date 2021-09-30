@@ -38,7 +38,7 @@ def make_dag(data,name='dag',render=False):
                              label=destination_field,style='filled,rounded', colorscheme=colorscheme,
                              fillcolor='7',shape='box',fontcolor='white')
 
-                    dest.edge(destination_table_name,table_name,arrowhead='inv')
+                    dest.edge(destination_table_name,table_name,arrowhead='none')
 
                     source_field_name =  f"{source_table}_{source_field}"
                     inp.node(source_field_name,source_field,
@@ -55,7 +55,7 @@ def make_dag(data,name='dag',render=False):
                         dot.edge(table_name,source_field_name,dir='back',penwidth='2')
                     
                     inp.node(source_table,shape='tab',fillcolor='4',colorscheme=colorscheme,style='filled')
-                    inp.edge(source_field_name,source_table,dir='back',arrowhead='inv')
+                    inp.edge(source_field_name,source_table,arrowhead='none')#,dir='back',arrowhead='none')
 
 
     #dot.subgraph(destinations)

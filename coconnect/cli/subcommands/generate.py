@@ -66,7 +66,10 @@ def ccom(report_id,number_of_events,output_directory,
         person_id = requests.get(
             _url, headers=headers,
             allow_redirects=True,
-        ).json()[0]['name'].lstrip('\ufeff')
+        )
+        print (person_id)
+        print (person_id.json())
+        person_id = person_id.json()[0]['name'].lstrip('\ufeff')
 
         fill_column_with_values.append(person_id)
         
