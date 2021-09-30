@@ -138,7 +138,9 @@ def _from_yaml(ctx,logger,config):
         logger.info(f"Watching {input_folder} every {tdelta}")
         while True:
             subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
-            logger.info(f"Found and checking subfolders {list(subfolders.values())}")
+            logger.info(f"Found and checking {len(subfolders.values())} subfolders")
+            if len(subfolders.values())> 0:
+                logger.info(f"{list(subfolders.values())}")
             
             jobs = []
             for name,path in subfolders.items():
@@ -172,7 +174,7 @@ def from_yaml(ctx,config_file,run_as_daemon):
     stream = open(config_file) 
     config = yaml.safe_load(stream)
 
-    if daemon:
+    if run_as_daemon:
         stdout = 'coconnect.out'
         stderr = 'coconnect.log'
         if 'log' in config:
