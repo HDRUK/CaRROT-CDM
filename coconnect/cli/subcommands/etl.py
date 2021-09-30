@@ -24,6 +24,9 @@ from coconnect.tools.logger import Logger
 
 from .map import run
 
+class PlatformNotSupported(Exception):
+    pass
+
 class UserNotSupported(Exception):
     pass
 
@@ -35,12 +38,18 @@ def etl():
 
 @click.group(help='Command group for ETL integration with bclink')
 def bclink():
+    if os.name == 'nt':
+        raise PlatformNotSupported(f"Not suported to run this on Windows")
+
+
     #check the username
     #for bclink, we need to run as bcos_srv to get access to all the datasettool2 etc. tools
     #and be able to connect with the postgres server without the need for a password
     user = os.environ.get("USER")
     if user != 'bcos_srv':
         raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
+
+   
     pass
 
 @click.command(help='Check the parameters in the yaml configuration file')
