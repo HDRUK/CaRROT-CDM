@@ -1,7 +1,13 @@
 import click
 import os
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
+try:
+    import daemon
+    from daemon.pidfile import TimeoutPIDLockFile
+except ImportError:
+    #this package is not supported in Windows
+    #latest version gives an import error of package pwd
+    #https://stackoverflow.com/questions/39366261/python27win-import-daemon-but-there-is-an-error-no-module-named-pwd
+    daemon = None
 import lockfile
 import shutil
 import io
@@ -174,7 +180,13 @@ def from_yaml(ctx,config_file,run_as_daemon):
     stream = open(config_file) 
     config = yaml.safe_load(stream)
 
-    if run_as_daemon:
+    if run_as_daemon and daemon is None:
+        raise ImportError(f"You are trying to run in daemon mode, "
+                          "but the package 'daemon' hasn't been installed. "
+                          "pip install python-daemon. \n"
+                          "If you are running on a Windows machine, this package is not supported")
+
+    if run_as_daemon and daemon is not None:
         stdout = 'coconnect.out'
         stderr = 'coconnect.log'
         if 'log' in config:
