@@ -2,7 +2,7 @@ from .subcommands.info import info
 from .subcommands.display import display
 from .subcommands.map import map
 from .subcommands.generate import generate
-from .subcommands.salt import salt
+from .subcommands.pseudonymise import pseudonymise
 from coconnect.tools.logger import Logger
 import coconnect as cc
 
@@ -39,7 +39,7 @@ coconnect.add_command(map, "map")
 coconnect.add_command(info, "info")
 coconnect.add_command(display, "display")
 coconnect.add_command(generate, "generate")
-coconnect.add_command(salt, "salt")
+coconnect.add_command(pseudonymise, "pseudonymise")
 
 
 if __name__ == "__main__":
