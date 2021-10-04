@@ -87,68 +87,87 @@ def check_yaml(ctx,config_file):
                 stdout,stderr = bclink_helpers.clean_table(table,dry_run=True)
                 for msg in stdout.splitlines():
                     logger.info(f"Execute: {msg}")
-       
-        #msgs = bclink_helpers.load_tables(table_map,"results/001")
-        #print (msgs)
- 
-        #for table in table_map.values():
-        #    stats = bclink_helpers.get_table_jobs(table)
-        #    print (stats)
-
-        #for table in table_map.values():
-        #    stdout,stderr = bclink_helpers.clean_table(table)
-        #    for msg in stderr.splitlines():
-        #        logger.info(msg)
-        #index_map = bclink_helpers.get_indicies(table_map)
-        #logger.info("Retrieved the index map:")
-        #logger.info(json.dumps(index_map,indent=6))
 
 
+def _proccess_data_from_list(ctx,data,rules,clean=False,table_map=None):
+    #loop over the list of data 
+    for i,obj in enumerate(data):
+        #get a new input folder
+        input_folder = obj['input']
+        #get a new output folder
+        output_folder = obj['output']
+        #invoke the running of the ETL
+        ctx.invoke(manual,
+                   rules=rules,
+                   input_folder=input_folder,
+                   output_folder=output_folder,
+                   table_map=table_map,
+                   clean=clean if i==0 else False)
 
+                    
 def _from_yaml(ctx,logger,config):
-   
+    #print the configuration to the screen
     logger.info(json.dumps(config,indent=6))
+
+    rules = table_map = data = None
+    clean = False
+
     
-    rules = config['rules']
-     
-    if 'bclink tables' in config:
-        table_map = config['bclink tables']
-    else:
-        table_map = None
+    for key,obj in config.items():
+        if key == 'rules':
+            #get the location of the rules json file
+            rules = obj
+        elif key == 'bclink tables':
+            #get the look up between the table name and the
+            #name of the table in bclink
+            #e.g. {"person":"ds10400"} 
+            table_map = obj
+        elif key == 'clean':
+            #say if the tables should be cleaned
+            #aka delete all rows before inserting new data
+            clean = obj
+        elif key == 'data':
+            #load the configuration for i/o files
+            data = obj
+        else:
+            logger.warning(f"Unknown key '{key}', skipping...")
 
-    if 'clean' in config:
-        clean = config['clean']
-    else:
-        clean = False
+    
+    if rules == None:
+        raise Exception("A rules file must be specified in the yaml configuration file... rules:<path to file>")
+    if data == None:
+        raise Exception("I/O data files/folders must be specified in the yaml configuration file...")
 
-    data = config['data']
     if isinstance(data,list):
-        for i,obj in enumerate(data):
-            input_folder = obj['input']
-            output_folder = obj['output']
-            ctx.invoke(manual,
-                       rules=rules,
-                       input_folder=input_folder,
-                       output_folder=output_folder,
-                       table_map=table_map,
-                       clean=clean if i==0 else False)
-    else:
+        _proccess_data_from_list(ctx,
+                                 data,
+                                 rules,
+                                 clean=clean,
+                                 table_map=table_map
+        )
+    elif isinstance(data,dict) and 'watch' in data:
+        #calculate the amount of time to wait before checking for changes
         watch = data['watch']
         tdelta = datetime.timedelta(**watch)
+
+        #get the input folder to watch
         input_folder = data['input']
+        #get the root output folder
         output_folder = data['output']
         
         if clean:
+            #if clean flag is true
+            #remove the output folder
             if os.path.exists(output_folder) and os.path.isdir(output_folder):
                 shutil.rmtree(output_folder)
-
-            for table in table_map.values():
-                logger.info(f"cleaning table {table}")
-                stdout,stderr = bclink_helpers.clean_table(table)
-                for msg in stdout.splitlines():
-                    logger.info(msg)
-                for msg in stderr.splitlines():
-                    logger.warning(msg)
+            if table_map:
+                for table in table_map.values():
+                    logger.info(f"cleaning table {table}")
+                    stdout,stderr = bclink_helpers.clean_table(table)
+                    for msg in stdout.splitlines():
+                        logger.info(msg)
+                    for msg in stderr.splitlines():
+                        logger.warning(msg)
                     
                     
         logger.info(f"Watching {input_folder} every {tdelta}")
@@ -174,8 +193,8 @@ def _from_yaml(ctx,logger,config):
                            rules=rules,
                            input_folder=job['input'],
                            output_folder=job['output'],
-                               table_map=table_map,
-                        clean=False)
+                           table_map=table_map,
+                           clean=False)
                 
             logger.info(f"Now waiting {tdelta} before looking for new data files....")
             time.sleep(tdelta.total_seconds())
