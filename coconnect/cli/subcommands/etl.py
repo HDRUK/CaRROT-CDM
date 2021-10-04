@@ -19,7 +19,7 @@ import json
 import pandas as pd
 
 import coconnect
-import coconnect.tools.bclink_helpers as bclink_helpers
+from coconnect.tools.bclink_helpers import BCLinkHelpers
 from coconnect.tools.logger import Logger
 
 from .map import run
@@ -52,44 +52,8 @@ def bclink():
    
     pass
 
-@click.command(help='Check the parameters in the yaml configuration file')
-@click.argument('config_file')
-@click.pass_context
-def check_yaml(ctx,config_file):
-    logger = Logger("check_yaml")
-    with open(config_file) as stream:
-        data = yaml.safe_load(stream)
-        rules = coconnect.tools.load_json(data['rules'])
 
-        logger.info(json.dumps(data,indent=6))
-
-        destination_tables = list(rules['cdm'].keys())
-        if 'bclink tables' in data:
-            table_map = data['bclink tables']
-        else:
-            table_map = {x:x for x in destination_tables}
-
-        missing = set(destination_tables) - set(table_map.keys())
-        if len(missing)>0:
-            logger.error(f"{missing} are missing from the bclink table map")
-
-        index_map = bclink_helpers.get_indicies(table_map,dry_run=True)
-        for line in index_map.values():
-            logger.info(f"Execute: {line}")
-
-        index_map = bclink_helpers.get_indicies(table_map,dry_run=False)
-        logger.info("Will start indices from:")
-        logger.info(json.dumps(index_map,indent=6))
-
-        if data['clean']:
-            logger.info("Cleaning of tables on start-up is turned on...")
-            for table in table_map.values():
-                stdout,stderr = bclink_helpers.clean_table(table,dry_run=True)
-                for msg in stdout.splitlines():
-                    logger.info(f"Execute: {msg}")
-
-
-def _proccess_data_from_list(ctx,data,rules,clean=False,table_map=None):
+def _process_data_from_list(ctx,data,rules,clean=False,bclink_config={},**kwargs):
     #loop over the list of data 
     for i,obj in enumerate(data):
         #get a new input folder
@@ -97,19 +61,21 @@ def _proccess_data_from_list(ctx,data,rules,clean=False,table_map=None):
         #get a new output folder
         output_folder = obj['output']
         #invoke the running of the ETL
+        
         ctx.invoke(manual,
                    rules=rules,
                    input_folder=input_folder,
                    output_folder=output_folder,
-                   table_map=table_map,
-                   clean=clean if i==0 else False)
+                   clean=clean if i==0 else False,
+                   **bclink_config)
 
                     
 def _from_yaml(ctx,logger,config):
     #print the configuration to the screen
     logger.info(json.dumps(config,indent=6))
 
-    rules = table_map = data = None
+    rules = data = None
+    bclink_config = {}
     clean = False
 
     
@@ -117,11 +83,18 @@ def _from_yaml(ctx,logger,config):
         if key == 'rules':
             #get the location of the rules json file
             rules = obj
-        elif key == 'bclink tables':
-            #get the look up between the table name and the
-            #name of the table in bclink
-            #e.g. {"person":"ds10400"} 
-            table_map = obj
+        elif key == 'bclink':
+            bclink_config = {}
+            for _key,_obj in obj.items():
+                if _key == 'user' or _key == 'database':
+                    bclink_config[_key] = _obj
+                elif _key == 'gui user':
+                    bclink_config['gui_user'] = _obj
+                elif _key == 'tables':
+                    bclink_config['table_map'] = _obj
+                else:
+                    logger.warning(f"Unknown BCLink configuration {_key}:{_obj}")
+            
         elif key == 'clean':
             #say if the tables should be cleaned
             #aka delete all rows before inserting new data
@@ -131,20 +104,26 @@ def _from_yaml(ctx,logger,config):
             data = obj
         else:
             logger.warning(f"Unknown key '{key}', skipping...")
-
-    
+        
     if rules == None:
         raise Exception("A rules file must be specified in the yaml configuration file... rules:<path to file>")
     if data == None:
         raise Exception("I/O data files/folders must be specified in the yaml configuration file...")
 
+    if 'table_map' not in bclink_config:
+        bclink_config['table_map'] =  {}
+    for destination_table in coconnect.tools.load_json(rules)['cdm'].keys():
+        if destination_table not in bclink_config['table_map']:
+            bclink_config['table_map'][destination_table] = destination_table
+     
     if isinstance(data,list):
-        _proccess_data_from_list(ctx,
+        _process_data_from_list(ctx,
                                  data,
                                  rules,
                                  clean=clean,
-                                 table_map=table_map
+                                 bclink_config=bclink_config
         )
+        
     elif isinstance(data,dict) and 'watch' in data:
         #calculate the amount of time to wait before checking for changes
         watch = data['watch']
@@ -154,6 +133,8 @@ def _from_yaml(ctx,logger,config):
         input_folder = data['input']
         #get the root output folder
         output_folder = data['output']
+    
+        bclink_helpers = BCLinkHelpers(**bclink_config)
         
         if clean:
             #if clean flag is true
@@ -161,16 +142,8 @@ def _from_yaml(ctx,logger,config):
             if os.path.exists(output_folder) and os.path.isdir(output_folder):
                 logger.info(f"removing old output_folder {output_folder}")
                 shutil.rmtree(output_folder)
-
-            if table_map:
-                for table in table_map.values():
-                    logger.info(f"cleaning table {table}")
-                    stdout,stderr = bclink_helpers.clean_table(table)
-                    for msg in stdout.splitlines():
-                        logger.info(msg)
-                    for msg in stderr.splitlines():
-                        logger.warning(msg)
-                    
+                bclink_helpers.clean_tables()
+                                    
         while True:
             subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
             logger.info(f"Found and checking {len(subfolders.values())} subfolders")
@@ -193,13 +166,31 @@ def _from_yaml(ctx,logger,config):
                            rules=rules,
                            input_folder=job['input'],
                            output_folder=job['output'],
-                           table_map=table_map,
-                           clean=False)
+                           clean=False,
+                           **bclink_config)
                 
             logger.info(f"Now waiting {tdelta} before looking for new data files....")
             time.sleep(tdelta.total_seconds())
         else:
             raise Exception(f"No parameter 'watch' has been specified with {data}")
+
+@click.command(help='check the bclink tables')
+@click.argument('config_file')
+@click.pass_context
+def check_tables(ctx,config_file):
+    logger = Logger("check_tables")
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+    table_map = config['bclink tables']
+    
+    for destination_table,bclink_table in table_map.items():
+        obj = coconnect.cdm.get_cdm_class(destination_table)()
+        fields = obj.fields
+        dups = bclink_helpers.get_duplicates(bclink_table,fields)
+        exit(0)
+        
+
+
 
 @click.command(help='Run with a yaml configuration file')
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
@@ -247,8 +238,11 @@ def from_yaml(ctx,config_file,run_as_daemon):
 @click.option('--output-folder','-o',help='location of the output results folder',required=True)
 @click.option('--clean',help='clean all the BCLink tables first by removing all existing rows',is_flag=True)
 @click.option('--table-map','-t',help='a look up json file that maps between the CDM table and the table name in BCLink',default=None)
+@click.option('--gui-user',help='name of the bclink gui user',default='data')
+@click.option('--user',help='name of the bclink user',default='bclink')
+@click.option('--database',help='name of the bclink database',default='bclink')
 @click.pass_context
-def manual(ctx,rules,input_folder,output_folder,clean,table_map):
+def manual(ctx,rules,input_folder,output_folder,clean,table_map,gui_user,user,database):
 
     logger = Logger("ETL::BCLink")
     logger.info(f'Rules: {rules}')
@@ -258,8 +252,8 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
     config = coconnect.tools.load_json(rules)
     destination_tables = list(config['cdm'].keys())
 
-    logger.info(f'Processing {destination_tables}')
 
+    logger.info(f'Processing {destination_tables}')
     if table_map is not None:
         if not isinstance(table_map,dict):
             table_map = coconnect.tools.load_json(table_map)
@@ -271,17 +265,14 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
         table_map = {x:x for x in destination_tables}
 
     logger.info(f'BCLink Table Map: {table_map}')
+    bclink_helpers = BCLinkHelpers(gui_user=gui_user,user=user,database=database,table_map=table_map)
     
     if clean:
-        for table in table_map.values():
-            stdout,stderr = bclink_helpers.clean_table(table)
-            for msg in stdout.splitlines():
-                logger.info(msg)
-            for msg in stderr.splitlines():
-                logger.warning(msg)
-                
+        bclink_helpers.clean_tables()
+           
+                  
     #calculate the indexing conf
-    indexer = bclink_helpers.get_indicies(table_map)
+    indexer = bclink_helpers.get_indicies()
     logger.info("Retrieved the index map:")
     logger.info(json.dumps(indexer,indent=6))
 
@@ -292,7 +283,7 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
     ctx.invoke(run,rules=rules,inputs=[input_folder],output_folder=output_folder,indexing_conf=indexer)
 
     #submit jobs to load
-    msgs = bclink_helpers.load_tables(table_map,output_folder)
+    msgs = bclink_helpers.load_tables(output_folder)
     for msg in msgs:
         logger.info(f"submitted job to bclink queue: {msg}")
 
@@ -317,7 +308,7 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map):
 
         
 
-bclink.add_command(check_yaml,'check_yaml')
+bclink.add_command(check_tables,'check_tables')
 bclink.add_command(from_yaml,'from_yaml')
 bclink.add_command(manual,'manual')
 etl.add_command(bclink,'bclink')
