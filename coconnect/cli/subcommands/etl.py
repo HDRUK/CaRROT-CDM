@@ -122,6 +122,7 @@ def _from_yaml(ctx,logger,config):
         clean = False
 
     data = config['data']
+    
     if isinstance(data,list):
         for i,obj in enumerate(data):
             input_folder = obj['input']
@@ -133,15 +134,11 @@ def _from_yaml(ctx,logger,config):
                        table_map=table_map,
                        clean=clean if i==0 else False)
     else:
-        watch = data['watch']
-        tdelta = datetime.timedelta(**watch)
-        input_folder = data['input']
-        output_folder = data['output']
-        
+
         if clean:
             if os.path.exists(output_folder) and os.path.isdir(output_folder):
+                logger.info(f"removing old output_folder {output_folder}")
                 shutil.rmtree(output_folder)
-
             for table in table_map.values():
                 logger.info(f"cleaning table {table}")
                 stdout,stderr = bclink_helpers.clean_table(table)
@@ -149,37 +146,45 @@ def _from_yaml(ctx,logger,config):
                     logger.info(msg)
                 for msg in stderr.splitlines():
                     logger.warning(msg)
-                    
-                    
-        logger.info(f"Watching {input_folder} every {tdelta}")
-        while True:
-            subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
-            logger.info(f"Found and checking {len(subfolders.values())} subfolders")
-            if len(subfolders.values())> 0:
-                logger.info(f"{list(subfolders.values())}")
-            
-            jobs = []
-            for name,path in subfolders.items():
-                if not os.path.exists(f"{output_folder}/{name}"):
-                    logger.info(f"Creating a new task for processing {path} {name}")
-                    jobs.append({
-                        'input':path,
-                        'output':f"{output_folder}/{name}" 
-                    })
-                else:
-                    logger.warning(f"Already found a results folder for {path} ({output_folder}/{name}). Assuming this data has already been processed!")
-                
-            for job in jobs:
-                ctx.invoke(manual,
-                           rules=rules,
-                           input_folder=job['input'],
-                           output_folder=job['output'],
-                               table_map=table_map,
-                        clean=False)
-                
-            logger.info(f"Now waiting {tdelta} before looking for new data files....")
-            time.sleep(tdelta.total_seconds())
+                            
+        watch = None
+        if 'watch' in data:
+            watch = data['watch']
 
+        if watch is not None:
+            tdelta = datetime.timedelta(**watch)
+            input_folder = data['input']
+            output_folder = data['output']
+            logger.info(f"Watching {input_folder} every {tdelta}")
+            while True:
+                subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
+                logger.info(f"Found and checking {len(subfolders.values())} subfolders")
+                if len(subfolders.values())> 0:
+                    logger.info(f"{list(subfolders.values())}")
+                jobs = []
+                for name,path in subfolders.items():
+                    if not os.path.exists(f"{output_folder}/{name}"):
+                        logger.info(f"Creating a new task for processing {path} {name}")
+                        jobs.append({
+                            'input':path,
+                            'output':f"{output_folder}/{name}" 
+                        })
+                    else:
+                        logger.warning(f"Already found a results folder for {path} "
+                                       f"({output_folder}/{name}). "
+                                       "Assuming this data has already been processed!")
+                for job in jobs:
+                    ctx.invoke(manual,
+                               rules=rules,
+                               input_folder=job['input'],
+                               output_folder=job['output'],
+                               table_map=table_map,
+                               clean=False)
+                
+                logger.info(f"Now waiting {tdelta} before looking for new data files....")
+                time.sleep(tdelta.total_seconds())
+        else:
+            print ('no watch!')
 
 @click.command(help='Run with a yaml configuration file')
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
