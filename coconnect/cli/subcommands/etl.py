@@ -129,6 +129,9 @@ def _from_yaml(ctx,logger,config):
         elif key == 'data':
             #load the configuration for i/o files
             data = obj
+        elif key == 'log':
+            #already handled
+            pass
         else:
             logger.warning(f"Unknown key '{key}', skipping...")
 
