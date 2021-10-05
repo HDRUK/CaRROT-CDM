@@ -29,8 +29,14 @@ class BCLinkHelpers:
        
 
     def get_pk(self,table):
-        query = f"--query=SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
-        cmd = ['bc_sqlselect',f'--user={self.user}',query, self.database]
+        query = f"SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
+        cmd = [
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}', 
+            self.database
+        ]
+
         if self.dry_run:
             cmd.insert(0,'echo')
 
@@ -44,8 +50,14 @@ class BCLinkHelpers:
                       
     def get_last_index(self,table):
         pk = self.get_pk(table)
-        query=f"--query=SELECT {pk} FROM {table} ORDER BY -{pk} LIMIT 1; "
-        cmd = ['bc_sqlselect',f'--user={self.user}',query, self.database]
+        query=f"SELECT {pk} FROM {table} ORDER BY -{pk} LIMIT 1; "
+        cmd = [
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}', 
+            self.database
+        ]
+
         if self.dry_run:
             cmd.insert(0,'echo')
 
@@ -53,9 +65,11 @@ class BCLinkHelpers:
         if self.dry_run:
             for msg in stdout.splitlines():
                 self.logger.critical(msg)
-            return 1
+            return 0
         else:
-            return int(stdout.splitlines()[1]) + 1
+            last_index = int(stdout.splitlines()[1])
+            self.logger.info(f"Last index for {pk} in table {table} = {last_index}")
+            return last_index 
                    
     
     def get_indicies(self):
@@ -73,7 +87,7 @@ class BCLinkHelpers:
             else:
                 counts = int(stdout.splitlines()[1])
                 if counts > 0 :
-                    retval[reverse[table]] = self.get_last_index(table)
+                    retval[reverse[table]] = self.get_last_index(table) + 1
 
         return retval
 

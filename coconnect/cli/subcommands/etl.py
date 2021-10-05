@@ -150,24 +150,26 @@ def _from_yaml(ctx,logger,config):
                 logger.info(f"removing old output_folder {output_folder}")
                 shutil.rmtree(output_folder)
                 bclink_helpers.clean_tables()
-                                    
+    
+        i = 0
+       
         while True:
             subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
-            logger.info(f"Found and checking {len(subfolders.values())} subfolders")
+            logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
             if len(subfolders.values())> 0:
-                logger.info(f"{list(subfolders.values())}")
+                logger.debug(f"{list(subfolders.values())}")
             jobs = []
             for name,path in subfolders.items():
                 if not os.path.exists(f"{output_folder}/{name}"):
-                    logger.info(f"Creating a new task for processing {path} {name}")
+                    logger.info(f"New folder found! Creating a new task for processing {path} {name}")
                     jobs.append({
                         'input':path,
                         'output':f"{output_folder}/{name}" 
                     })
                 else:
-                    logger.warning(f"Already found a results folder for {path} "
-                                   f"({output_folder}/{name}). "
-                                   "Assuming this data has already been processed!")
+                    logger.debug(f"Already found a results folder for {path} "
+                                 f"({output_folder}/{name}). "
+                                 "Assuming this data has already been processed!")
             for job in jobs:
                 ctx.invoke(manual,
                            rules=rules,
@@ -175,8 +177,10 @@ def _from_yaml(ctx,logger,config):
                            output_folder=job['output'],
                            clean=False,
                            **bclink_config)
-                
-            logger.info(f"Now waiting {tdelta} before looking for new data files....")
+       
+            if i == 0:
+                logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
+            i+=1
             time.sleep(tdelta.total_seconds())
         else:
             raise Exception(f"No parameter 'watch' has been specified with {data}")
