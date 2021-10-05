@@ -13,9 +13,8 @@ def make_dag(data,render=False):
     for destination_table_name,destination_tables in data.items():
         dot.node(destination_table_name,shape='box')
 
-        #destination_table = destination_tables[0]
 
-        for destination_table in destination_tables:
+        for ref_name,destination_table in destination_tables.items():
             for destination_field,source in destination_table.items():
                 source_field = source['source_field']
                 source_table = source['source_table']
