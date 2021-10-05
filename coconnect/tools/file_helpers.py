@@ -158,8 +158,8 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
                          na_values=na_values,
                          dtype=str,
                          usecols=fields)
-        
-        df.meta = {'original_file':load_path+fname}
+
+        df.attrs = {'original_file':load_path+fname}
         
         if isinstance(df,pd.DataFrame):
             #this should be removed
