@@ -304,7 +304,7 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map,gui_user,user,da
         logger.info(f"Checking jobs submitted for {table_name}")
         
         stats = bclink_helpers.get_table_jobs(table_name)
-        if stats == None:
+        if stats is None:
             #is a dry run, just test this
             bclink_helpers.check_logs(0)
             return

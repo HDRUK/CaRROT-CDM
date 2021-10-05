@@ -16,7 +16,7 @@ class BCLinkHelpers:
         if self.table_map == None:
             raise Exception("Table Map must be defined")
     
-    def get_duplicates(self,table,fields,dry_run=False):
+    def get_duplicates(self,table,fields):
         pk = fields[0]
         fields = ",".join(fields[1:])
         cmd=[
@@ -34,27 +34,29 @@ class BCLinkHelpers:
         if self.dry_run:
             cmd.insert(0,'echo')
 
-        stdout,stdin = run_bash_cmd(count)
+        stdout,stdin = run_bash_cmd(cmd)
         if self.dry_run:
             for msg in stdout.splitlines():
                 self.logger.critical(msg)
             return 'person_id'
         else:
-            print (stdout.splitlines())
-            exit(0)
-            
-    def get_last_index(self,table,pk):
-        query=f"SELECT {pk} from {table} ORDER BY -{pk} LIMIT 1; "
+            return stdout.splitlines()[1]
+                      
+    def get_last_index(self,table):
+        pk = self.get_pk(table)
+        query=f"--query=SELECT {pk} FROM {table} ORDER BY -{pk} LIMIT 1; "
         cmd = ['bc_sqlselect',f'--user={self.user}',query, self.database]
-        stdout,stdin = run_bash_cmd(count)
+        if self.dry_run:
+            cmd.insert(0,'echo')
+
+        stdout,stderr = run_bash_cmd(cmd)
         if self.dry_run:
             for msg in stdout.splitlines():
                 self.logger.critical(msg)
             return 1
         else:
-            print (stdout.splitlines())
-            exit(0)
-        
+            return int(stdout.splitlines()[1]) + 1
+                   
     
     def get_indicies(self):
         reverse = {v:k for k,v in self.table_map.items()}
@@ -69,9 +71,9 @@ class BCLinkHelpers:
                 for msg in stdout.splitlines():
                     self.logger.critical(msg)
             else:
-                last_index = int(stdout.splitlines()[1])
-                if last_index > 0 :
-                    retval[reverse[table]] = last_index
+                counts = int(stdout.splitlines()[1])
+                if counts > 0 :
+                    retval[reverse[table]] = self.get_last_index(table)
 
         return retval
 
@@ -84,10 +86,11 @@ class BCLinkHelpers:
             cmd = 'echo '+cmd
         stdout,stderr = run_bash_cmd(cmd)
         for msg in stdout.splitlines():
-            if dry_run:
+            if self.dry_run:
                 self.logger.critical(msg)
             else:
                 self.logger.info(msg)
+        return True
         
     def clean_table(self,table):
         clean = f'datasettool2 delete-all-rows {table} --database={self.database}'
