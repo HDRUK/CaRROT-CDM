@@ -238,7 +238,7 @@ class CommonDataModel:
             return 1
 
         if destination_table in self.indexing_conf:
-            return int(self.indexing_conf[destination_table]) + 1
+            return int(self.indexing_conf[destination_table])
         else:
             self.logger.warning(self.indexing_conf)
             self.logger.warning("indexing configuration has be parsed "

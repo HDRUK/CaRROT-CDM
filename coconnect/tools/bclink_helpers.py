@@ -6,11 +6,12 @@ from coconnect.tools.logger import Logger
 
 class BCLinkHelpers:
 
-    def __init__(self,user='bclink',gui_user='data',database='bclink',table_map=None):
+    def __init__(self,user='bclink',gui_user='data',database='bclink',dry_run=False,table_map=None):
         self.logger = Logger("bclink_helpers")
         self.user = user
         self.gui_user = gui_user
         self.database = database
+        self.dry_run = dry_run
         self.table_map = table_map
         if self.table_map == None:
             raise Exception("Table Map must be defined")
@@ -27,17 +28,46 @@ class BCLinkHelpers:
         return run_bash_cmd(cmd)
        
 
-    def get_indicies(self,dry_run=False):
+    def get_pk(self,table):
+        query = f"--query=SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
+        cmd = ['bc_sqlselect',f'--user={self.user}',query, self.database]
+        if self.dry_run:
+            cmd.insert(0,'echo')
+
+        stdout,stdin = run_bash_cmd(count)
+        if self.dry_run:
+            for msg in stdout.splitlines():
+                self.logger.critical(msg)
+            return 'person_id'
+        else:
+            print (stdout.splitlines())
+            exit(0)
+            
+    def get_last_index(self,table,pk):
+        query=f"SELECT {pk} from {table} ORDER BY -{pk} LIMIT 1; "
+        cmd = ['bc_sqlselect',f'--user={self.user}',query, self.database]
+        stdout,stdin = run_bash_cmd(count)
+        if self.dry_run:
+            for msg in stdout.splitlines():
+                self.logger.critical(msg)
+            return 1
+        else:
+            print (stdout.splitlines())
+            exit(0)
+        
+    
+    def get_indicies(self):
         reverse = {v:k for k,v in self.table_map.items()}
         retval = {}
         for table in self.table_map.values():
             count=['bc_sqlselect',f'--user={self.user}',f'--query=SELECT count(*) FROM {table}',self.database]
-            if dry_run:
+            if self.dry_run:
                 count.insert(0,'echo')
                 
             stdout,stdin = run_bash_cmd(count)
-            if dry_run:
-                retval[table] = stdout.splitlines()[0]
+            if self.dry_run:
+                for msg in stdout.splitlines():
+                    self.logger.critical(msg)
             else:
                 last_index = int(stdout.splitlines()[1])
                 if last_index > 0 :
@@ -45,19 +75,23 @@ class BCLinkHelpers:
 
         return retval
 
-    def check_logs(self,job_id,dry_run=False):
+    def check_logs(self,job_id):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
         if not os.path.exists(cover):
-            return None
+            return False
         cmd = f"cat {cover}"
-        if dry_run:
+        if self.dry_run:
             cmd = 'echo '+cmd
         stdout,stderr = run_bash_cmd(cmd)
-        return stdout.splitlines()
+        for msg in stdout.splitlines():
+            if dry_run:
+                self.logger.critical(msg)
+            else:
+                self.logger.info(msg)
         
-    def clean_table(self,table,dry_run=False):
+    def clean_table(self,table):
         clean = f'datasettool2 delete-all-rows {table} --database={self.database}'
-        if dry_run:
+        if self.dry_run:
             clean = 'echo '+clean
         stdout,stderror = run_bash_cmd(clean)
         for msg in stdout.splitlines():
@@ -65,17 +99,19 @@ class BCLinkHelpers:
         for msg in stderror.splitlines():
             self.logger.warning(msg)
            
-    def clean_tables(self,dry_run=False):
+    def clean_tables(self):
         for table in self.table_map.values():
-            self.clean_table(table,dry_run=dry_run)
+            self.clean_table(table)
             
-    def get_table_jobs(self,table,head=5,dry_run=False):
+    def get_table_jobs(self,table,head=5):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
-        if dry_run:
+        if self.dry_run:
             cmd = 'echo '+cmd
         status,_ = run_bash_cmd(cmd)
-        if dry_run:
-            return status
+        if self.dry_run:
+            for msg in status.splitlines():
+                self.logger.critical(msg)
+            return
         info = pd.read_csv(io.StringIO(status),
                            sep='\t',
                            usecols=['BATCH',
@@ -88,8 +124,7 @@ class BCLinkHelpers:
             info = info.head(head)
         return info
     
-    def load_tables(self,output_directory,dry_run=False):
-        msgs=[]
+    def load_tables(self,output_directory):
         for table,tablename in self.table_map.items():
             data_file = f'{output_directory}/{table}.tsv'
             if not os.path.exists(data_file):
@@ -97,8 +132,12 @@ class BCLinkHelpers:
 
             cmd = ['dataset_tool', '--load',f'--table={tablename}',f'--user={self.gui_user}',
                    f'--data_file={data_file}','--support','--bcqueue',self.database]
-            if dry_run:
+            if self.dry_run:
                 cmd.insert(0,'echo')
             stdout,stderr = run_bash_cmd(cmd)
-            msgs = msgs + stdout.splitlines()
-        return msgs
+            for msg in stdout.splitlines():
+                if self.dry_run:
+                    self.logger.critical(msg)
+                else:
+                    self.logger.info(f"submitted job to bclink queue: {msg}")
+
