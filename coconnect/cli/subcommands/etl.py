@@ -16,6 +16,7 @@ import time
 import datetime
 import yaml
 import json
+import copy
 import pandas as pd
 
 import coconnect
@@ -23,6 +24,7 @@ from coconnect.tools.bclink_helpers import BCLinkHelpers
 from coconnect.tools.logger import Logger
 
 from .map import run 
+from .pseudonymise import pseudonymise
 
 class PlatformNotSupported(Exception):
     pass
@@ -60,13 +62,12 @@ def _from_yaml(ctx,logger,config):
     rules = data = None
     bclink_config = {}
     clean = False
-
+    
     for key,obj in config.items():
         if key == 'rules':
             #get the location of the rules json file
             rules = obj
         elif key == 'bclink':
-            bclink_config = {}
             for _key,_obj in obj.items():
                 if _key == 'user' or _key == 'database':
                     bclink_config[_key] = _obj
@@ -89,8 +90,11 @@ def _from_yaml(ctx,logger,config):
             #already handled
             pass
         else:
-            logger.warning(f"Unknown key '{key}', skipping...")
-        
+            logger.critical(f"Unknown key '{key}'")
+            logger.critical(f"Value = '{obj}'")
+            raise Exception("Failed parsing yaml configuration")
+
+              
     if rules == None:
         raise Exception("A rules file must be specified in the yaml configuration file... rules:<path to file>")
     if data == None:
@@ -138,12 +142,15 @@ def _from_yaml(ctx,logger,config):
         #clean outside of the following loop
         if clean:
             #if clean flag is true
+
+            #clean the bclink tables
+            bclink_helpers.clean_tables()
+               
             #remove the output folder
             if os.path.exists(output_folder) and os.path.isdir(output_folder):
                 logger.info(f"removing old output_folder {output_folder}")
                 shutil.rmtree(output_folder)
-                bclink_helpers.clean_tables()
-    
+                     
         i = 0
        
         while True:
@@ -160,10 +167,11 @@ def _from_yaml(ctx,logger,config):
                     if len(inputs) == 0:
                         logger.critical(f"New subfolder contains no .csv files!")
                         continue
-                    jobs.append({
-                        'input':inputs,
-                        'output':f"{output_folder}/{name}" 
-                    })
+
+                    _data = copy.deepcopy(data)
+                    _data['input'] = inputs
+                    _data['output'] = f"{output_folder}/{name}"
+                    jobs.append(_data)
                 else:
                     logger.debug(f"Already found a results folder for {path} "
                                  f"({output_folder}/{name}). "
@@ -179,7 +187,7 @@ def _from_yaml(ctx,logger,config):
             if tdelta is None:
                 break
                 
-            if i == 0:
+            if len(jobs)>0:
                 logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
             i+=1
             time.sleep(tdelta.total_seconds())
@@ -243,11 +251,47 @@ def from_yaml(ctx,config_file,run_as_daemon):
         _from_yaml(ctx,logger,config)
 
 
-def _extract(bclink_helpers):
+def _extract(ctx,data,rules,bclink_helpers):
+    
     logger = Logger("extract")
     logger.info(f"starting extraction processes")
+    do_pseudonymise=False
+    if 'pseudonymise' in data:
+        _pseudonymise = data['pseudonymise']
+        
+        chunksize = 1000
+        output = "./pseudonymised_input_data/"
+        if 'output' in _pseudonymise:
+            output = _pseudonymise['output']
+
+        if 'salt' not in _pseudonymise:
+            raise Exception("To use pseudonymise a salt must be provided!")
+        salt = _pseudonymise['salt']
+        
+        
+        inputs = data['input']
+        logger.info(f"Called do_pseudonymisation on input data {data} ")
+        rules = coconnect.tools.load_json(rules)
+        person_id_map = coconnect.tools.get_person_ids(rules)
+        input_map = {os.path.basename(x):x for x in inputs}
+
+        inputs = []
+        for table,person_id in person_id_map.items():
+            fin = input_map[table]
+            fout = ctx.invoke(pseudonymise,
+                              input=fin,
+                              output_folder=output,
+                              chunksize=chunksize,
+                              salt=salt,
+                              person_id=person_id
+                          )
+            inputs.append(fout)
+        
+        data.pop('pseudonymise')
+        data['input'] = inputs
+        
     indexer = bclink_helpers.get_indicies()
-    return {'indexer':indexer}
+    return {'indexer':indexer,'data':data}
 
 def _transform(ctx,rules,inputs,output_folder,indexer):
     logger = Logger("transform")
@@ -272,11 +316,16 @@ def _execute(ctx,rules,data,clean,bclink_helpers):
     if clean:
         logger.info(f"cleaning existing bclink tables")
         bclink_helpers.clean_tables()
-    
+
     #call any extracting of data
     #----------------------------------
-    extract_data = _extract(bclink_helpers) 
+    extract_data= _extract(ctx,
+                           data,
+                           rules,
+                           bclink_helpers
+    ) 
     indexer = extract_data['indexer']
+    data = extract_data['data']
     #----------------------------------
 
     inputs = data['input']
@@ -357,33 +406,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
     _execute(ctx,rules,data,clean,bclink_helpers)
 
-    return
-    
-    bclink_helpers = BCLinkHelpers(gui_user=gui_user,
-                                   user=user,
-                                   database=database,
-                                   table_map=table_map,
-                                   dry_run=dry_run)
-    
-           
-                  
-    #calculate the indexing conf
-    indexer = bclink_helpers.get_indicies()
-    logger.info("Retrieved the index map:")
-    logger.info(json.dumps(indexer,indent=6))
-
-    if not indexer:
-        indexer=None
-
-    #run the transform
-    ctx.invoke(run,rules=rules,inputs=[input_folder],output_folder=output_folder,indexing_conf=indexer)
- 
-    #submit jobs to load
-    bclink_helpers.load_tables(output_folder)
-   
-    
-
-        
+                
 
 bclink.add_command(check_tables,'check_tables')
 bclink.add_command(from_yaml,'from_yaml')

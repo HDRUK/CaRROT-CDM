@@ -50,3 +50,4 @@ def pseudonymise(input,output_folder,chunksize,salt,person_id):
     
 
     logger.info("Done!")
+    return f_out

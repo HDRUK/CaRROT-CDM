@@ -21,6 +21,7 @@ from .file_helpers import (
 )
 
 from .rules_helpers import(
+    get_person_ids,
     get_source_field,
     get_source_table,
     apply_rules

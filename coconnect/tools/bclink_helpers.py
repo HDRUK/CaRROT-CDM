@@ -2,6 +2,7 @@ from .bash_helpers import run_bash_cmd
 import pandas as pd
 import io
 import time
+import json
 import os
 from coconnect.tools.logger import Logger
 
@@ -112,17 +113,20 @@ class BCLinkHelpers:
         clean = f'datasettool2 delete-all-rows {table} --database={self.database}'
         if self.dry_run:
             clean = 'echo '+clean
-        stdout,stderror = run_bash_cmd(clean)
-        
-        for msg in stdout.splitlines():
-            if self.dry_run:
+        stdout,stderr = run_bash_cmd(clean)
+       
+        if self.dry_run:
+            for msg in stdout.splitlines():
                 self.logger.critical(msg)
-            else:
-                self.logger.info(msg)
+        else:
+            for msg in stderr.splitlines():
+                self.logger.warning(msg)
                    
     def clean_tables(self):
         for table in self.table_map.values():
+            self.logger.info(f"Cleaning table {table}")
             self.clean_table(table)
+       
             
     def get_table_jobs(self,table,head=5):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
@@ -181,3 +185,21 @@ class BCLinkHelpers:
                         self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
                         time.sleep(1)
     
+        info = {}
+        for table,table_name in self.table_map.items():
+            cmd=['bc_sqlselect',f'--user={self.user}',f'--query=SELECT count(*) FROM {table_name}',self.database]
+            if self.dry_run:
+                cmd.insert(0,'echo')
+
+            stdout,stderr = run_bash_cmd(cmd)
+            if self.dry_run:
+                for msg in stdout.splitlines():
+                    self.logger.critical(msg)
+            else:
+                count = stdout.splitlines()[1]
+                info[table] = {'bclink_table':table_name,
+                               'nrows':count}
+        if not self.dry_run:
+            self.logger.info("======== SUMMARY ========")
+            self.logger.info(json.dumps(info,indent=6))
+                    
