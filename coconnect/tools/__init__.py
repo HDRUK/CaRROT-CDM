@@ -9,6 +9,8 @@ import time
 from . import extract
 from .dag import make_dag
 
+from . import bclink_helpers 
+
 from .file_helpers import (
     load_json,
     load_csv,
@@ -19,6 +21,7 @@ from .file_helpers import (
 )
 
 from .rules_helpers import(
+    get_person_ids,
     get_source_field,
     get_source_table,
     apply_rules

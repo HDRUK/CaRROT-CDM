@@ -13,3 +13,5 @@ openpyxl
 snakeviz
 psycopg2-binary==2.8.6
 sqlalchemy-utils
+pyyaml
+python-daemon

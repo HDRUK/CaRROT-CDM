@@ -4,6 +4,13 @@ class TableNotFoundError(Exception):
 class FieldNotFoundError(Exception):
     pass
 
+def get_person_ids(rules):
+    return {
+        subtable['person_id']['source_table']:subtable['person_id']['source_field'] 
+        for table in rules['cdm'].values() 
+        for subtable in table.values()
+    }
+
 
 def get_source_field(table,name):
     if name not in table:

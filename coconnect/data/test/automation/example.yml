@@ -1,0 +1,13 @@
+clean: true
+rules: rules/rules_14June2021.json
+log: automation/log
+data: 
+   input: inputs/
+   output: automation/results/
+bclink:
+  dry-run: true
+  tables:
+    person: person_001
+    observation: observation_001
+    measurement: measurement_001
+    condition_occurrence: condition_occurrence_001
