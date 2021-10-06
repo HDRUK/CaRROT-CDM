@@ -131,3 +131,20 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_KEY }}
+  unit_test_automation:
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6.8
+      - uses: actions/checkout@v2
+      - name: Install setuptools
+        run: pip3 install setuptools
+      - name: Install co-connect-tools
+        run:  pip3 install -e .
+      - name: Run automation ETL
+        run: |
+          cd coconnect/data/test
+          coconnect etl bclink --force from_yaml automation/example.yml
