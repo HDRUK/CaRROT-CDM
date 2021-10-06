@@ -51,25 +51,6 @@ def bclink(force):
     user = os.environ.get("USER")
     if user != 'bcos_srv':
         raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
-   
-    pass
-
-
-def _process_data_from_list(ctx,data,rules,clean=False,bclink_config={},**kwargs):
-    #loop over the list of data 
-    for i,obj in enumerate(data):
-        #get a new input folder
-        input_folder = obj['input']
-        #get a new output folder
-        output_folder = obj['output']
-        #invoke the running of the ETL
-        
-        ctx.invoke(manual,
-                   rules=rules,
-                   input_folder=input_folder,
-                   output_folder=output_folder,
-                   clean=clean if i==0 else False,
-                   **bclink_config)
 
                     
 def _from_yaml(ctx,logger,config):
@@ -125,13 +106,22 @@ def _from_yaml(ctx,logger,config):
     
 
     if isinstance(data,list):
-        raise Exception("data object must be in the form of a list")
-        #_process_data_from_list(ctx,
-        #                         data,
-        #                         rules,
-        #                         clean=clean,
-        #                         bclink_config=bclink_config
-        #)
+        #loop over the list of data 
+        for i,obj in enumerate(data):
+            #get a new input folder
+            inputs = obj['input']
+            if isinstance(inputs,str):
+                inputs = [inputs]
+            #get a new output folder
+            output = obj['output']
+            #invoke the running of the ETL
+            #if clean is defined, only clean on the first loop
+            _execute(ctx,
+                     rules=rules,
+                     data={'input':inputs,'output':output},
+                     clean=clean if i==0 else False,
+                     bclink_helpers=bclink_helpers
+            )
         
     elif isinstance(data,dict):
         #calculate the amount of time to wait before checking for changes
@@ -144,9 +134,8 @@ def _from_yaml(ctx,logger,config):
         input_folder = data['input']
         #get the root output folder
         output_folder = data['output']
-    
 
-        
+        #clean outside of the following loop
         if clean:
             #if clean flag is true
             #remove the output folder
