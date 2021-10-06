@@ -80,7 +80,6 @@ def _from_yaml(ctx,logger,config):
     bclink_config = {}
     clean = False
 
-    
     for key,obj in config.items():
         if key == 'rules':
             #get the location of the rules json file
@@ -90,15 +89,14 @@ def _from_yaml(ctx,logger,config):
             for _key,_obj in obj.items():
                 if _key == 'user' or _key == 'database':
                     bclink_config[_key] = _obj
-                elif _key == 'gui user':
+                elif _key == 'gui user' or _key == 'gui_user' or _key == 'gui user':
                     bclink_config['gui_user'] = _obj
-                elif _key == 'tables':
-                    bclink_config['table_map'] = _obj
-                elif _key == 'dry-run':
+                elif _key == 'tables' or _key == 'table_map':
+                    bclink_config['tables'] = _obj
+                elif _key == 'dry-run' or _key == 'dry_run' or _key == 'dry run':
                     bclink_config['dry_run'] = _obj
                 else:
                     logger.warning(f"Unknown BCLink configuration {_key}:{_obj}")
-            
         elif key == 'clean':
             #say if the tables should be cleaned
             #aka delete all rows before inserting new data
@@ -117,31 +115,37 @@ def _from_yaml(ctx,logger,config):
     if data == None:
         raise Exception("I/O data files/folders must be specified in the yaml configuration file...")
 
-    if 'table_map' not in bclink_config:
-        bclink_config['table_map'] =  {}
-    for destination_table in coconnect.tools.load_json(rules)['cdm'].keys():
-        if destination_table not in bclink_config['table_map']:
-            bclink_config['table_map'][destination_table] = destination_table
-     
+    
+    destination_tables = coconnect.tools.load_json(rules)['cdm'].keys()
+    if 'tables' not in bclink_config:
+        bclink_config['tables'] =  {}
+    bclink_config['tables']  = _get_table_map(bclink_config['tables'],destination_tables)
+   
+    bclink_helpers = BCLinkHelpers(**bclink_config)
+    
+
     if isinstance(data,list):
-        _process_data_from_list(ctx,
-                                 data,
-                                 rules,
-                                 clean=clean,
-                                 bclink_config=bclink_config
-        )
+        raise Exception("data object must be in the form of a list")
+        #_process_data_from_list(ctx,
+        #                         data,
+        #                         rules,
+        #                         clean=clean,
+        #                         bclink_config=bclink_config
+        #)
         
-    elif isinstance(data,dict) and 'watch' in data:
+    elif isinstance(data,dict):
         #calculate the amount of time to wait before checking for changes
-        watch = data['watch']
-        tdelta = datetime.timedelta(**watch)
+        tdelta = None
+        if 'watch' in data:
+            watch = data['watch']
+            tdelta = datetime.timedelta(**watch)
 
         #get the input folder to watch
         input_folder = data['input']
         #get the root output folder
         output_folder = data['output']
     
-        bclink_helpers = BCLinkHelpers(**bclink_config)
+
         
         if clean:
             #if clean flag is true
@@ -162,8 +166,13 @@ def _from_yaml(ctx,logger,config):
             for name,path in subfolders.items():
                 if not os.path.exists(f"{output_folder}/{name}"):
                     logger.info(f"New folder found! Creating a new task for processing {path} {name}")
+
+                    inputs = [x.path for x in os.scandir(path) if x.path.endswith('.csv')]
+                    if len(inputs) == 0:
+                        logger.critical(f"New subfolder contains no .csv files!")
+                        continue
                     jobs.append({
-                        'input':path,
+                        'input':inputs,
                         'output':f"{output_folder}/{name}" 
                     })
                 else:
@@ -171,13 +180,16 @@ def _from_yaml(ctx,logger,config):
                                  f"({output_folder}/{name}). "
                                  "Assuming this data has already been processed!")
             for job in jobs:
-                ctx.invoke(manual,
-                           rules=rules,
-                           input_folder=job['input'],
-                           output_folder=job['output'],
-                           clean=False,
-                           **bclink_config)
-       
+                _execute(ctx,
+                         rules=rules,
+                         data=job,
+                         clean=False,
+                         bclink_helpers=bclink_helpers
+                )
+
+            if tdelta is None:
+                break
+                
             if i == 0:
                 logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
             i+=1
@@ -266,7 +278,6 @@ def _execute(ctx,rules,data,clean,bclink_helpers):
 
     if clean:
         bclink_helpers.clean_tables()
-
     
     #call any extracting of data
     #----------------------------------
@@ -336,7 +347,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
         'gui_user': gui_user,
         'database':database,
         'dry_run':dry_run,
-        'tables':table_map
+        'tables':table_map,
     }
     bclink_helpers = BCLinkHelpers(**bclink_settings)
 
