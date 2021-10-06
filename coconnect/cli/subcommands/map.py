@@ -123,7 +123,10 @@ def run(ctx,rules,inputs,format_level,
     """
 
     #load the json loads
-    config = tools.load_json(rules)
+    if type(rules) == dict:
+        config = rules
+    else:
+        config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
     if indexing_conf is not None:

@@ -1,18 +1,19 @@
 from .bash_helpers import run_bash_cmd
 import pandas as pd
 import io
+import time
 import os
 from coconnect.tools.logger import Logger
 
 class BCLinkHelpers:
 
-    def __init__(self,user='bclink',gui_user='data',database='bclink',dry_run=False,table_map=None):
+    def __init__(self,user='bclink',gui_user='data',database='bclink',dry_run=False,tables=None):
         self.logger = Logger("bclink_helpers")
         self.user = user
         self.gui_user = gui_user
         self.database = database
         self.dry_run = dry_run
-        self.table_map = table_map
+        self.table_map = tables
         if self.table_map == None:
             raise Exception("Table Map must be defined")
     
@@ -84,6 +85,7 @@ class BCLinkHelpers:
             if self.dry_run:
                 for msg in stdout.splitlines():
                     self.logger.critical(msg)
+                self.get_last_index(table) 
             else:
                 counts = int(stdout.splitlines()[1])
                 if counts > 0 :
@@ -93,7 +95,7 @@ class BCLinkHelpers:
 
     def check_logs(self,job_id):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
-        if not os.path.exists(cover):
+        if not self.dry_run and not os.path.exists(cover):
             return False
         cmd = f"cat {cover}"
         if self.dry_run:
@@ -111,11 +113,13 @@ class BCLinkHelpers:
         if self.dry_run:
             clean = 'echo '+clean
         stdout,stderror = run_bash_cmd(clean)
+        
         for msg in stdout.splitlines():
-            self.logger.info(msg)
-        for msg in stderror.splitlines():
-            self.logger.warning(msg)
-           
+            if self.dry_run:
+                self.logger.critical(msg)
+            else:
+                self.logger.info(msg)
+                   
     def clean_tables(self):
         for table in self.table_map.values():
             self.clean_table(table)
@@ -158,3 +162,22 @@ class BCLinkHelpers:
                 else:
                     self.logger.info(f"submitted job to bclink queue: {msg}")
 
+
+        for table_name in self.table_map.values():
+            self.logger.info(f"Checking jobs submitted for {table_name}")
+            stats = self.get_table_jobs(table_name)
+            if stats is None:
+                #is a dry run, just test this
+                self.check_logs(0)
+            else:
+                self.logger.info(stats)
+                job_id = stats.iloc[0]['JOB']
+                while True:
+                    self.logger.info(f"Getting log for {table_name} id={job_id}")
+                    success = self.check_logs(job_id)
+                    if success:
+                        break
+                    else:
+                        self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
+                        time.sleep(1)
+    

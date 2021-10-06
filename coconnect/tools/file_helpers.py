@@ -114,7 +114,8 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
         
     if rules is not None:
         logger.debug("rules .json file supplied")
-        rules = load_json(rules)
+        if not isinstance(rules,dict):
+            rules = load_json(rules)
         source_map = get_mapped_fields_from_rules(rules)
 
         inputs_from_json = list(source_map.keys())

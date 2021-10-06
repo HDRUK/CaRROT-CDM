@@ -22,7 +22,7 @@ import coconnect
 from coconnect.tools.bclink_helpers import BCLinkHelpers
 from coconnect.tools.logger import Logger
 
-from .map import run
+from .map import run 
 
 class PlatformNotSupported(Exception):
     pass
@@ -242,42 +242,116 @@ def from_yaml(ctx,config_file,run_as_daemon):
         _from_yaml(ctx,logger,config)
 
 
+def _extract(bclink_helpers):
+
+    bclink_helpers.clean_tables()
+    
+    indexer = bclink_helpers.get_indicies()
+    return {'indexer':indexer}
+
+def _transform(ctx,rules,inputs,output_folder,indexer):
+    ctx.invoke(run,
+               rules=rules,
+               inputs=inputs,
+               output_folder=output_folder,
+               indexing_conf=indexer
+    ) 
+
+
+def _load(output_folder,bclink_helpers):
+    bclink_helpers.load_tables(output_folder)
+
+        
+def _execute(ctx,rules,data,clean,bclink_helpers):
+
+    if clean:
+        bclink_helpers.clean_tables()
+
+    
+    #call any extracting of data
+    #----------------------------------
+    inputs = data['input']
+    output_folder = data['output']
+    extract_data = _extract(bclink_helpers)    
+    indexer = extract_data['indexer']
+    #----------------------------------
+
+    #call transform
+    #----------------------------------
+    _transform(ctx,
+               rules,
+               inputs,
+               output_folder,
+               indexer
+    )
+    #----------------------------------       
+
+    #call load
+    #----------------------------------        
+    _load(output_folder,
+          bclink_helpers
+    )
+
+
+def _get_table_map(table_map,destination_tables):
+    #if it's not a dict, and is a file, load the json
+    if not isinstance(table_map,dict):
+        table_map = coconnect.tools.load_json(table_map)
+
+    # loop over all tables from the rules json
+    for table_name in destination_tables:
+        #if the dest table is not in the mapping, fail
+        if table_name not in table_map.keys():
+            raise Exception(f"You must give the name of the bclink table for {table_name}")
+
+    #drop any tables that are not mapped (not in the destination_tables)
+    table_map = {k:v for k,v in table_map.items() if k in destination_tables}
+    return table_map
     
 @click.command(help='Run manually')
 @click.option('--rules','-r',help='location of the json rules file',required=True)
-@click.option('--input-folder','-i',help='location of the input csv files',required=True)
 @click.option('--output-folder','-o',help='location of the output results folder',required=True)
 @click.option('--clean',help='clean all the BCLink tables first by removing all existing rows',is_flag=True)
-@click.option('--table-map','-t',help='a look up json file that maps between the CDM table and the table name in BCLink',default=None)
+@click.option('--table-map','-t',help='a look up json file that maps between the CDM table and the table name in BCLink',default={})
 @click.option('--gui-user',help='name of the bclink gui user',default='data')
 @click.option('--user',help='name of the bclink user',default='bclink')
 @click.option('--database',help='name of the bclink database',default='bclink')
 @click.option('--dry-run',help='peform a dry-run of the bclink uplod',is_flag=True)
+@click.argument('inputs',required=True,nargs=-1)
 @click.pass_context
-def manual(ctx,rules,input_folder,output_folder,clean,table_map,gui_user,user,database,dry_run):
+def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database,dry_run):
 
+    rules = coconnect.tools.load_json(rules)
+    destination_tables = list(rules['cdm'].keys())
+
+    
+    data = {
+        'input':list(inputs),
+        'output':output_folder
+    }
+
+    table_map = _get_table_map(table_map,destination_tables)
+    bclink_settings = {
+        'user':user,
+        'gui_user': gui_user,
+        'database':database,
+        'dry_run':dry_run,
+        'tables':table_map
+    }
+    bclink_helpers = BCLinkHelpers(**bclink_settings)
+
+    _execute(ctx,rules,data,clean,bclink_helpers)
+
+    return
+    
     logger = Logger("ETL::BCLink")
     logger.info(f'Rules: {rules}')
     logger.info(f'Inputs: {input_folder}')
     logger.info(f'Output: {output_folder}')
     logger.info(f'Clean Tables: {clean}')
-    config = coconnect.tools.load_json(rules)
-    destination_tables = list(config['cdm'].keys())
 
 
     logger.info(f'Processing {destination_tables}')
-    if table_map is not None:
-        if not isinstance(table_map,dict):
-            table_map = coconnect.tools.load_json(table_map)
-        for table_name in destination_tables:
-            if table_name not in table_map.keys():
-                logger.error(f'{table_name} not specified in table map {table_map}')
-                raise Exception(f"You must give the name of the bclink table for {table_name}")
-
-        #drop any tables that are not mapped
-        table_map = {k:v for k,v in table_map.items() if k in destination_tables}
-    else:
-        table_map = {x:x for x in destination_tables}
 
     logger.info(f'BCLink Table Map: {table_map}')
     bclink_helpers = BCLinkHelpers(gui_user=gui_user,
@@ -286,8 +360,6 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map,gui_user,user,da
                                    table_map=table_map,
                                    dry_run=dry_run)
     
-    if clean:
-        bclink_helpers.clean_tables()
            
                   
     #calculate the indexing conf
@@ -300,29 +372,10 @@ def manual(ctx,rules,input_folder,output_folder,clean,table_map,gui_user,user,da
 
     #run the transform
     ctx.invoke(run,rules=rules,inputs=[input_folder],output_folder=output_folder,indexing_conf=indexer)
-
+ 
     #submit jobs to load
     bclink_helpers.load_tables(output_folder)
    
-    for table_name in table_map.values():
-        logger.info(f"Checking jobs submitted for {table_name}")
-        
-        stats = bclink_helpers.get_table_jobs(table_name)
-        if stats is None:
-            #is a dry run, just test this
-            bclink_helpers.check_logs(0)
-            return
-        logger.info(stats)
-
-        job_id = stats.iloc[0]['JOB']
-        while True:
-            logger.info(f"Getting log for {table_name} id={job_id}")
-            success = bclink_helpers.check_logs(job_id)
-            if success:
-                break
-            else:
-                logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
-                time.sleep(1)
     
 
         
