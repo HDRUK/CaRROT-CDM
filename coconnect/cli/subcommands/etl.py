@@ -223,7 +223,7 @@ def from_yaml(ctx,config_file,run_as_daemon):
     logger = Logger("from_yaml")
     stream = open(config_file) 
     config = yaml.safe_load(stream)
-
+    
     if run_as_daemon and daemon is None:
         raise ImportError(f"You are trying to run in daemon mode, "
                           "but the package 'daemon' hasn't been installed. "
@@ -255,13 +255,14 @@ def from_yaml(ctx,config_file,run_as_daemon):
 
 
 def _extract(bclink_helpers):
-
-    bclink_helpers.clean_tables()
-    
+    logger = Logger("extract")
+    logger.info(f"starting extraction processes")
     indexer = bclink_helpers.get_indicies()
     return {'indexer':indexer}
 
 def _transform(ctx,rules,inputs,output_folder,indexer):
+    logger = Logger("transform")
+    logger.info("starting data transform processes")
     ctx.invoke(run,
                rules=rules,
                inputs=inputs,
@@ -269,24 +270,29 @@ def _transform(ctx,rules,inputs,output_folder,indexer):
                indexing_conf=indexer
     ) 
 
-
 def _load(output_folder,bclink_helpers):
+    logger = Logger("load")
+    logger.info("starting loading data processes")
     bclink_helpers.load_tables(output_folder)
 
         
 def _execute(ctx,rules,data,clean,bclink_helpers):
-
+    logger = Logger("execute")
+    logger.info(f"Executing ETL...")
+        
     if clean:
+        logger.info(f"cleaning existing bclink tables")
         bclink_helpers.clean_tables()
     
     #call any extracting of data
     #----------------------------------
-    inputs = data['input']
-    output_folder = data['output']
-    extract_data = _extract(bclink_helpers)    
+    extract_data = _extract(bclink_helpers) 
     indexer = extract_data['indexer']
     #----------------------------------
 
+    inputs = data['input']
+    output_folder = data['output']
+    
     #call transform
     #----------------------------------
     _transform(ctx,
@@ -332,9 +338,8 @@ def _get_table_map(table_map,destination_tables):
 @click.pass_context
 def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database,dry_run):
 
-    rules = coconnect.tools.load_json(rules)
-    destination_tables = list(rules['cdm'].keys())
-
+    _rules = coconnect.tools.load_json(rules)
+    destination_tables = list(_rules['cdm'].keys())
     
     data = {
         'input':list(inputs),
@@ -349,22 +354,22 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
         'dry_run':dry_run,
         'tables':table_map,
     }
+
+    logger = Logger("Manual")
+    logger.info(f'Rules: {rules}')
+    logger.info(f'Inputs: {data["input"]}')
+    logger.info(f'Output: {data["output"]}')
+    logger.info(f'Clean Tables: {clean}')
+    logger.info(f'Processing {destination_tables}')
+    logger.info(f'BCLink settings:')
+    logger.info(json.dumps(bclink_settings,indent=6))
+    
     bclink_helpers = BCLinkHelpers(**bclink_settings)
 
     _execute(ctx,rules,data,clean,bclink_helpers)
 
     return
     
-    logger = Logger("ETL::BCLink")
-    logger.info(f'Rules: {rules}')
-    logger.info(f'Inputs: {input_folder}')
-    logger.info(f'Output: {output_folder}')
-    logger.info(f'Clean Tables: {clean}')
-
-
-    logger.info(f'Processing {destination_tables}')
-
-    logger.info(f'BCLink Table Map: {table_map}')
     bclink_helpers = BCLinkHelpers(gui_user=gui_user,
                                    user=user,
                                    database=database,
