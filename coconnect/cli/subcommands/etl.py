@@ -158,6 +158,7 @@ def _from_yaml(ctx,logger,config):
             logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
             if len(subfolders.values())> 0:
                 logger.debug(f"{list(subfolders.values())}")
+                
             jobs = []
             for name,path in subfolders.items():
                 if not os.path.exists(f"{output_folder}/{name}"):
@@ -187,8 +188,11 @@ def _from_yaml(ctx,logger,config):
             if tdelta is None:
                 break
                 
-            if len(jobs)>0:
+            if len(jobs)>0 or i==0:
                 logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
+                if len(subfolders.values()) == 0:
+                    logger.warning("No subfolders for data dumps yet found...")
+
             i+=1
             time.sleep(tdelta.total_seconds())
         else:
