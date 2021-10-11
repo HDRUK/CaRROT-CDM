@@ -17,6 +17,25 @@ class BCLinkHelpers:
         self.table_map = tables
         if self.table_map == None:
             raise Exception("Table Map must be defined")
+
+    def create_table(self,table):
+        print ("creating table")
+        pass
+
+    def check_table_exists(self,table):
+        if self.dry_run:
+            return 0
+        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' )"
+               
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}',
+            self.database
+        ]
+        stdout,_ = run_bash_cmd(cmd)
+        return bool(int(stdout.splitlines()[1]))
+       
     
     def get_duplicates(self,table,fields):
         pk = fields[0]

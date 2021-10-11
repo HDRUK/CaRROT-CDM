@@ -205,13 +205,62 @@ def check_tables(ctx,config_file):
     logger = Logger("check_tables")
     stream = open(config_file) 
     config = yaml.safe_load(stream)
-    table_map = config['bclink tables']
+    
+    rules = coconnect.tools.load_json(config['rules'])
+    destination_tables = list(rules['cdm'].keys())
+    
+    table_map = config['bclink']['tables']
+    bclink_settings = config['bclink']
+
+    #perform a check on this table map to see if the table is even in the rules
+    _ = _get_table_map(bclink_settings['tables'],destination_tables)
+    
+    bclink_helpers = BCLinkHelpers(**bclink_settings)
+
+    retval = {}
+    for destination_table,bclink_table in table_map.items():
+        exists = bclink_helpers.check_table_exists(bclink_table)
+        retval[bclink_table] = exists
+        
+    return retval
+
+
+@click.command(help='crate new bclink tables')
+@click.argument('config_file')
+@click.pass_context
+def create_tables(ctx,config_file):
+    logger = Logger("create_tables")
+
+    exist = ctx.invoke(check_tables,
+                       config_file=config_file)
+
+    tables_to_create = [
+        bclink_table
+        for bclink_table,exists in exist.items()
+        if exists == False
+    ]
+
+    if len(tables_to_create) == 0:
+        logger.info("All tables already exist!")
+        return
+
+    for table_name in tables_to_create:
+        print (table_name)
+
+    exit(0)
+        
+
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+    print (config)
+    table_map = config['bclink']['tables']
     
     for destination_table,bclink_table in table_map.items():
         obj = coconnect.cdm.get_cdm_class(destination_table)()
         fields = obj.fields
-        dups = bclink_helpers.get_duplicates(bclink_table,fields)
-        exit(0)
+        print (destination_table)
+        #dups = bclink_helpers.get_duplicates(bclink_table,fields)
+        #exit(0)
         
 
 
@@ -413,6 +462,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
                 
 
 bclink.add_command(check_tables,'check_tables')
+bclink.add_command(create_tables,'create_tables')
 bclink.add_command(from_yaml,'from_yaml')
 bclink.add_command(manual,'manual')
 etl.add_command(bclink,'bclink')
