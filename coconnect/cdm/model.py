@@ -295,14 +295,15 @@ class CommonDataModel:
                     os.makedirs(self.output_folder,exist_ok=True)
                     dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
                     dfp.index.name = 'original_id'
-                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
+                    file_extension = self.get_outfile_extension()
+                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.{file_extension}"
                     header = True
                     mode = 'w'
                     if start_index > self.get_start_index(destination_table):
                         header = False
                         mode = 'a'
                         
-                    dfp.to_csv(fname,header=header,mode=mode)
+                    dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
                     
             #apply the masking
             df['person_id'] = df['person_id'].map(self.person_id_masker)
