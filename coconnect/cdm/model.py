@@ -293,10 +293,11 @@ class CommonDataModel:
                 
                 if destination_table == 'person':
                     os.makedirs(self.output_folder,exist_ok=True)
-                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
-                    dfp.index.name = 'original_id'
+                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
+                    dfp.index.name = 'TARGET_SUBJECT'
+                    dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
                     file_extension = self.get_outfile_extension()
-                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.{file_extension}"
+                    fname = f"{self.output_folder}{os.path.sep}global_ids.{file_extension}"
                     header = True
                     mode = 'w'
                     if start_index > self.get_start_index(destination_table):

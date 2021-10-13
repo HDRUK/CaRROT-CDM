@@ -4,19 +4,28 @@ import io
 import time
 import json
 import os
+import coconnect
 from coconnect.tools.logger import Logger
+
+class BCLinkHelpersException(Exception):
+    pass
 
 class BCLinkHelpers:
 
-    def __init__(self,user='bclink',gui_user='data',database='bclink',dry_run=False,tables=None):
+    def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
         self.logger = Logger("bclink_helpers")
         self.user = user
         self.gui_user = gui_user
         self.database = database
         self.dry_run = dry_run
         self.table_map = tables
+        self.global_ids = global_ids
+        
         if self.table_map == None:
-            raise Exception("Table Map must be defined")
+            raise BCLinkHelpersException("Table map between the dataset id and the OMOP tables must be defined")
+
+        if self.global_ids == None:
+            raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
 
     def create_table(self,table):
         print ("creating table")
@@ -146,6 +155,8 @@ class BCLinkHelpers:
             self.logger.info(f"Cleaning table {table}")
             self.clean_table(table)
        
+        self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
+        self.clean_table(self.global_ids)
             
     def get_table_jobs(self,table,head=5):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
@@ -168,6 +179,77 @@ class BCLinkHelpers:
             info = info.head(head)
         return info
     
+    
+    def check_global_ids(self,output_directory,chunksize=10):
+        data_file = f'{output_directory}/person.tsv'
+        if not os.path.exists(data_file):
+            self.logger.warning(f"{output_directory}/person.tsv file does not exist")
+            return True
+
+        data = coconnect.tools.load_csv({"ids":f"{output_directory}/global_ids.tsv"},
+                                        sep='\t',
+                                        chunksize=100)
+
+        while True:
+            _list = ','.join([f"'{x}'" for x in data["ids"]["TARGET_SUBJECT"].values])
+            query=f"select exists(select 1 from {self.global_ids} where TARGET_SUBJECT in ({_list}) )"
+            cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
+            stdout,stderr = run_bash_cmd(cmd)
+            
+            exists = bool(int(stdout.splitlines()[1]))
+            
+            if exists:
+                query=f"select * from {self.global_ids} where TARGET_SUBJECT in ({_list}) "
+                cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
+                stdout,stderr = run_bash_cmd(cmd)
+                info = pd.read_csv(io.StringIO(stdout),
+                                   sep='\t').set_index("SOURCE_SUBJECT")
+                self.logger.error(info)
+                return False
+
+            try:
+                data.next()
+            except StopIteration:
+                break
+   
+        return True
+        
+   
+    def load_global_ids(self,output_directory):
+
+        data_file = f'{output_directory}/global_ids.tsv'
+        if not os.path.exists(data_file):
+            raise FileExistsError(f"Cannot find global_ids.tsv in output directory: {output_directory}")
+           
+        cmd = ['dataset_tool', '--load',f'--table={self.global_ids}',f'--user={self.gui_user}',
+               f'--data_file={data_file}','--support','--bcqueue',self.database]
+        if self.dry_run:
+            cmd.insert(0,'echo')
+        stdout,stderr = run_bash_cmd(cmd)
+        for msg in stdout.splitlines():
+            if self.dry_run:
+                self.logger.critical(msg)
+            else:
+                self.logger.info(f"submitted job to bclink queue: {msg}")
+
+        table_name = self.global_ids
+        stats = self.get_table_jobs(table_name)
+        if stats is None:
+            #is a dry run, just test this
+            self.check_logs(0)
+        else:
+            self.logger.info(stats)
+            job_id = stats.iloc[0]['JOB']
+            while True:
+                self.logger.info(f"Getting log for {table_name} id={job_id}")
+                success = self.check_logs(job_id)
+                if success:
+                    break
+                else:
+                    self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
+                    time.sleep(1)
+        
+
     def load_tables(self,output_directory):
         for table,tablename in self.table_map.items():
             data_file = f'{output_directory}/{table}.tsv'

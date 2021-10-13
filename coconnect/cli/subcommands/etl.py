@@ -32,6 +32,8 @@ class PlatformNotSupported(Exception):
 class UserNotSupported(Exception):
     pass
 
+class DuplicateDataDetected(Exception):
+    pass
 
 @click.group(help='Command group for running the full ETL of a dataset')
 def etl():
@@ -69,7 +71,7 @@ def _from_yaml(ctx,logger,config):
             rules = obj
         elif key == 'bclink':
             for _key,_obj in obj.items():
-                if _key == 'user' or _key == 'database':
+                if _key == 'user' or _key == 'database' or _key == 'global_ids':
                     bclink_config[_key] = _obj
                 elif _key == 'gui user' or _key == 'gui_user' or _key == 'gui user':
                     bclink_config['gui_user'] = _obj
@@ -79,6 +81,7 @@ def _from_yaml(ctx,logger,config):
                     bclink_config['dry_run'] = _obj
                 else:
                     logger.warning(f"Unknown BCLink configuration {_key}:{_obj}")
+
         elif key == 'clean':
             #say if the tables should be cleaned
             #aka delete all rows before inserting new data
@@ -94,7 +97,6 @@ def _from_yaml(ctx,logger,config):
             logger.critical(f"Value = '{obj}'")
             raise Exception("Failed parsing yaml configuration")
 
-              
     if rules == None:
         raise Exception("A rules file must be specified in the yaml configuration file... rules:<path to file>")
     if data == None:
@@ -104,8 +106,10 @@ def _from_yaml(ctx,logger,config):
     destination_tables = coconnect.tools.load_json(rules)['cdm'].keys()
     if 'tables' not in bclink_config:
         bclink_config['tables'] =  {}
+
     bclink_config['tables']  = _get_table_map(bclink_config['tables'],destination_tables)
-   
+    
+
     bclink_helpers = BCLinkHelpers(**bclink_config)
     
 
@@ -156,6 +160,7 @@ def _from_yaml(ctx,logger,config):
         while True:
             subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
             logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
+            logger.debug(list(subfolders.values()))
             if len(subfolders.values())> 0:
                 logger.debug(f"{list(subfolders.values())}")
                 
@@ -197,6 +202,28 @@ def _from_yaml(ctx,logger,config):
             time.sleep(tdelta.total_seconds())
         else:
             raise Exception(f"No parameter 'watch' has been specified with {data}")
+
+
+@click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
+@click.argument('config_file')
+@click.pass_context
+def clean_tables(ctx,config_file):
+    logger = Logger("clean_tables")
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+    
+    rules = coconnect.tools.load_json(config['rules'])
+    destination_tables = list(rules['cdm'].keys())
+    table_map = config['bclink']['tables']
+    bclink_settings = config['bclink']
+    
+    bclink_settings['tables'] = _get_table_map(bclink_settings['tables'],destination_tables)
+    
+    bclink_helpers = BCLinkHelpers(**bclink_settings)
+
+    logger.info(f"cleaning existing bclink tables")
+    bclink_helpers.clean_tables()
+
 
 @click.command(help='check the bclink tables')
 @click.argument('config_file')
@@ -358,8 +385,26 @@ def _transform(ctx,rules,inputs,output_folder,indexer):
 
 def _load(output_folder,bclink_helpers):
     logger = Logger("load")
+
     logger.info("starting loading data processes")
-    bclink_helpers.load_tables(output_folder)
+
+
+    logger.info("First, check for duplicate person_ids")
+    #check to see if the person ids have already been loaded
+    if not bclink_helpers.check_global_ids(output_folder):
+        logger.error("Failed in check of global IDs, will not load tables")
+        logger.warning("Will now clean-up results folder")
+        #remove the output folder
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            logger.info(f"removing {output_folder}")
+            shutil.rmtree(output_folder)
+        raise DuplicateDataDetected("You are trying to load person_ids that have already been inserted ... duplicated person table is detected")
+    else:
+        logger.info("starting loading global ids")
+        bclink_helpers.load_global_ids(output_folder)
+        
+        logger.info("starting loading cdm tables")
+        bclink_helpers.load_tables(output_folder)
 
         
 def _execute(ctx,rules,data,clean,bclink_helpers):
@@ -461,6 +506,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
+bclink.add_command(clean_tables,'clean_tables')
 bclink.add_command(check_tables,'check_tables')
 bclink.add_command(create_tables,'create_tables')
 bclink.add_command(from_yaml,'from_yaml')
