@@ -59,6 +59,21 @@ def ccom(report_id,number_of_events,output_directory,
         name = table['name']
         _id = table['id']
 
+
+        #date_event = table['date_event']
+        #print (date_event)
+        #_url = f"{url}/api/scanreportvaluesfilter/?scan_report_field={date_event}&fields=value"
+        #date_events = [
+        #    x['value']
+        #    for x in requests.get(
+        #            _url, headers=headers,
+        #            allow_redirects=True,
+        #    ).json()
+        #    if x['value'] != 'List truncated...'
+        #]
+        #print (date_events)
+        #exit(0)
+        
         #get which is the person_id and automatically fill this with incrementing values
         #so they are not all NaN in the synthetic data (because of List Truncated...)
         person_id = table['person_id']
