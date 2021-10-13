@@ -246,8 +246,8 @@ class BCLinkHelpers:
                 if success:
                     break
                 else:
-                    self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
-                    time.sleep(1)
+                    self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running. Trying again in 5 seconds..")
+                    time.sleep(5)
         
 
     def load_tables(self,output_directory):
