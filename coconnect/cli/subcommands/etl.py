@@ -242,7 +242,7 @@ def execute(ctx,run_as_daemon):
                           "If you are running on a Windows machine, this package is not supported")
 
     if run_as_daemon and daemon is not None:
-        stderr = ctx['log']
+        stderr = ctx.obj['log']
         stdout = f'{stderr}.out'
      
         logger.info(f"running as a daemon process, logging to {stderr}")
