@@ -32,6 +32,11 @@ class PlatformNotSupported(Exception):
 class UserNotSupported(Exception):
     pass
 
+class DuplicateDataDetected(Exception):
+    pass
+
+class UnknownConfigurationSetting(Exception):
+    pass
 
 @click.group(help='Command group for running the full ETL of a dataset')
 def etl():
@@ -40,191 +45,197 @@ def etl():
 
 @click.group(help='Command group for ETL integration with bclink')
 @click.option('--force','-f',help='Force running of this, useful for development purposes',is_flag=True)
-def bclink(force):
-    if force:
-        return
-
-    if os.name == 'nt':
-        raise PlatformNotSupported(f"Not suported to run this on Windows")
-
-    #check the username
-    #for bclink, we need to run as bcos_srv to get access to all the datasettool2 etc. tools
-    #and be able to connect with the postgres server without the need for a password
-    user = os.environ.get("USER")
-    if user != 'bcos_srv':
-        raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
-
-                    
-def _from_yaml(ctx,logger,config):
-    #print the configuration to the screen
-    logger.info(json.dumps(config,indent=6))
-
-    rules = data = None
-    bclink_config = {}
-    clean = False
-    
-    for key,obj in config.items():
-        if key == 'rules':
-            #get the location of the rules json file
-            rules = obj
-        elif key == 'bclink':
-            for _key,_obj in obj.items():
-                if _key == 'user' or _key == 'database':
-                    bclink_config[_key] = _obj
-                elif _key == 'gui user' or _key == 'gui_user' or _key == 'gui user':
-                    bclink_config['gui_user'] = _obj
-                elif _key == 'tables' or _key == 'table_map':
-                    bclink_config['tables'] = _obj
-                elif _key == 'dry-run' or _key == 'dry_run' or _key == 'dry run':
-                    bclink_config['dry_run'] = _obj
-                else:
-                    logger.warning(f"Unknown BCLink configuration {_key}:{_obj}")
-        elif key == 'clean':
-            #say if the tables should be cleaned
-            #aka delete all rows before inserting new data
-            clean = obj
-        elif key == 'data':
-            #load the configuration for i/o files
-            data = obj
-        elif key == 'log':
-            #already handled
-            pass
-        else:
-            logger.critical(f"Unknown key '{key}'")
-            logger.critical(f"Value = '{obj}'")
-            raise Exception("Failed parsing yaml configuration")
-
-              
-    if rules == None:
-        raise Exception("A rules file must be specified in the yaml configuration file... rules:<path to file>")
-    if data == None:
-        raise Exception("I/O data files/folders must be specified in the yaml configuration file...")
-
-    
-    destination_tables = coconnect.tools.load_json(rules)['cdm'].keys()
-    if 'tables' not in bclink_config:
-        bclink_config['tables'] =  {}
-    bclink_config['tables']  = _get_table_map(bclink_config['tables'],destination_tables)
-   
-    bclink_helpers = BCLinkHelpers(**bclink_config)
-    
-
-    if isinstance(data,list):
-        #loop over the list of data 
-        for i,obj in enumerate(data):
-            #get a new input folder
-            inputs = obj['input']
-            if isinstance(inputs,str):
-                inputs = [inputs]
-            #get a new output folder
-            output = obj['output']
-            #invoke the running of the ETL
-            #if clean is defined, only clean on the first loop
-            _execute(ctx,
-                     rules=rules,
-                     data={'input':inputs,'output':output},
-                     clean=clean if i==0 else False,
-                     bclink_helpers=bclink_helpers
-            )
-        
-    elif isinstance(data,dict):
-        #calculate the amount of time to wait before checking for changes
-        tdelta = None
-        if 'watch' in data:
-            watch = data['watch']
-            tdelta = datetime.timedelta(**watch)
-
-        #get the input folder to watch
-        input_folder = data['input']
-        #get the root output folder
-        output_folder = data['output']
-
-        #clean outside of the following loop
-        if clean:
-            #if clean flag is true
-
-            #clean the bclink tables
-            bclink_helpers.clean_tables()
-               
-            #remove the output folder
-            if os.path.exists(output_folder) and os.path.isdir(output_folder):
-                logger.info(f"removing old output_folder {output_folder}")
-                shutil.rmtree(output_folder)
-                     
-        i = 0
-       
-        while True:
-            subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
-            logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
-            if len(subfolders.values())> 0:
-                logger.debug(f"{list(subfolders.values())}")
-                
-            jobs = []
-            for name,path in subfolders.items():
-                if not os.path.exists(f"{output_folder}/{name}"):
-                    logger.info(f"New folder found! Creating a new task for processing {path} {name}")
-
-                    inputs = [x.path for x in os.scandir(path) if x.path.endswith('.csv')]
-                    if len(inputs) == 0:
-                        logger.critical(f"New subfolder contains no .csv files!")
-                        continue
-
-                    _data = copy.deepcopy(data)
-                    _data['input'] = inputs
-                    _data['output'] = f"{output_folder}/{name}"
-                    jobs.append(_data)
-                else:
-                    logger.debug(f"Already found a results folder for {path} "
-                                 f"({output_folder}/{name}). "
-                                 "Assuming this data has already been processed!")
-            for job in jobs:
-                _execute(ctx,
-                         rules=rules,
-                         data=job,
-                         clean=False,
-                         bclink_helpers=bclink_helpers
-                )
-
-            if tdelta is None:
-                break
-                
-            if len(jobs)>0 or i==0:
-                logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
-                if len(subfolders.values()) == 0:
-                    logger.warning("No subfolders for data dumps yet found...")
-
-            i+=1
-            time.sleep(tdelta.total_seconds())
-        else:
-            raise Exception(f"No parameter 'watch' has been specified with {data}")
-
-@click.command(help='check the bclink tables')
-@click.argument('config_file')
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
 @click.pass_context
-def check_tables(ctx,config_file):
-    logger = Logger("check_tables")
+def bclink(ctx,force,config_file):
+
+    if not force:
+        #check the platform (i.e. should be centos)
+        if os.name == 'nt':
+            raise PlatformNotSupported(f"Not suported to run this on Windows")
+        #check the username
+        #for bclink, we need to run as bcos_srv to get access to all the datasettool2 etc. tools
+        #and be able to connect with the postgres server without the need for a password
+        user = os.environ.get("USER")
+        if user != 'bcos_srv':
+            raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
+
+
     stream = open(config_file) 
     config = yaml.safe_load(stream)
-    table_map = config['bclink tables']
+    
+    rules = coconnect.tools.load_json(config['rules'])
+    destination_tables = list(rules['cdm'].keys())
+    
+    bclink_settings = {}
+    if 'bclink' in config:
+        bclink_settings = config.pop('bclink')
+    else:
+        bclink_settings['tables'] = {x:x for x in destination_tables}
+        bclink_settings['global_ids'] = 'global_ids'
+
+    bclink_settings['tables'] = _get_table_map(bclink_settings['tables'],destination_tables)
+    bclink_helpers = BCLinkHelpers(**bclink_settings)
+    if ctx.obj is None:
+        ctx.obj = dict()
+    ctx.obj['bclink_helpers'] = bclink_helpers
+    ctx.obj['rules'] = rules
+    ctx.obj['data'] = config['data']
+
+    log = 'coconnect.log'
+    if 'log' in config.keys():
+        log = config['log']
+    ctx.obj['log'] = log
+
+    clean = False
+    if 'clean' in config.keys():
+        clean = config['clean']
+    ctx.obj['clean'] = clean
+    
+    unknown_keys = list( set(config.keys()) - set(ctx.obj.keys()) )
+    if len(unknown_keys) > 0 :
+        raise UnknownConfigurationSetting(f'"{unknown_keys}" are not valid settings in the yaml file')
+
+def _process_data(ctx):
+    logger = Logger("_process_data")
+    data = ctx.obj['data']
+    clean = ctx.obj['clean']
+    bclink_helpers = ctx.obj['bclink_helpers']
+    
+    #calculate the amount of time to wait before checking for changes
+    tdelta = None
+    if 'watch' in data:
+        watch = data['watch']
+        tdelta = datetime.timedelta(**watch)
+        
+    #get the input folder to watch
+    input_folder = data['input']
+    #get the root output folder
+    output_folder = data['output']
+
+    #clean outside of the following loop
+    if clean:
+        #if clean flag is true
+        #clean the bclink tables
+        bclink_helpers.clean_tables()
+        #remove the output folder
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            logger.info(f"removing old output_folder {output_folder}")
+            shutil.rmtree(output_folder)
+            
+    i = 0
+    while True:
+        subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
+        logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
+        logger.debug(list(subfolders.values()))
+        if len(subfolders.values())> 0:
+            logger.debug(f"{list(subfolders.values())}")
+            
+        jobs = []
+        for name,path in subfolders.items():
+            if not os.path.exists(f"{output_folder}/{name}"):
+                logger.info(f"New folder found! Creating a new task for processing {path} {name}")
+                
+                inputs = [x.path for x in os.scandir(path) if x.path.endswith('.csv')]
+                if len(inputs) == 0:
+                    logger.critical(f"New subfolder contains no .csv files!")
+                    continue
+                    
+                _data = copy.deepcopy(data)
+                _data['input'] = inputs
+                _data['output'] = f"{output_folder}/{name}"
+                jobs.append(_data)
+            else:
+                logger.debug(f"Already found a results folder for {path} "
+                             f"({output_folder}/{name}). "
+                             "Assuming this data has already been processed!")
+        for job in jobs:
+          
+            _execute(ctx,
+                     data=job,
+                     clean=False
+            )
+            
+        if tdelta is None:
+            break
+                
+        if len(jobs)>0 or i==0:
+            logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
+            if len(subfolders.values()) == 0:
+                logger.warning("No subfolders for data dumps yet found...")
+
+        i+=1
+        time.sleep(tdelta.total_seconds())
+        
+
+@click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
+@click.pass_obj
+def clean_tables(ctx):
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("clean_tables")
+    bclink_helpers.clean_tables()
+
+
+@click.command(help='check the bclink tables')
+@click.pass_obj
+def check_tables(ctx):
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("check_tables")
+
+    retval = {}
+    logger.info("printing to see if tables exist")
+    for bclink_table in bclink_helpers.table_map.values():
+        retval[bclink_table] = bclink_helpers.check_table_exists(bclink_table)
+    if bclink_helpers.global_ids:
+        retval[bclink_helpers.global_ids] = bclink_helpers.check_table_exists(bclink_helpers.global_ids)
+
+    logger.info(json.dumps(retval,indent=6))
+    return retval
+
+
+@click.command(help='crate new bclink tables')
+@click.pass_context
+def create_tables(ctx):
+    logger = Logger("create_tables")
+    exist = ctx.invoke(check_tables)
+
+    tables_to_create = [
+        bclink_table
+        for bclink_table,exists in exist.items()
+        if exists == False
+    ]
+
+    if len(tables_to_create) == 0:
+        logger.info("All tables already exist!")
+        return
+
+    for table_name in tables_to_create:
+        print (table_name)
+
+    exit(0)
+        
+
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+    print (config)
+    table_map = config['bclink']['tables']
     
     for destination_table,bclink_table in table_map.items():
         obj = coconnect.cdm.get_cdm_class(destination_table)()
         fields = obj.fields
-        dups = bclink_helpers.get_duplicates(bclink_table,fields)
-        exit(0)
+        print (destination_table)
+        #dups = bclink_helpers.get_duplicates(bclink_table,fields)
+        #exit(0)
         
 
 
 
-@click.command(help='Run with a yaml configuration file')
+@click.command(help='Run the full ETL process for CO-CONNECT integrated with BCLink')
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
-@click.argument('config_file')
 @click.pass_context
-def from_yaml(ctx,config_file,run_as_daemon):
-    logger = Logger("from_yaml")
-    stream = open(config_file) 
-    config = yaml.safe_load(stream)
-    
+def execute(ctx,run_as_daemon):
+    logger = Logger("Execute")
+
     if run_as_daemon and daemon is None:
         raise ImportError(f"You are trying to run in daemon mode, "
                           "but the package 'daemon' hasn't been installed. "
@@ -232,11 +243,9 @@ def from_yaml(ctx,config_file,run_as_daemon):
                           "If you are running on a Windows machine, this package is not supported")
 
     if run_as_daemon and daemon is not None:
-        stdout = 'coconnect.out'
-        stderr = 'coconnect.log'
-        if 'log' in config:
-            stderr = config['log']
-
+        stderr = ctx.obj['log']
+        stdout = f'{stderr}.out'
+     
         logger.info(f"running as a daemon process, logging to {stderr}")
         pidfile = TimeoutPIDLockFile('etl.pid', -1)
         logger.info(f"process_id in {pidfile}")
@@ -248,11 +257,10 @@ def from_yaml(ctx,config_file,run_as_daemon):
                 stderr=stderr_handle,
                 pidfile=TimeoutPIDLockFile('etl.pid', -1)
             )
-
             with d_ctx:
-                _from_yaml(ctx,logger,config)
+                _process_data(ctx)
     else:
-        _from_yaml(ctx,logger,config)
+        _process_data(ctx)
 
 
 def _extract(ctx,data,rules,bclink_helpers):
@@ -275,7 +283,8 @@ def _extract(ctx,data,rules,bclink_helpers):
         
         inputs = data['input']
         logger.info(f"Called do_pseudonymisation on input data {data} ")
-        rules = coconnect.tools.load_json(rules)
+        if not isinstance(rules,dict):
+            rules = coconnect.tools.load_json(rules)
         person_id_map = coconnect.tools.get_person_ids(rules)
         input_map = {os.path.basename(x):x for x in inputs}
 
@@ -309,11 +318,39 @@ def _transform(ctx,rules,inputs,output_folder,indexer):
 
 def _load(output_folder,bclink_helpers):
     logger = Logger("load")
+
     logger.info("starting loading data processes")
-    bclink_helpers.load_tables(output_folder)
+
+    logger.info("First, check for duplicate person_ids")
+    #check to see if the person ids have already been loaded
+    if not bclink_helpers.check_global_ids(output_folder):
+        logger.error("Failed in check of global IDs, will not load tables")
+        logger.warning("Will now clean-up results folder")
+        #remove the output folder
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            logger.info(f"removing {output_folder}")
+            shutil.rmtree(output_folder)
+        raise DuplicateDataDetected("You are trying to load person_ids that have already been inserted"
+                                    f"... duplicated person table has been detected in {output_folder}")
+    else:
+        logger.info("starting loading global ids")
+        bclink_helpers.load_global_ids(output_folder)
+        
+        logger.info("starting loading cdm tables")
+        bclink_helpers.load_tables(output_folder)
 
         
-def _execute(ctx,rules,data,clean,bclink_helpers):
+def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
+    
+    if data == None:
+        data = ctx.obj['data']
+    if clean == None:
+        clean = ctx.obj['clean']
+    if rules == None:
+        rules = ctx.obj['rules']
+    if bclink_helpers == None:
+        bclink_helpers = ctx.obj['bclink_helpers']
+        
     logger = Logger("execute")
     logger.info(f"Executing ETL...")
         
@@ -367,7 +404,7 @@ def _get_table_map(table_map,destination_tables):
     table_map = {k:v for k,v in table_map.items() if k in destination_tables}
     return table_map
     
-@click.command(help='Run manually')
+@click.command(help='[for developers] Run the CO-CONNECT ETL manually ')
 @click.option('--rules','-r',help='location of the json rules file',required=True)
 @click.option('--output-folder','-o',help='location of the output results folder',required=True)
 @click.option('--clean',help='clean all the BCLink tables first by removing all existing rows',is_flag=True)
@@ -412,9 +449,11 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
+bclink.add_command(clean_tables,'clean_tables')
 bclink.add_command(check_tables,'check_tables')
-bclink.add_command(from_yaml,'from_yaml')
-bclink.add_command(manual,'manual')
+bclink.add_command(create_tables,'create_tables')
+bclink.add_command(execute,'execute')
+etl.add_command(manual,'bclink-manual')
 etl.add_command(bclink,'bclink')
 
 
