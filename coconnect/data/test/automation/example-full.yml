@@ -10,6 +10,7 @@ data:
       output: /usr/lib/bcos/OMOP-test-data/tests_06Oct/pseudo_data
       salt: 00ed1234da
 bclink:
+   global_ids: ids_001
    tables:
       person: person_001
       observation: observation_001

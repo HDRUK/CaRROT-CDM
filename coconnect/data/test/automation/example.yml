@@ -6,6 +6,7 @@ data:
    output: automation/results/
 bclink:
   dry_run: true
+  global_ids: ds00000
   tables:
     person: person_001
     observation: observation_001
