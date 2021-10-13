@@ -5,7 +5,7 @@ data:
    input: inputs/
    output: automation/results/
 bclink:
-  dry-run: true
+  dry_run: true
   tables:
     person: person_001
     observation: observation_001
