@@ -201,7 +201,7 @@ class BCLinkHelpers:
             if self.dry_run:
                 for msg in stdout.splitlines():
                     self.logger.critical(msg)
-                 exists = False   
+                exists = False   
             else:    
                 exists = bool(int(stdout.splitlines()[1]))
             
