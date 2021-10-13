@@ -100,6 +100,7 @@ def _process_data(ctx):
     logger = Logger("_process_data")
     data = ctx.obj['data']
     clean = ctx.obj['clean']
+    bclink_helpers = ctx.obj['bclink_helpers']
     
     #calculate the amount of time to wait before checking for changes
     tdelta = None
