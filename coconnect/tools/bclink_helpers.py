@@ -194,9 +194,16 @@ class BCLinkHelpers:
             _list = ','.join([f"'{x}'" for x in data["ids"]["TARGET_SUBJECT"].values])
             query=f"select exists(select 1 from {self.global_ids} where TARGET_SUBJECT in ({_list}) )"
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
+            if self.dry_run:
+                cmd.insert(0,'echo')
             stdout,stderr = run_bash_cmd(cmd)
-            
-            exists = bool(int(stdout.splitlines()[1]))
+
+            if self.dry_run:
+                for msg in stdout.splitlines():
+                    self.logger.critical(msg)
+                 exists = False   
+            else:    
+                exists = bool(int(stdout.splitlines()[1]))
             
             if exists:
                 query=f"select * from {self.global_ids} where TARGET_SUBJECT in ({_list}) "
