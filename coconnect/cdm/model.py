@@ -116,7 +116,7 @@ class CommonDataModel:
             self.logger.info(f"Turning on automatic rule generation")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = None
+        self.person_id_masker = self.get_existing_person_id_masker()
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -245,6 +245,14 @@ class CommonDataModel:
                                 f"but this table ({destination_table}) "
                                 "has not be passed, so starting from 1")
             return 1
+
+    def get_existing_person_id_masker(self):
+        fname = f"{self.output_folder}{os.path.sep}global_ids.tsv"
+        if os.path.exists(fname):
+            _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
+            return _df.to_dict()
+        else:
+            return None
             
     def get_objects(self,destination_table):
         """
@@ -280,17 +288,20 @@ class CommonDataModel:
 
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
-            if self.person_id_masker is None or destination_table == 'person':
+                                                 
+            if destination_table == 'person':
                 if self.person_id_masker is not None:
                     start_index = list(self.person_id_masker.values())[-1] + 1
                 else:
+                    self.person_id_masker = {}
                     start_index = self.get_start_index(destination_table)
 
-                self.person_id_masker = {
+                self.person_id_masker.update({
                     x:i+start_index
                     for i,x in enumerate(df['person_id'].unique())
-                }
-                
+                })
+               
+
                 if destination_table == 'person':
                     os.makedirs(self.output_folder,exist_ok=True)
                     dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])

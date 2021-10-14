@@ -14,6 +14,7 @@ from . import bclink_helpers
 from .file_helpers import (
     load_json,
     load_csv,
+    remove_missing_sources_from_rules,
     get_separator_from_filename,
     get_file_map_from_dir,
     get_mapped_fields_from_rules,

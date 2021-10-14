@@ -125,9 +125,10 @@ def _process_data(ctx):
             
     i = 0
     while True:
-        subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() }
+        subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() and not os.path.basename(f.path).startswith('.')}
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
+        
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
             
@@ -267,6 +268,7 @@ def _extract(ctx,data,rules,bclink_helpers):
     
     logger = Logger("extract")
     logger.info(f"starting extraction processes")
+
     do_pseudonymise=False
     if 'pseudonymise' in data:
         _pseudonymise = data['pseudonymise']
@@ -290,6 +292,10 @@ def _extract(ctx,data,rules,bclink_helpers):
 
         inputs = []
         for table,person_id in person_id_map.items():
+            if table not in input_map:
+                logger.warning(f"Could not find table {table} in input_map")
+                logger.warning(input_map)
+                continue
             fin = input_map[table]
             fout = ctx.invoke(pseudonymise,
                               input=fin,
@@ -302,13 +308,24 @@ def _extract(ctx,data,rules,bclink_helpers):
         
         data.pop('pseudonymise')
         data['input'] = inputs
+      
+    df_ids = bclink_helpers.get_global_ids()
+    if df_ids is not None:
+        _dir = data['output']
+        if not os.path.exists(_dir):
+            logger.info(f'making output folder {_dir} to insert existing masked ids')
+            os.makedirs(_dir)
         
+        fname = f"{_dir}/global_ids.tsv"
+        df_ids.to_csv(fname,sep='\t')
+       
     indexer = bclink_helpers.get_indicies()
     return {'indexer':indexer,'data':data}
 
 def _transform(ctx,rules,inputs,output_folder,indexer):
     logger = Logger("transform")
     logger.info("starting data transform processes")
+
     ctx.invoke(run,
                rules=rules,
                inputs=inputs,
@@ -371,6 +388,8 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
 
     inputs = data['input']
     output_folder = data['output']
+    
+    rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
     
     #call transform
     #----------------------------------
