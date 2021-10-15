@@ -5,8 +5,11 @@ import textwrap
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
 
 class Logger(logging.Logger):
-    def __init__(self,name,save_to_file=False):
+    def __init__(self,name):
         super().__init__(name)
+
+        save_to_file = coconnect.params['log_file']
+        
         debug_level = coconnect.params['debug_level']
 
         if debug_level == 0:
@@ -27,8 +30,9 @@ class Logger(logging.Logger):
         self.addHandler(ch)
 
         if save_to_file:
+            self.info(f"Saving logs to file {save_to_file}")
             file_formatter = logging.Formatter(format_str)
-            fh = logging.FileHandler('coconnect.log',mode='a')
+            fh = logging.FileHandler(save_to_file,mode='a')
             fh.setFormatter(file_formatter)
             fh.setLevel(debug_level)
             self.addHandler(fh)
