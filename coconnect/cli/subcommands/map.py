@@ -129,7 +129,7 @@ def run(ctx,rules,inputs,format_level,
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
     if log_file == 'auto':
-        log_file = f"{output_folder}{os.path.sep}coconnect.log"
+        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
         
     
