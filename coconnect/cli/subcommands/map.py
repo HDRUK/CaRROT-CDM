@@ -106,13 +106,16 @@ def test(ctx):
 @click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
               help="turn off automatic conversion (creation) of person_id to (as) Integer")
+@click.option("log_file","--log-file",
+              default = 'auto',
+              help="specify a path for a log file")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
-        csv_separator,use_profiler,
+        csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -122,6 +125,14 @@ def run(ctx,rules,inputs,format_level,
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
 
+    if output_folder is None:
+        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+
+    if log_file == 'auto':
+        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
+        coconnect.params['log_file'] = log_file
+        
+    
     #load the json loads
     if type(rules) == dict:
         config = rules
@@ -197,9 +208,7 @@ def run(ctx,rules,inputs,format_level,
         for x in inputs
     }
     
-    if output_folder is None:
-        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
-
+        
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,

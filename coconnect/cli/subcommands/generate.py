@@ -58,7 +58,7 @@ def ccom(report_id,number_of_events,output_directory,
     for table in response.json():
         name = table['name']
         _id = table['id']
-
+        
         #get which is the person_id and automatically fill this with incrementing values
         #so they are not all NaN in the synthetic data (because of List Truncated...)
         person_id = table['person_id']
