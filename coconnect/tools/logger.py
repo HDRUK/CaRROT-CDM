@@ -2,6 +2,7 @@ import coconnect
 import logging
 import coloredlogs
 import textwrap
+import os
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
 
 class Logger(logging.Logger):
@@ -32,6 +33,10 @@ class Logger(logging.Logger):
         if save_to_file:
             self.info(f"Saving logs to file {save_to_file}")
             file_formatter = logging.Formatter(format_str)
+            _dir = os.path.dirname(save_to_file)
+            if not os.path.exists(_dir):
+                os.makedirs(_dir)
+            
             fh = logging.FileHandler(save_to_file,mode='a')
             fh.setFormatter(file_formatter)
             fh.setLevel(debug_level)
