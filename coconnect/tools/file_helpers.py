@@ -173,6 +173,16 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
     return retval
 
 
+def get_subfolders(input_folder):
+    return { 
+        os.path.basename(f.path):f.path 
+        for f in os.scandir(input_folder) 
+        if f.is_dir() and not os.path.basename(f.path).startswith('.')
+    }
+
+def get_files(path,type='csv'):
+    return [x.path for x in os.scandir(path) if x.path.endswith(f'.{type}')]
+
 def get_file_map_from_dir(_dir):
     if not os.path.isdir(_dir):
         _dir = os.path.abspath(
@@ -202,6 +212,16 @@ def remove_missing_sources_from_rules(rules,tables):
         if not rules_copy['cdm'][destination_table]:
             rules_copy['cdm'].pop(destination_table)
         
+    return rules_copy
+
+def filter_rules_by_destination_tables(rules,tables):
+    rules_copy = copy.deepcopy(rules)
+
+    print (tables)
+    for destination_table,cdm_table in rules['cdm'].items():
+        print (destination_table, destination_table in tables)
+        
+    exit(0)
     return rules_copy
     
 

@@ -1,4 +1,6 @@
 import click
+import inquirer
+
 import os
 try:
     import daemon
@@ -81,7 +83,7 @@ def bclink(ctx,force,config_file):
     ctx.obj['bclink_helpers'] = bclink_helpers
     ctx.obj['rules'] = rules
     ctx.obj['data'] = config['data']
-
+   
     log = 'coconnect.log'
     if 'log' in config.keys():
         log = config['log']
@@ -98,8 +100,12 @@ def bclink(ctx,force,config_file):
 
 def _process_data(ctx):
     logger = Logger("_process_data")
+    logger.info("ETL process has begun")
+    interactive = ctx.obj['interactive']
+   
     data = ctx.obj['data']
     clean = ctx.obj['clean']
+    rules = ctx.obj['rules']
     bclink_helpers = ctx.obj['bclink_helpers']
     
     #calculate the amount of time to wait before checking for changes
@@ -113,54 +119,96 @@ def _process_data(ctx):
     #get the root output folder
     output_folder = data['output']
 
+
     #clean outside of the following loop
     if clean:
+
+        clean_tables = clean_folder = True
+        if interactive:
+            questions = [
+                inquirer.Confirm('clean_tables',
+                                 message=f"Clean all bclink tables? '"),
+                inquirer.Confirm('clean_folder',
+                                 message=f"Remove the folder '{output_folder}'")
+            ]
+            answers = inquirer.prompt(questions)
+            clean_tables = answers['clean_tables']
+            clean_folder = answers['clean_folder']
+   
+
         #if clean flag is true
         #clean the bclink tables
-        bclink_helpers.clean_tables()
+        if clean_tables:
+            bclink_helpers.clean_tables()
         #remove the output folder
-        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+        if clean_folder and os.path.exists(output_folder) and os.path.isdir(output_folder):
             logger.info(f"removing old output_folder {output_folder}")
             shutil.rmtree(output_folder)
             
     i = 0
     while True:
-        subfolders = { os.path.basename(f.path):f.path for f in os.scandir(input_folder) if f.is_dir() and not os.path.basename(f.path).startswith('.')}
+        #find subfolders containing data dumps
+        subfolders = coconnect.tools.get_subfolders(input_folder)
+                       
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
         
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
-            
-        jobs = []
-        for name,path in subfolders.items():
-            if not os.path.exists(f"{output_folder}/{name}"):
-                logger.info(f"New folder found! Creating a new task for processing {path} {name}")
-                
-                inputs = [x.path for x in os.scandir(path) if x.path.endswith('.csv')]
-                if len(inputs) == 0:
-                    logger.critical(f"New subfolder contains no .csv files!")
-                    continue
-                    
-                _data = copy.deepcopy(data)
-                _data['input'] = inputs
-                _data['output'] = f"{output_folder}/{name}"
-                jobs.append(_data)
-            else:
-                logger.debug(f"Already found a results folder for {path} "
-                             f"({output_folder}/{name}). "
-                             "Assuming this data has already been processed!")
-        for job in jobs:
           
+        njobs=0
+        for name,path in sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1])):
+            output_folder_exists = os.path.exists(f"{output_folder}/{name}")
+            
+            inputs = coconnect.tools.get_files(path,type='csv')
+            filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+
+            if output_folder_exists:
+                output_tables = [
+                    os.path.splitext(os.path.basename(x))[0]
+                    for x in coconnect.tools.get_files(f"{output_folder}/{name}",type='tsv')
+                ]
+                
+                expected_outputs = list(filtered_rules['cdm'].keys())
+                to_process = list(set(expected_outputs) - set(output_tables))
+
+                if len(to_process) == 0:
+                    continue
+
+
+            logger.info(f"New data found!")
+            logger.info(f"Creating a new task for processing {path} {name}")
+                
+                            
+            if len(inputs) == 0:
+                logger.critical(f"Subfolder contains no .csv files!")
+                continue
+                    
+            _data = copy.deepcopy(data)
+            _data['input'] = inputs
+            _data['output'] = f"{output_folder}/{name}"
+        
+            if interactive:
+                questions = [
+                    inquirer.Confirm('execute',
+                                     message=f"Execute processing of new data in {_data['input']}")
+                ]
+                answers = inquirer.prompt(questions)
+                proceed = answers['execute']
+                if not proceed:
+                    continue
+            
             _execute(ctx,
-                     data=job,
+                     data=_data,
+                     rules=filtered_rules,
                      clean=False
             )
+            njobs+=1
             
         if tdelta is None:
             break
                 
-        if len(jobs)>0 or i==0:
+        if njobs>0 or i==0:
             logger.info(f"Refreshing {input_folder} every {tdelta} to look for new subfolders....")
             if len(subfolders.values()) == 0:
                 logger.warning("No subfolders for data dumps yet found...")
@@ -170,11 +218,60 @@ def _process_data(ctx):
         
 
 @click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
+@click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
 @click.pass_obj
-def clean_tables(ctx):
+def clean_tables(ctx,skip_local_folder):
     bclink_helpers = ctx['bclink_helpers']
     logger = Logger("clean_tables")
+
+    output_folder = ctx['data']['output']
+    if (not skip_local_folder) and os.path.exists(output_folder) and os.path.isdir(output_folder):
+        logger.info(f"removing {output_folder}")
+        shutil.rmtree(output_folder)
+    
     bclink_helpers.clean_tables()
+      
+
+@click.command(help='delete data that has been inserted into bclink')
+@click.pass_obj
+def delete_data(ctx):
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("delete_data")
+    logger.info("deleting data...")
+
+    data = ctx['data']
+    input_data = data['input']
+    output_data = data['output']
+    
+    
+    folders = coconnect.tools.get_subfolders(output_data)
+    
+    options = [
+        inquirer.Checkbox('folders',
+                      message="Which data-dump do you want to remove?",
+                      choices=list(folders.values())
+            ),
+    ]
+    selected_folders = inquirer.prompt(options)["folders"]
+    for selected_folder in selected_folders:
+        files = coconnect.tools.get_files(selected_folder,type='tsv')
+                
+        options = [
+            inquirer.Checkbox('files',
+                              message="Confirm the removal of the following tsv files.. ",
+                              choices=files,
+                              default=files
+                          ),
+        ]
+        selected_files = inquirer.prompt(options)["files"]
+        for f in selected_files:
+        
+            bclink_helpers.remove_table(f)
+    
+            click.echo(f"Deleting {f}")
+            os.remove(f)
+    
+    
 
 
 @click.command(help='check the bclink tables')
@@ -232,9 +329,10 @@ def create_tables(ctx):
 
 
 @click.command(help='Run the full ETL process for CO-CONNECT integrated with BCLink')
+@click.option('--interactive','-i',help='run with interactive options - i.e. so user can confirm operations',is_flag=True)
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
 @click.pass_context
-def execute(ctx,run_as_daemon):
+def execute(ctx,interactive,run_as_daemon):
     logger = Logger("Execute")
 
     if run_as_daemon and daemon is None:
@@ -261,6 +359,7 @@ def execute(ctx,run_as_daemon):
             with d_ctx:
                 _process_data(ctx)
     else:
+        ctx.obj['interactive'] = interactive
         _process_data(ctx)
 
 
@@ -308,21 +407,19 @@ def _extract(ctx,data,rules,bclink_helpers):
         
         data.pop('pseudonymise')
         data['input'] = inputs
-      
-    df_ids = bclink_helpers.get_global_ids()
-    if df_ids is not None:
-        _dir = data['output']
-        if not os.path.exists(_dir):
-            logger.info(f'making output folder {_dir} to insert existing masked ids')
-            os.makedirs(_dir)
-        
-        fname = f"{_dir}/global_ids.tsv"
-        df_ids.to_csv(fname,sep='\t')
-       
+    
+    _dir = data['output']
+    f_global_ids = f"{_dir}/existing_global_ids.tsv"
+    f_global_ids = bclink_helpers.get_global_ids(f_global_ids)
+           
     indexer = bclink_helpers.get_indicies()
-    return {'indexer':indexer,'data':data}
+    return {
+        'indexer':indexer,
+        'data':data,
+        'existing_global_ids':f_global_ids
+    }
 
-def _transform(ctx,rules,inputs,output_folder,indexer):
+def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
     logger = Logger("transform")
     logger.info("starting data transform processes")
 
@@ -330,17 +427,17 @@ def _transform(ctx,rules,inputs,output_folder,indexer):
                rules=rules,
                inputs=inputs,
                output_folder=output_folder,
-               indexing_conf=indexer
+               indexing_conf=indexer,
+               person_id_map=existing_global_ids
     ) 
 
-def _load(output_folder,bclink_helpers):
+def _load(output_folder,cdm_tables,global_ids,bclink_helpers):
     logger = Logger("load")
-
     logger.info("starting loading data processes")
 
     logger.info("First, check for duplicate person_ids")
     #check to see if the person ids have already been loaded
-    if not bclink_helpers.check_global_ids(output_folder):
+    if not bclink_helpers.check_global_ids(output_folder) and global_ids:
         logger.error("Failed in check of global IDs, will not load tables")
         logger.warning("Will now clean-up results folder")
         #remove the output folder
@@ -351,10 +448,11 @@ def _load(output_folder,bclink_helpers):
                                     f"... duplicated person table has been detected in {output_folder}")
     else:
         logger.info("starting loading global ids")
-        bclink_helpers.load_global_ids(output_folder)
+        if global_ids:
+            bclink_helpers.load_global_ids(output_folder)
         
         logger.info("starting loading cdm tables")
-        bclink_helpers.load_tables(output_folder)
+        bclink_helpers.load_tables(output_folder,cdm_tables)
 
         
 def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
@@ -367,13 +465,15 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
         rules = ctx.obj['rules']
     if bclink_helpers == None:
         bclink_helpers = ctx.obj['bclink_helpers']
-        
+    
+    interactive = ctx.obj['interactive']
+         
     logger = Logger("execute")
     logger.info(f"Executing ETL...")
         
     if clean:
         logger.info(f"cleaning existing bclink tables")
-        bclink_helpers.clean_tables()
+        ctx.invoke(clean_tables)
 
     #call any extracting of data
     #----------------------------------
@@ -383,13 +483,13 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
                            bclink_helpers
     ) 
     indexer = extract_data['indexer']
+    existing_global_ids = extract_data['existing_global_ids']
     data = extract_data['data']
     #----------------------------------
 
     inputs = data['input']
     output_folder = data['output']
     
-    rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
     
     #call transform
     #----------------------------------
@@ -397,13 +497,49 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
                rules,
                inputs,
                output_folder,
-               indexer
+               indexer,
+               existing_global_ids
     )
     #----------------------------------       
+    #remove this lookup file once done with it
+    if existing_global_ids and os.path.exists(existing_global_ids):
+        os.remove(existing_global_ids)
 
+    cdm_tables = coconnect.tools.get_files(output_folder,type='tsv')
+    if interactive:
+        options = [
+            inquirer.Checkbox('cdm_tables',
+                              message="Choose which CDM tables to load..",
+                              choices=cdm_tables,
+                              default=cdm_tables
+                          ),
+        ]
+        answers = inquirer.prompt(options)
+        tables_to_load = answers['cdm_tables']
+        cdm_tables = tables_to_load
+        if len(cdm_tables) == 0 :
+            logger.info("No tables chosen to be loaded..")
+            return
+        else:
+            logger.info("Chosen to load...")
+            logger.warning(cdm_tables)
+
+    cdm_tables = [
+        os.path.splitext(os.path.basename(x))[0]
+        for x in cdm_tables
+    ]
+    
+    try:
+        idx_global_ids = cdm_tables.index('global_ids')
+        global_ids = cdm_tables.pop(idx_global_ids)
+    except ValueError:
+        global_ids = None
+    
     #call load
     #----------------------------------        
     _load(output_folder,
+          cdm_tables,
+          global_ids,
           bclink_helpers
     )
 
@@ -469,6 +605,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
                 
 
 bclink.add_command(clean_tables,'clean_tables')
+bclink.add_command(delete_data,'delete_data')
 bclink.add_command(check_tables,'check_tables')
 bclink.add_command(create_tables,'create_tables')
 bclink.add_command(execute,'execute')

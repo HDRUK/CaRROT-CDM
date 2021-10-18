@@ -179,7 +179,13 @@ class BCLinkHelpers:
             info = info.head(head)
         return info
    
-    def get_global_ids(self):
+    def get_global_ids(self,f_out):
+        # todo: chunking needs to be developed here!
+        _dir = os.path.dirname(f_out)
+        if not os.path.exists(_dir):
+            self.logger.info(f'making output folder {_dir} to insert existing masked ids')
+            os.makedirs(_dir)
+   
         query=f"SELECT * FROM {self.global_ids} "
         cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
         if self.dry_run:
@@ -189,10 +195,12 @@ class BCLinkHelpers:
         stdout,stderr = run_bash_cmd(cmd)
         if len(stdout.splitlines()) == 0:
             return None
-        
+            
         df_ids = pd.read_csv(io.StringIO(stdout),
                              sep='\t').set_index("SOURCE_SUBJECT")
-        return df_ids
+        
+        df_ids.to_csv(f_out,sep='\t')
+        return f_out
                        
     
     def check_global_ids(self,output_directory,chunksize=10):
@@ -238,7 +246,6 @@ class BCLinkHelpers:
         
    
     def load_global_ids(self,output_directory):
-
         data_file = f'{output_directory}/global_ids.tsv'
         if not os.path.exists(data_file):
             #raise FileExistsError(
@@ -274,8 +281,12 @@ class BCLinkHelpers:
                     time.sleep(5)
         
 
-    def load_tables(self,output_directory):
+    def load_tables(self,output_directory,tables_to_process=None):
         for table,tablename in self.table_map.items():
+            if tables_to_process is not None:
+                if table not in tables_to_process:
+                    continue
+
             data_file = f'{output_directory}/{table}.tsv'
             if not os.path.exists(data_file):
                 #raise FileExistsError(
@@ -329,4 +340,32 @@ class BCLinkHelpers:
         if not self.dry_run:
             self.logger.info("======== SUMMARY ========")
             self.logger.info(json.dumps(info,indent=6))
+              
+
+    def remove_table(self,fname):
+        self.logger.info(f"Called remove_table on {fname}")
+        table = os.path.splitext(os.path.basename(fname))[0]
+        data = coconnect.tools.load_csv({table:{'fields':[0],'file':fname}},
+                                        sep='\t',
+                                        chunksize=1000)
+
+        if table in self.table_map:
+            bc_table = self.table_map[table]
+        else:#if table == 'global_ids':
+            return
                     
+        pk = self.get_pk(bc_table)
+        self.logger.info(f"will remove {bc_table} using primary-key={pk}")
+            
+        while True:
+            indices_to_delete = ','.join(data[table].iloc[:,0].values)
+            self.logger.info(f"removing {len(indices_to_delete)} indices from {bc_table}")
+            query=f"DELETE FROM {bc_table} WHERE {pk} IN ({indices_to_delete}) "
+            cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
+            
+            stdout,stderr = run_bash_cmd(cmd)
+            
+            try:
+                data.next()
+            except StopIteration:
+                break
