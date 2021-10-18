@@ -178,7 +178,22 @@ class BCLinkHelpers:
         if head is not None:
             info = info.head(head)
         return info
-    
+   
+    def get_global_ids(self):
+        query=f"SELECT * FROM {self.global_ids} "
+        cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
+        if self.dry_run:
+            self.logger.critical(" ".join(cmd))
+            return None
+
+        stdout,stderr = run_bash_cmd(cmd)
+        if len(stdout.splitlines()) == 0:
+            return None
+        
+        df_ids = pd.read_csv(io.StringIO(stdout),
+                             sep='\t').set_index("SOURCE_SUBJECT")
+        return df_ids
+                       
     
     def check_global_ids(self,output_directory,chunksize=10):
         data_file = f'{output_directory}/person.tsv'
@@ -226,7 +241,9 @@ class BCLinkHelpers:
 
         data_file = f'{output_directory}/global_ids.tsv'
         if not os.path.exists(data_file):
-            raise FileExistsError(f"Cannot find global_ids.tsv in output directory: {output_directory}")
+            #raise FileExistsError(
+            self.logger.error(f"Cannot find global_ids.tsv in output directory: {output_directory}")
+            return 
            
         cmd = ['dataset_tool', '--load',f'--table={self.global_ids}',f'--user={self.gui_user}',
                f'--data_file={data_file}','--support','--bcqueue',self.database]
@@ -261,7 +278,9 @@ class BCLinkHelpers:
         for table,tablename in self.table_map.items():
             data_file = f'{output_directory}/{table}.tsv'
             if not os.path.exists(data_file):
-                raise FileExistsError(f"Cannot find {table}.tsv in output directory: {output_directory}")
+                #raise FileExistsError(
+                self.logger.error(f"Cannot find {table}.tsv in output directory: {output_directory}")
+                continue
 
             cmd = ['dataset_tool', '--load',f'--table={tablename}',f'--user={self.gui_user}',
                    f'--data_file={data_file}','--support','--bcqueue',self.database]

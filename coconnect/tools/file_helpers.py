@@ -1,5 +1,6 @@
 import os
 import glob
+import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
@@ -186,6 +187,23 @@ def get_file_map_from_dir(_dir):
     
     return _map
  
+def remove_missing_sources_from_rules(rules,tables):
+    tables = [os.path.basename(x) for x in tables]
+   
+    rules_copy = copy.deepcopy(rules)
+
+    for destination_table,cdm_table in rules['cdm'].items():
+        for table_name,sub_table in cdm_table.items():
+            first = list(sub_table.keys())[0]
+            source_table = sub_table[first]['source_table']
+            if source_table not in tables:
+                rules_copy['cdm'][destination_table].pop(table_name)
+                
+        if not rules_copy['cdm'][destination_table]:
+            rules_copy['cdm'].pop(destination_table)
+        
+    return rules_copy
+    
 
 def get_mapped_fields_from_rules(rules):
     #extract a tuple of source tables and source fields
