@@ -19,6 +19,7 @@ from .file_helpers import (
     get_separator_from_filename,
     get_file_map_from_dir,
     get_mapped_fields_from_rules,
+    get_source_tables_from_rules,
     get_subfolders,
     get_files,
     diff_csv

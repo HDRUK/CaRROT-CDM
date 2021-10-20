@@ -22,6 +22,8 @@ from sqlalchemy_utils import database_exists, create_database
 class NoInputFiles(Exception):
     pass
 
+class PersonExists(Exception):
+    pass
 
 class CommonDataModel:
     """Pythonic Version of the OHDSI CDM.
@@ -301,11 +303,17 @@ class CommonDataModel:
                     self.person_id_masker = {}
                     start_index = self.get_start_index(destination_table)
 
-                self.person_id_masker.update({
-                    x:i+start_index
-                    for i,x in enumerate(df['person_id'].unique())
-                })
-               
+                for i,x in enumerate(df['person_id'].unique()):
+                    index = i+start_index
+                    if x in self.person_id_masker:
+                        existing_index = self.person_id_masker[x]
+                        self.logger.error(f"'{x}' already found in the person_id_masker")
+                        self.logger.error(f"'{existing_index}' assigned to this already")
+                        self.logger.error(f"was trying to set '{index}'")
+                        self.logger.error(f"Most likely cause is this is duplicate data!")
+                        raise PersonExists('Duplicate person found!')
+                    self.person_id_masker[x] = index
+                                   
                 
                 os.makedirs(self.output_folder,exist_ok=True)
                 dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
@@ -322,6 +330,9 @@ class CommonDataModel:
                 dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
                     
             #apply the masking
+            if self.person_id_masker is None:
+                raise Exception(f"Person ID masking cannot be performed on"
+                                f" {destination_table} as no masker based on a person table has been defined!")
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
         return df

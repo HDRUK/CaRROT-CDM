@@ -1,5 +1,6 @@
 import click
 import inquirer
+import signal
 
 import os
 try:
@@ -45,6 +46,11 @@ def etl():
     pass
 
 
+def _load_config(config_file):
+    stream = open(config_file) 
+    config = yaml.safe_load(stream)
+    return config
+
 @click.group(help='Command group for ETL integration with bclink')
 @click.option('--force','-f',help='Force running of this, useful for development purposes',is_flag=True)
 @click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
@@ -63,8 +69,7 @@ def bclink(ctx,force,config_file):
             raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
 
 
-    stream = open(config_file) 
-    config = yaml.safe_load(stream)
+    config = _load_config(config_file)
     
     rules = coconnect.tools.load_json(config['rules'])
     destination_tables = list(rules['cdm'].keys())
@@ -88,6 +93,7 @@ def bclink(ctx,force,config_file):
     if 'log' in config.keys():
         log = config['log']
     ctx.obj['log'] = log
+    ctx.obj['conf'] = config_file
 
     clean = False
     if 'clean' in config.keys():
@@ -99,15 +105,73 @@ def bclink(ctx,force,config_file):
         raise UnknownConfigurationSetting(f'"{unknown_keys}" are not valid settings in the yaml file')
 
 def _process_data(ctx):
-    logger = Logger("_process_data")
+    data = ctx.obj['data']
+    if isinstance(data,list):
+        _process_list_data(ctx)
+    else:
+        _process_dict_data(ctx)
+    
+def _process_list_data(ctx):
+    logger = Logger("_process_list_data")
     logger.info("ETL process has begun")
+
     interactive = ctx.obj['interactive']
-   
+    data = ctx.obj['data']
+    clean = ctx.obj['clean']
+    rules = ctx.obj['rules']
+    bclink_helpers = ctx.obj['bclink_helpers']
+    config_file = ctx.obj['conf']
+    
+    bclink_helpers.print_summary()
+    
+    for item in data:
+        input_folder = item['input']
+        
+        inputs = coconnect.tools.get_files(input_folder,type='csv')
+        filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+ 
+        _execute(ctx,
+                 data=item,
+                 rules=filtered_rules,
+                 clean=clean
+             )
+        clean = False
+    
+    logger.info(f"Finished!... Listening for changes to data in {config_file}")
+    while True:
+        
+        conf = _load_config(config_file)
+        if not (data == conf['data']):
+            new_data = [obj for obj in conf['data'] if obj not in data]
+
+            logger.info(f"New data found! {new_data}")
+
+            for item in new_data:
+                input_folder = item['input']
+                inputs = coconnect.tools.get_files(input_folder,type='csv')
+                filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+                _execute(ctx,
+                         data=item,
+                         rules=filtered_rules,
+                         clean=False
+                     )
+            data += new_data
+            logger.info(f"Finished!... Listening for changes to data in {config_file}")
+        time.sleep(5)
+        
+
+def _process_dict_data(ctx):
+    logger = Logger("_process_dict_data")
+    logger.info("ETL process has begun")
+
+    interactive = ctx.obj['interactive']
     data = ctx.obj['data']
     clean = ctx.obj['clean']
     rules = ctx.obj['rules']
     bclink_helpers = ctx.obj['bclink_helpers']
     
+    bclink_helpers.print_summary()
+
     #calculate the amount of time to wait before checking for changes
     tdelta = None
     if 'watch' in data:
@@ -122,7 +186,6 @@ def _process_data(ctx):
 
     #clean outside of the following loop
     if clean:
-
         clean_tables = clean_folder = True
         if interactive:
             questions = [
@@ -132,6 +195,8 @@ def _process_data(ctx):
                                  message=f"Remove the folder '{output_folder}'")
             ]
             answers = inquirer.prompt(questions)
+            if answers == None:
+                os.kill(os.getpid(), signal.SIGINT)
             clean_tables = answers['clean_tables']
             clean_folder = answers['clean_folder']
    
@@ -149,10 +214,27 @@ def _process_data(ctx):
     while True:
         #find subfolders containing data dumps
         subfolders = coconnect.tools.get_subfolders(input_folder)
-                       
+        # if len(subfolders)>0:
+        #     logger.info(f"Found {len(subfolders)} subfolders at path '{input_folder}'")
+        # if interactive and len(subfolders)>0:
+        #     questions = [
+        #         inquirer.Checkbox('folders',
+        #                           message="Confirm processing the following subfolders.. ",
+        #                           choices=subfolders,
+        #                           default=subfolders
+        #                           )
+        #         ]
+        #     answers = inquirer.prompt(questions)
+        #     if answers == None:
+        #         os.kill(os.getpid(), signal.SIGINT)
+            
+        #     subfolders = {k:v for k,v in subfolders.items() if k in answers['folders']}
+        #     logger.info(f"selected {subfolders}")
+               
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
         
+
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
           
@@ -171,33 +253,58 @@ def _process_data(ctx):
                 
                 expected_outputs = list(filtered_rules['cdm'].keys())
                 to_process = list(set(expected_outputs) - set(output_tables))
-
+                
                 if len(to_process) == 0:
                     continue
 
+                filtered_rules = coconnect.tools.filter_rules_by_destination_tables(filtered_rules,to_process)
+               
 
-            logger.info(f"New data found!")
-            logger.info(f"Creating a new task for processing {path} {name}")
+            logger.debug(f"New data found!")
+            logger.info(f"Creating a new task for processing {path}")
                 
                             
             if len(inputs) == 0:
                 logger.critical(f"Subfolder contains no .csv files!")
                 continue
                     
+            tables = list(filtered_rules['cdm'].keys())
+            logger.debug(f'inputs: {inputs}')
+            logger.info(f'cdm tables: {tables}')
+                
+            if interactive:
+                choices = []
+                location = f"{output_folder}/{name}"
+               
+                for table in tables:
+                    source_tables = [
+                        f"{location}/{x}"
+                        for x in coconnect.tools.get_source_tables_from_rules(rules,table)
+                    ]
+                    choices.append((f"{table} ({source_tables})",table))
+                questions = [
+                    inquirer.Checkbox('tables',
+                                      message=f"Confirm executing ETL for ... ",
+                                      choices=choices,
+                                      default=tables
+                                  )
+                ]
+                answers = inquirer.prompt(questions)
+                if answers == None:
+                    os.kill(os.getpid(), signal.SIGINT)
+                tables = answers['tables']
+                if len(tables) == 0:
+                    logger.info("no tables selected, skipping..")
+                    continue
+                filtered_rules = coconnect.tools.filter_rules_by_destination_tables(filtered_rules,tables)
+                logger.info(f'cdm tables: {tables}')
+                    
+  
             _data = copy.deepcopy(data)
             _data['input'] = inputs
             _data['output'] = f"{output_folder}/{name}"
         
-            if interactive:
-                questions = [
-                    inquirer.Confirm('execute',
-                                     message=f"Execute processing of new data in {_data['input']}")
-                ]
-                answers = inquirer.prompt(questions)
-                proceed = answers['execute']
-                if not proceed:
-                    continue
-            
+
             _execute(ctx,
                      data=_data,
                      rules=filtered_rules,
@@ -220,11 +327,14 @@ def _process_data(ctx):
 @click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
 @click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
 @click.pass_obj
-def clean_tables(ctx,skip_local_folder):
+def clean_tables(ctx,skip_local_folder,data=None):
     bclink_helpers = ctx['bclink_helpers']
     logger = Logger("clean_tables")
 
-    output_folder = ctx['data']['output']
+    if data is None:
+        data = ctx['data']
+
+    output_folder = data['output']
     if (not skip_local_folder) and os.path.exists(output_folder) and os.path.isdir(output_folder):
         logger.info(f"removing {output_folder}")
         shutil.rmtree(output_folder)
@@ -252,7 +362,11 @@ def delete_data(ctx):
                       choices=list(folders.values())
             ),
     ]
-    selected_folders = inquirer.prompt(options)["folders"]
+    selected_folders = inquirer.prompt(options)
+    if selected_folders == None:
+        os.kill(os.getpid(), signal.SIGINT)
+    selected_folders = selected_folders["folders"]
+
     for selected_folder in selected_folders:
         files = coconnect.tools.get_files(selected_folder,type='tsv')
                 
@@ -263,7 +377,11 @@ def delete_data(ctx):
                               default=files
                           ),
         ]
-        selected_files = inquirer.prompt(options)["files"]
+        selected_files = inquirer.prompt(options)
+        if selected_files == None:
+            os.kill(os.getpid(), signal.SIGINT)
+        selected_files = selected_files["files"]
+
         for f in selected_files:
         
             bclink_helpers.remove_table(f)
@@ -310,21 +428,8 @@ def create_tables(ctx):
     for table_name in tables_to_create:
         print (table_name)
 
-    exit(0)
-        
-
-    stream = open(config_file) 
-    config = yaml.safe_load(stream)
-    print (config)
-    table_map = config['bclink']['tables']
-    
-    for destination_table,bclink_table in table_map.items():
-        obj = coconnect.cdm.get_cdm_class(destination_table)()
-        fields = obj.fields
-        print (destination_table)
-        #dups = bclink_helpers.get_duplicates(bclink_table,fields)
-        #exit(0)
-        
+    os.kill(os.getpid(), signal.SIGINT)
+                
 
 
 
@@ -423,6 +528,9 @@ def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
     logger = Logger("transform")
     logger.info("starting data transform processes")
 
+    if isinstance(inputs,str):
+        inputs = [inputs]
+
     ctx.invoke(run,
                rules=rules,
                inputs=inputs,
@@ -435,24 +543,12 @@ def _load(output_folder,cdm_tables,global_ids,bclink_helpers):
     logger = Logger("load")
     logger.info("starting loading data processes")
 
-    logger.info("First, check for duplicate person_ids")
-    #check to see if the person ids have already been loaded
-    if not bclink_helpers.check_global_ids(output_folder) and global_ids:
-        logger.error("Failed in check of global IDs, will not load tables")
-        logger.warning("Will now clean-up results folder")
-        #remove the output folder
-        if os.path.exists(output_folder) and os.path.isdir(output_folder):
-            logger.info(f"removing {output_folder}")
-            shutil.rmtree(output_folder)
-        raise DuplicateDataDetected("You are trying to load person_ids that have already been inserted"
-                                    f"... duplicated person table has been detected in {output_folder}")
-    else:
-        logger.info("starting loading global ids")
-        if global_ids:
-            bclink_helpers.load_global_ids(output_folder)
+    logger.info("starting loading global ids")
+    if global_ids:
+        bclink_helpers.load_global_ids(output_folder)
         
-        logger.info("starting loading cdm tables")
-        bclink_helpers.load_tables(output_folder,cdm_tables)
+    logger.info("starting loading cdm tables")
+    bclink_helpers.load_tables(output_folder,cdm_tables)
 
         
 def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
@@ -473,7 +569,7 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
         
     if clean:
         logger.info(f"cleaning existing bclink tables")
-        ctx.invoke(clean_tables)
+        ctx.invoke(clean_tables,data=data)
 
     #call any extracting of data
     #----------------------------------
@@ -489,7 +585,6 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
 
     inputs = data['input']
     output_folder = data['output']
-    
     
     #call transform
     #----------------------------------
@@ -507,14 +602,22 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
 
     cdm_tables = coconnect.tools.get_files(output_folder,type='tsv')
     if interactive:
+        choices = []
+        for x in cdm_tables:
+            tab = os.path.splitext(os.path.basename(x))[0]
+            bctab = bclink_helpers.get_bclink_table(tab)
+            text = f"{x} --> {bctab} ({tab})"
+            choices.append((text,x))
         options = [
             inquirer.Checkbox('cdm_tables',
                               message="Choose which CDM tables to load..",
-                              choices=cdm_tables,
+                              choices=choices,
                               default=cdm_tables
                           ),
         ]
         answers = inquirer.prompt(options)
+        if answers == None:
+            os.kill(os.getpid(), signal.SIGINT)
         tables_to_load = answers['cdm_tables']
         cdm_tables = tables_to_load
         if len(cdm_tables) == 0 :
@@ -528,7 +631,7 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
         os.path.splitext(os.path.basename(x))[0]
         for x in cdm_tables
     ]
-    
+        
     try:
         idx_global_ids = cdm_tables.index('global_ids')
         global_ids = cdm_tables.pop(idx_global_ids)

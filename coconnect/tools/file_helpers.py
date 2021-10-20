@@ -198,6 +198,8 @@ def get_file_map_from_dir(_dir):
     return _map
  
 def remove_missing_sources_from_rules(rules,tables):
+    logger = Logger("remove_missing_sources_from_rules")
+
     tables = [os.path.basename(x) for x in tables]
    
     rules_copy = copy.deepcopy(rules)
@@ -208,22 +210,33 @@ def remove_missing_sources_from_rules(rules,tables):
             source_table = sub_table[first]['source_table']
             if source_table not in tables:
                 rules_copy['cdm'][destination_table].pop(table_name)
+                logger.debug(f"removed {table_name} from rules")
                 
         if not rules_copy['cdm'][destination_table]:
             rules_copy['cdm'].pop(destination_table)
+            logger.debug(f"removed cdm table '{destination_table}' from rules")
         
     return rules_copy
 
 def filter_rules_by_destination_tables(rules,tables):
     rules_copy = copy.deepcopy(rules)
 
-    print (tables)
     for destination_table,cdm_table in rules['cdm'].items():
-        print (destination_table, destination_table in tables)
-        
-    exit(0)
+        if not destination_table in tables:
+            rules_copy['cdm'].pop(destination_table)
+           
     return rules_copy
     
+
+def get_source_tables_from_rules(rules,table):
+    sources = [ 
+        x['source_table']
+        for dest_table,cdm_obj_set in rules['cdm'].items()
+        for cdm_obj in cdm_obj_set.values()
+        for x in cdm_obj.values()
+        if dest_table == table
+    ]
+    return list(set(sources))
 
 def get_mapped_fields_from_rules(rules):
     #extract a tuple of source tables and source fields

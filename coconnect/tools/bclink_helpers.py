@@ -1,4 +1,3 @@
-from .bash_helpers import run_bash_cmd
 import pandas as pd
 import io
 import time
@@ -6,13 +5,16 @@ import json
 import os
 import coconnect
 from coconnect.tools.logger import Logger
+from .bash_helpers import BashHelpers
+
 
 class BCLinkHelpersException(Exception):
     pass
 
-class BCLinkHelpers:
+class BCLinkHelpers(BashHelpers):
 
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
+        super().__init__()
         self.logger = Logger("bclink_helpers")
         self.user = user
         self.gui_user = gui_user
@@ -42,10 +44,17 @@ class BCLinkHelpers:
             f'--query={query}',
             self.database
         ]
-        stdout,_ = run_bash_cmd(cmd)
+        stdout,_ = self.run_bash_cmd(cmd)
         return bool(int(stdout.splitlines()[1]))
        
-    
+    def get_bclink_table(self,table):
+        if table in self.table_map:
+            return self.table_map[table]
+        elif table == "global_ids":
+            return self.global_ids
+        
+        raise Exception(f"Request look up ofr table {table} which is unknown")
+
     def get_duplicates(self,table,fields):
         pk = fields[0]
         fields = ",".join(fields[1:])
@@ -55,7 +64,7 @@ class BCLinkHelpers:
             f'--query=SELECT array_agg({pk}) as duplicates FROM {table} GROUP BY {fields} HAVING COUNT(*)>1',
             self.database
         ]
-        return run_bash_cmd(cmd)
+        return self.run_bash_cmd(cmd)
        
 
     def get_pk(self,table):
@@ -70,7 +79,7 @@ class BCLinkHelpers:
         if self.dry_run:
             cmd.insert(0,'echo')
 
-        stdout,stdin = run_bash_cmd(cmd)
+        stdout,stdin = self.run_bash_cmd(cmd)
         if self.dry_run:
             for msg in stdout.splitlines():
                 self.logger.critical(msg)
@@ -91,14 +100,14 @@ class BCLinkHelpers:
         if self.dry_run:
             cmd.insert(0,'echo')
 
-        stdout,stderr = run_bash_cmd(cmd)
+        stdout,stderr = self.run_bash_cmd(cmd)
         if self.dry_run:
             for msg in stdout.splitlines():
                 self.logger.critical(msg)
             return 0
         else:
             last_index = int(stdout.splitlines()[1])
-            self.logger.info(f"Last index for {pk} in table {table} = {last_index}")
+            self.logger.debug(f"Last index for {pk} in table {table} = {last_index}")
             return last_index 
                    
     
@@ -110,7 +119,7 @@ class BCLinkHelpers:
             if self.dry_run:
                 count.insert(0,'echo')
                 
-            stdout,stdin = run_bash_cmd(count)
+            stdout,stdin = self.run_bash_cmd(count)
             if self.dry_run:
                 for msg in stdout.splitlines():
                     self.logger.critical(msg)
@@ -129,19 +138,19 @@ class BCLinkHelpers:
         cmd = f"cat {cover}"
         if self.dry_run:
             cmd = 'echo '+cmd
-        stdout,stderr = run_bash_cmd(cmd)
+        stdout,stderr = self.run_bash_cmd(cmd)
         for msg in stdout.splitlines():
             if self.dry_run:
                 self.logger.critical(msg)
             else:
-                self.logger.info(msg)
+                self.logger.debug(msg)
         return True
         
     def clean_table(self,table):
         clean = f'datasettool2 delete-all-rows {table} --database={self.database}'
         if self.dry_run:
             clean = 'echo '+clean
-        stdout,stderr = run_bash_cmd(clean)
+        stdout,stderr = self.run_bash_cmd(clean)
        
         if self.dry_run:
             for msg in stdout.splitlines():
@@ -158,11 +167,11 @@ class BCLinkHelpers:
         self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
         self.clean_table(self.global_ids)
             
-    def get_table_jobs(self,table,head=5):
+    def get_table_jobs(self,table,head=1):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
         if self.dry_run:
             cmd = 'echo '+cmd
-        status,_ = run_bash_cmd(cmd)
+        status,_ = self.run_bash_cmd(cmd)
         if self.dry_run:
             for msg in status.splitlines():
                 self.logger.critical(msg)
@@ -192,7 +201,7 @@ class BCLinkHelpers:
             self.logger.critical(" ".join(cmd))
             return None
 
-        stdout,stderr = run_bash_cmd(cmd)
+        stdout,stderr = self.run_bash_cmd(cmd)
         if len(stdout.splitlines()) == 0:
             return None
             
@@ -207,19 +216,19 @@ class BCLinkHelpers:
         data_file = f'{output_directory}/person.tsv'
         if not os.path.exists(data_file):
             self.logger.warning(f"{output_directory}/person.tsv file does not exist")
+            self.logger.warning("skipping global id check")
             return True
 
         data = coconnect.tools.load_csv({"ids":f"{output_directory}/global_ids.tsv"},
                                         sep='\t',
                                         chunksize=100)
-
+        
         while True:
-            _list = ','.join([f"'{x}'" for x in data["ids"]["TARGET_SUBJECT"].values])
             query=f"select exists(select 1 from {self.global_ids} where TARGET_SUBJECT in ({_list}) )"
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
             if self.dry_run:
                 cmd.insert(0,'echo')
-            stdout,stderr = run_bash_cmd(cmd)
+            stdout,stderr = self.run_bash_cmd(cmd)
 
             if self.dry_run:
                 for msg in stdout.splitlines():
@@ -229,9 +238,15 @@ class BCLinkHelpers:
                 exists = bool(int(stdout.splitlines()[1]))
             
             if exists:
-                query=f"select * from {self.global_ids} where TARGET_SUBJECT in ({_list}) "
+                #if any target IDs (hashed!) already exist in the table... 
+                #check if the pairing is different
+                _list = ','.join([f"('{s}','{t}')" for s,t in data["ids"].values])
+                self.logger.debug("getting IDs that overlap")
+                query=f"select SOURCE_SUBJECT,SOURCE_SUBJECT from {self.global_ids} where (SOURCE_SUBJECT,TARGET_SUBJECT) in ({_list}) "
                 cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
-                stdout,stderr = run_bash_cmd(cmd)
+                stdout,stderr = self.run_bash_cmd(cmd)
+                print (stdout)
+                print (len(stdout.splitlines()))
                 info = pd.read_csv(io.StringIO(stdout),
                                    sep='\t').set_index("SOURCE_SUBJECT")
                 self.logger.error(info)
@@ -256,7 +271,7 @@ class BCLinkHelpers:
                f'--data_file={data_file}','--support','--bcqueue',self.database]
         if self.dry_run:
             cmd.insert(0,'echo')
-        stdout,stderr = run_bash_cmd(cmd)
+        stdout,stderr = self.run_bash_cmd(cmd)
         for msg in stdout.splitlines():
             if self.dry_run:
                 self.logger.critical(msg)
@@ -269,15 +284,16 @@ class BCLinkHelpers:
             #is a dry run, just test this
             self.check_logs(0)
         else:
-            self.logger.info(stats)
             job_id = stats.iloc[0]['JOB']
             while True:
+                stats = self.get_table_jobs(table_name)
+                self.logger.info(stats)
                 self.logger.info(f"Getting log for {table_name} id={job_id}")
                 success = self.check_logs(job_id)
                 if success:
                     break
                 else:
-                    self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running. Trying again in 5 seconds..")
+                    self.logger.debug(f"Didn't find the log for {table_name} id={job_id} yet, job still running. Trying again in 5 seconds..")
                     time.sleep(5)
         
 
@@ -297,7 +313,7 @@ class BCLinkHelpers:
                    f'--data_file={data_file}','--support','--bcqueue',self.database]
             if self.dry_run:
                 cmd.insert(0,'echo')
-            stdout,stderr = run_bash_cmd(cmd)
+            stdout,stderr = self.run_bash_cmd(cmd)
             for msg in stdout.splitlines():
                 if self.dry_run:
                     self.logger.critical(msg)
@@ -305,16 +321,20 @@ class BCLinkHelpers:
                     self.logger.info(f"submitted job to bclink queue: {msg}")
 
 
-        for table_name in self.table_map.values():
-            self.logger.info(f"Checking jobs submitted for {table_name}")
+        for table,table_name in self.table_map.items():
+            if tables_to_process is not None:
+                if table not in tables_to_process:
+                    continue
+            self.logger.debug(f"Checking jobs submitted for {table_name}")
             stats = self.get_table_jobs(table_name)
             if stats is None:
                 #is a dry run, just test this
                 self.check_logs(0)
             else:
-                self.logger.info(stats)
                 job_id = stats.iloc[0]['JOB']
                 while True:
+                    stats = self.get_table_jobs(table_name)
+                    self.logger.info(stats)
                     self.logger.info(f"Getting log for {table_name} id={job_id}")
                     success = self.check_logs(job_id)
                     if success:
@@ -322,14 +342,19 @@ class BCLinkHelpers:
                     else:
                         self.logger.warning(f"Didn't find the log for {table_name} id={job_id} yet, job still running.")
                         time.sleep(1)
-    
+
+        self.print_summary()
+
+    def print_summary(self):
         info = {}
         for table,table_name in self.table_map.items():
+            if table_name == None:
+                continue
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query=SELECT count(*) FROM {table_name}',self.database]
             if self.dry_run:
                 cmd.insert(0,'echo')
 
-            stdout,stderr = run_bash_cmd(cmd)
+            stdout,stderr = self.run_bash_cmd(cmd)
             if self.dry_run:
                 for msg in stdout.splitlines():
                     self.logger.critical(msg)
@@ -337,6 +362,20 @@ class BCLinkHelpers:
                 count = stdout.splitlines()[1]
                 info[table] = {'bclink_table':table_name,
                                'nrows':count}
+                if table == 'person' and self.global_ids:
+                    cmd=['bc_sqlselect',
+                         f'--user={self.user}',
+                         f'--query=SELECT count(*) FROM {self.global_ids}',
+                         self.database]
+                    stdout,stderr = self.run_bash_cmd(cmd)
+                    count = stdout.splitlines()[1]
+                    info[table]['global_ids'] = {
+                        'bclink_table':self.global_ids,
+                        'nrows':count
+                    }
+      
+                    #to-do warn/error if counts differ betwene person and global ids table
+        
         if not self.dry_run:
             self.logger.info("======== SUMMARY ========")
             self.logger.info(json.dumps(info,indent=6))
@@ -355,15 +394,15 @@ class BCLinkHelpers:
             return
                     
         pk = self.get_pk(bc_table)
-        self.logger.info(f"will remove {bc_table} using primary-key={pk}")
+        self.logger.debug(f"will remove {bc_table} using primary-key={pk}")
             
         while True:
             indices_to_delete = ','.join(data[table].iloc[:,0].values)
-            self.logger.info(f"removing {len(indices_to_delete)} indices from {bc_table}")
+            self.logger.debug(f"removing {len(indices_to_delete)} indices from {bc_table}")
             query=f"DELETE FROM {bc_table} WHERE {pk} IN ({indices_to_delete}) "
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
             
-            stdout,stderr = run_bash_cmd(cmd)
+            stdout,stderr = self.run_bash_cmd(cmd)
             
             try:
                 data.next()
