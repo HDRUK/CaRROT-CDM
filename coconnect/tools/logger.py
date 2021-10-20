@@ -6,9 +6,18 @@ def notice(self, message, *args, **kws):
     self._log(DEBUG_LEVELV_NUM, message, args, **kws) 
 logging.Logger.notice = notice
 
+
+logging.addLevelName(10, "TEXT")
+def spam(self, message, *args, **kws):
+    self._log(10, message, args, **kws) 
+logging.Logger.info_v2 = spam
+
 import coloredlogs
 import textwrap
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
+
+coloredlogs.DEFAULT_LEVEL_STYLES['text'] = {'color': 219}
+
 
 class Logger(logging.Logger):
     def __init__(self,name,save_to_file=False):

@@ -13,6 +13,7 @@ from . import bclink_helpers
 
 from .file_helpers import (
     load_json,
+    load_json_delta,
     load_csv,
     remove_missing_sources_from_rules,
     filter_rules_by_destination_tables,

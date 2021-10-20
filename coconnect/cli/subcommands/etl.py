@@ -54,8 +54,9 @@ def _load_config(config_file):
 @click.group(help='Command group for ETL integration with bclink')
 @click.option('--force','-f',help='Force running of this, useful for development purposes',is_flag=True)
 @click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
+@click.option('--interactive','-i',help='run with interactive options - i.e. so user can confirm operations',is_flag=True)
 @click.pass_context
-def bclink(ctx,force,config_file):
+def bclink(ctx,force,config_file,interactive):
 
     if not force:
         #check the platform (i.e. should be centos)
@@ -70,7 +71,7 @@ def bclink(ctx,force,config_file):
 
 
     config = _load_config(config_file)
-    
+    #put in protection for missing keys
     rules = coconnect.tools.load_json(config['rules'])
     destination_tables = list(rules['cdm'].keys())
     
@@ -99,6 +100,8 @@ def bclink(ctx,force,config_file):
     if 'clean' in config.keys():
         clean = config['clean']
     ctx.obj['clean'] = clean
+
+    ctx.obj['interactive'] = interactive
     
     unknown_keys = list( set(config.keys()) - set(ctx.obj.keys()) )
     if len(unknown_keys) > 0 :
@@ -116,47 +119,84 @@ def _process_list_data(ctx):
     logger.info("ETL process has begun")
 
     interactive = ctx.obj['interactive']
-    data = ctx.obj['data']
+    data = []
     clean = ctx.obj['clean']
     rules = ctx.obj['rules']
     bclink_helpers = ctx.obj['bclink_helpers']
     config_file = ctx.obj['conf']
+    conf = _load_config(config_file)
+    rules_file = conf['rules']
+    rules_file_last_modified = os.path.getmtime(rules_file) 
     
     bclink_helpers.print_summary()
-    
-    for item in data:
-        input_folder = item['input']
-        
-        inputs = coconnect.tools.get_files(input_folder,type='csv')
-        filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
- 
-        _execute(ctx,
-                 data=item,
-                 rules=filtered_rules,
-                 clean=clean
-             )
-        clean = False
-    
-    logger.info(f"Finished!... Listening for changes to data in {config_file}")
+    display_msg = True
+    _clean = clean
+
     while True:
         
+        re_execute = False
+        
         conf = _load_config(config_file)
-        if not (data == conf['data']):
-            new_data = [obj for obj in conf['data'] if obj not in data]
-
+        current_rules_file = conf['rules']
+        new_rules_file = rules_file != current_rules_file
+        if new_rules_file:
+            #if there's a new rules file
+            logger.info(f"Detected a new rules file.. old was '{rules_file}' and new is '{current_rules_file}'")
+            rules_file = current_rules_file
+            rules = coconnect.tools.load_json_delta(rules_file,rules)
+            rules_file_last_modified = os.path.getmtime(rules_file)
+            re_execute = True
+        else: 
+            #otherwise check for changes in the existing file
+            new_rules_file_last_modified = os.path.getmtime(current_rules_file)
+            change_in_rules = rules_file_last_modified != new_rules_file_last_modified
+            if change_in_rules:
+                logger.info(f"Detected a change/update in the rules file '{rules_file}'")
+                rules = coconnect.tools.load_json_delta(current_rules_file,rules)
+                re_execute = True 
+            
+        current_data = conf['data']
+        if not data == current_data:
+            logger.debug(f"old {data}")
+            logger.debug(f"new {current_data}")
+            new_data = [obj for obj in current_data if obj not in data]
             logger.info(f"New data found! {new_data}")
+            re_execute = True
+        else:
+            new_data = data
 
+        logger.debug(f"re-execute {re_execute}")
+        if re_execute:
+            #loop over any new data
             for item in new_data:
                 input_folder = item['input']
                 inputs = coconnect.tools.get_files(input_folder,type='csv')
                 filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+
                 _execute(ctx,
                          data=item,
                          rules=filtered_rules,
-                         clean=False
+                         clean=_clean
                      )
-            data += new_data
+                _clean = False
+        
+            data += [x for x in new_data if x not in data]
+            display_msg=True
+       
+
+        if new_rules_file or change_in_rules:
+            #if there's a new rules file or rules delta,
+            #need to pick up the full rules for the next loop
+            #incase we insert new data
+            # --> we dont want to just apply the delta to the new data
+            rules = coconnect.tools.load_json(current_rules_file)
+       
+    
+        if display_msg:
             logger.info(f"Finished!... Listening for changes to data in {config_file}")
+            if display_msg:
+                display_msg = False
+    
         time.sleep(5)
         
 
@@ -183,33 +223,7 @@ def _process_dict_data(ctx):
     #get the root output folder
     output_folder = data['output']
 
-
-    #clean outside of the following loop
-    if clean:
-        clean_tables = clean_folder = True
-        if interactive:
-            questions = [
-                inquirer.Confirm('clean_tables',
-                                 message=f"Clean all bclink tables? '"),
-                inquirer.Confirm('clean_folder',
-                                 message=f"Remove the folder '{output_folder}'")
-            ]
-            answers = inquirer.prompt(questions)
-            if answers == None:
-                os.kill(os.getpid(), signal.SIGINT)
-            clean_tables = answers['clean_tables']
-            clean_folder = answers['clean_folder']
-   
-
-        #if clean flag is true
-        #clean the bclink tables
-        if clean_tables:
-            bclink_helpers.clean_tables()
-        #remove the output folder
-        if clean_folder and os.path.exists(output_folder) and os.path.isdir(output_folder):
-            logger.info(f"removing old output_folder {output_folder}")
-            shutil.rmtree(output_folder)
-            
+                
     i = 0
     while True:
         #find subfolders containing data dumps
@@ -233,15 +247,15 @@ def _process_dict_data(ctx):
                
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
-        
-
+  
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
           
         njobs=0
+        #print (reversed(sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1]))))
         for name,path in sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1])):
             output_folder_exists = os.path.exists(f"{output_folder}/{name}")
-            
+  
             inputs = coconnect.tools.get_files(path,type='csv')
             filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
 
@@ -272,33 +286,6 @@ def _process_dict_data(ctx):
             logger.debug(f'inputs: {inputs}')
             logger.info(f'cdm tables: {tables}')
                 
-            if interactive:
-                choices = []
-                location = f"{output_folder}/{name}"
-               
-                for table in tables:
-                    source_tables = [
-                        f"{location}/{x}"
-                        for x in coconnect.tools.get_source_tables_from_rules(rules,table)
-                    ]
-                    choices.append((f"{table} ({source_tables})",table))
-                questions = [
-                    inquirer.Checkbox('tables',
-                                      message=f"Confirm executing ETL for ... ",
-                                      choices=choices,
-                                      default=tables
-                                  )
-                ]
-                answers = inquirer.prompt(questions)
-                if answers == None:
-                    os.kill(os.getpid(), signal.SIGINT)
-                tables = answers['tables']
-                if len(tables) == 0:
-                    logger.info("no tables selected, skipping..")
-                    continue
-                filtered_rules = coconnect.tools.filter_rules_by_destination_tables(filtered_rules,tables)
-                logger.info(f'cdm tables: {tables}')
-                    
   
             _data = copy.deepcopy(data)
             _data['input'] = inputs
@@ -329,17 +316,68 @@ def _process_dict_data(ctx):
 @click.pass_obj
 def clean_tables(ctx,skip_local_folder,data=None):
     bclink_helpers = ctx['bclink_helpers']
+    interactive = ctx['interactive']
+   
     logger = Logger("clean_tables")
+
 
     if data is None:
         data = ctx['data']
 
-    output_folder = data['output']
-    if (not skip_local_folder) and os.path.exists(output_folder) and os.path.isdir(output_folder):
-        logger.info(f"removing {output_folder}")
-        shutil.rmtree(output_folder)
+    if isinstance(data,dict):
+        output_folders = [data['output']]
+    else:
+        output_folders = [x['output'] for x in data]
+
     
-    bclink_helpers.clean_tables()
+    if interactive:
+        tables = list(bclink_helpers.table_map.values())
+        choices = [ (f"{v} ({k})",v) for k,v in bclink_helpers.table_map.items()]
+
+        tables.append(bclink_helpers.global_ids)
+        choices.append((f'{bclink_helpers.global_ids} (global_ids)',bclink_helpers.global_ids))
+        
+        questions = [
+            inquirer.Checkbox('clean_tables',
+                              message=f"Clean all-rows in which BCLink tables?",
+                              choices=choices,
+                              default=tables)
+        ]
+        answers = inquirer.prompt(questions)
+        if answers == None:
+            os.kill(os.getpid(), signal.SIGINT)
+
+        tables = answers['clean_tables']
+        bclink_helpers.clean_tables(tables)
+    else:
+        bclink_helpers.clean_tables()
+   
+    if skip_local_folder:
+        return
+
+    if interactive:    
+        questions = [
+            inquirer.Checkbox('output_folders',
+                              message=f"Clean the following output folders?",
+                              choices=output_folders,
+                              default=output_folders)
+        ]
+        answers = inquirer.prompt(questions)
+        if answers == None:
+            os.kill(os.getpid(), signal.SIGINT)
+        
+        output_folders = answers['output_folders']
+
+    for output_folder in output_folders:
+        if not os.path.exists(output_folder):
+            logger.info(f"No folder to remove at '{output_folder}'")
+            continue
+            
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            logger.info(f"removing {output_folder}")
+            shutil.rmtree(output_folder)
+   
+
       
 
 @click.command(help='delete data that has been inserted into bclink')
@@ -434,10 +472,9 @@ def create_tables(ctx):
 
 
 @click.command(help='Run the full ETL process for CO-CONNECT integrated with BCLink')
-@click.option('--interactive','-i',help='run with interactive options - i.e. so user can confirm operations',is_flag=True)
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
 @click.pass_context
-def execute(ctx,interactive,run_as_daemon):
+def execute(ctx,run_as_daemon):
     logger = Logger("Execute")
 
     if run_as_daemon and daemon is None:
@@ -464,7 +501,6 @@ def execute(ctx,interactive,run_as_daemon):
             with d_ctx:
                 _process_data(ctx)
     else:
-        ctx.obj['interactive'] = interactive
         _process_data(ctx)
 
 
@@ -563,14 +599,41 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
         bclink_helpers = ctx.obj['bclink_helpers']
     
     interactive = ctx.obj['interactive']
-         
     logger = Logger("execute")
-    logger.info(f"Executing ETL...")
-        
     if clean:
         logger.info(f"cleaning existing bclink tables")
         ctx.invoke(clean_tables,data=data)
+   
 
+    tables = list(rules['cdm'].keys())
+    if interactive:
+        choices = []
+        #location = f"{output_folder}/{name}"
+        for table in tables:
+            source_tables = [
+                f"{data['input']}/{x}"
+                for x in coconnect.tools.get_source_tables_from_rules(rules,table)
+            ]
+            choices.append((f"{table} ({source_tables})",table))
+        questions = [
+            inquirer.Checkbox('tables',
+                              message=f"Confirm executing ETL for ... ",
+                              choices=choices,
+                              default=tables
+                          )
+        ]
+        answers = inquirer.prompt(questions)
+        if answers == None:
+            os.kill(os.getpid(), signal.SIGINT)
+        tables = answers['tables']
+        if len(tables) == 0:
+            logger.info("no tables selected, skipping..")
+            return
+        rules = coconnect.tools.filter_rules_by_destination_tables(rules,tables)
+        logger.info(f'cdm tables: {tables}')
+        
+    logger.info(f"Executing ETL...")
+        
     #call any extracting of data
     #----------------------------------
     extract_data= _extract(ctx,

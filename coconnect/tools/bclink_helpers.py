@@ -142,8 +142,10 @@ class BCLinkHelpers(BashHelpers):
         for msg in stdout.splitlines():
             if self.dry_run:
                 self.logger.critical(msg)
+            elif 'data row(s) discarded,' in msg:
+                self.logger.warning(msg)
             else:
-                self.logger.debug(msg)
+                self.logger.info_v2(msg)
         return True
         
     def clean_table(self,table):
@@ -159,11 +161,19 @@ class BCLinkHelpers(BashHelpers):
             for msg in stderr.splitlines():
                 self.logger.warning(msg)
                    
-    def clean_tables(self):
+    def clean_tables(self,tables=None):
         for table in self.table_map.values():
+            if tables is not None:
+                if not table in tables:
+                    continue
+
             self.logger.info(f"Cleaning table {table}")
             self.clean_table(table)
        
+        if tables is not None:
+            if not self.global_ids in tables:
+                return
+
         self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
         self.clean_table(self.global_ids)
             

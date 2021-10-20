@@ -82,6 +82,37 @@ class InputData:
         self.__file_readers[key] = obj
         
     
+def load_json_delta(f_in,original):
+    logger = Logger("load_json_delta")
+    logger.info(f"loading a json from '{f_in}' as a delta")
+    data = load_json(f_in)
+    
+    original_date = original['metadata']['date_created']
+    data_date = data['metadata']['date_created']
+
+    logger.info(f"Original JSON date: {original_date}")
+    logger.info(f"New JSON date: {data_date}")
+
+    _data = copy.deepcopy(data)
+
+    for destination_table,rule_set in data['cdm'].items():
+        for name,rules in rule_set.items():
+            exists_in_original_rules = None
+            if destination_table in original['cdm']:
+                if name in original['cdm'][destination_table]:
+                    exists_in_original_rules = original['cdm'][destination_table][name]
+            
+            if exists_in_original_rules:
+                _data['cdm'][destination_table].pop(name)
+            else:
+                logger.info(f"Detected a new rule for {name}")
+                logger.debug(json.dumps(rules,indent=6))
+        
+        if not _data['cdm'][destination_table]:
+            _data['cdm'].pop(destination_table)
+
+    logger.info(json.dumps(_data,indent=6))
+    return _data
     
 
 def load_json(f_in):
