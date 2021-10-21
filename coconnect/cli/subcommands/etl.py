@@ -103,6 +103,9 @@ def bclink(ctx,force,config_file,interactive):
 
     ctx.obj['interactive'] = interactive
     
+    if 'pseudonymise' in config:
+        ctx.obj['pseudonymise'] = config['pseudonymise']
+
     unknown_keys = list( set(config.keys()) - set(ctx.obj.keys()) )
     if len(unknown_keys) > 0 :
         raise UnknownConfigurationSetting(f'"{unknown_keys}" are not valid settings in the yaml file')
@@ -135,8 +138,16 @@ def _process_list_data(ctx):
     while True:
         
         re_execute = False
-        
-        conf = _load_config(config_file)
+        try:
+            conf = _load_config(config_file)
+        except Exception as e:
+            if not display_msg:
+                logger.critical(e)
+                logger.error(f"You've misconfigured your file '{config_file}'!! Please fix!")
+            time.sleep(5)
+            display_msg = True
+            continue
+
         current_rules_file = conf['rules']
         new_rules_file = rules_file != current_rules_file
         if new_rules_file:
@@ -509,11 +520,31 @@ def _extract(ctx,data,rules,bclink_helpers):
     logger = Logger("extract")
     logger.info(f"starting extraction processes")
 
+    inputs = data['input']
+    if isinstance(inputs,str):
+        if not os.path.exists(inputs):
+            raise Exception(f"{inputs} is not an existing path")
+        if not os.path.isdir(inputs):
+             raise Exception(f"{inputs} is not a dir!")
+        inputs = coconnect.tools.get_files(inputs)
+        if len(inputs) == 0:
+            raise Exception(f"No .csv files found in {inputs}")
+    
     do_pseudonymise=False
+    _pseudonymise = {}
     if 'pseudonymise' in data:
+        print ("need to fix watch folders")
+        exit(0)
         _pseudonymise = data['pseudonymise']
-        
+        do_pseudonymise = True
+        if 'do' in _pseudonymise:
+            do_pseudonymise = _pseudonymise['do']
+    
+    if do_pseudonymise:        
         chunksize = 1000
+        if 'chunksize' in _pseudonymise:
+            chunksize = _pseudonymise['chunksize']
+
         output = "./pseudonymised_input_data/"
         if 'output' in _pseudonymise:
             output = _pseudonymise['output']
@@ -521,13 +552,12 @@ def _extract(ctx,data,rules,bclink_helpers):
         if 'salt' not in _pseudonymise:
             raise Exception("To use pseudonymise a salt must be provided!")
         salt = _pseudonymise['salt']
-        
-        
-        inputs = data['input']
+                
         logger.info(f"Called do_pseudonymisation on input data {data} ")
         if not isinstance(rules,dict):
             rules = coconnect.tools.load_json(rules)
         person_id_map = coconnect.tools.get_person_ids(rules)
+
         input_map = {os.path.basename(x):x for x in inputs}
 
         inputs = []
@@ -537,6 +567,9 @@ def _extract(ctx,data,rules,bclink_helpers):
                 logger.warning(input_map)
                 continue
             fin = input_map[table]
+
+            print (fin)
+            
             fout = ctx.invoke(pseudonymise,
                               input=fin,
                               output_folder=output,
@@ -549,10 +582,11 @@ def _extract(ctx,data,rules,bclink_helpers):
         data.pop('pseudonymise')
         data['input'] = inputs
     
+
     _dir = data['output']
     f_global_ids = f"{_dir}/existing_global_ids.tsv"
     f_global_ids = bclink_helpers.get_global_ids(f_global_ids)
-           
+    
     indexer = bclink_helpers.get_indicies()
     return {
         'indexer':indexer,

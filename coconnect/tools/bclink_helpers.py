@@ -14,12 +14,11 @@ class BCLinkHelpersException(Exception):
 class BCLinkHelpers(BashHelpers):
 
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
-        super().__init__()
+        super().__init__(dry_run=dry_run)
         self.logger = Logger("bclink_helpers")
         self.user = user
         self.gui_user = gui_user
         self.database = database
-        self.dry_run = dry_run
         self.table_map = tables
         self.global_ids = global_ids
         
@@ -34,8 +33,6 @@ class BCLinkHelpers(BashHelpers):
         pass
 
     def check_table_exists(self,table):
-        if self.dry_run:
-            return 0
         query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' )"
                
         cmd=[
@@ -45,6 +42,8 @@ class BCLinkHelpers(BashHelpers):
             self.database
         ]
         stdout,_ = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return True
         return bool(int(stdout.splitlines()[1]))
        
     def get_bclink_table(self,table):
@@ -76,13 +75,8 @@ class BCLinkHelpers(BashHelpers):
             self.database
         ]
 
-        if self.dry_run:
-            cmd.insert(0,'echo')
-
         stdout,stdin = self.run_bash_cmd(cmd)
-        if self.dry_run:
-            for msg in stdout.splitlines():
-                self.logger.critical(msg)
+        if stdout == None:
             return 'person_id'
         else:
             return stdout.splitlines()[1]
@@ -97,13 +91,9 @@ class BCLinkHelpers(BashHelpers):
             self.database
         ]
 
-        if self.dry_run:
-            cmd.insert(0,'echo')
-
+       
         stdout,stderr = self.run_bash_cmd(cmd)
-        if self.dry_run:
-            for msg in stdout.splitlines():
-                self.logger.critical(msg)
+        if stdout == None:
             return 0
         else:
             last_index = int(stdout.splitlines()[1])
@@ -116,13 +106,9 @@ class BCLinkHelpers(BashHelpers):
         retval = {}
         for table in self.table_map.values():
             count=['bc_sqlselect',f'--user={self.user}',f'--query=SELECT count(*) FROM {table}',self.database]
-            if self.dry_run:
-                count.insert(0,'echo')
-                
+                            
             stdout,stdin = self.run_bash_cmd(count)
-            if self.dry_run:
-                for msg in stdout.splitlines():
-                    self.logger.critical(msg)
+            if stdout == None:
                 self.get_last_index(table) 
             else:
                 counts = int(stdout.splitlines()[1])
@@ -133,16 +119,16 @@ class BCLinkHelpers(BashHelpers):
 
     def check_logs(self,job_id):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
-        if not self.dry_run and not os.path.exists(cover):
+        if not os.path.exists(cover):
             return False
+       
         cmd = f"cat {cover}"
-        if self.dry_run:
-            cmd = 'echo '+cmd
         stdout,stderr = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return False
+
         for msg in stdout.splitlines():
-            if self.dry_run:
-                self.logger.critical(msg)
-            elif 'data row(s) discarded,' in msg:
+            if 'data row(s) discarded,' in msg:
                 self.logger.warning(msg)
             else:
                 self.logger.info_v2(msg)
@@ -150,16 +136,13 @@ class BCLinkHelpers(BashHelpers):
         
     def clean_table(self,table):
         clean = f'datasettool2 delete-all-rows {table} --database={self.database}'
-        if self.dry_run:
-            clean = 'echo '+clean
         stdout,stderr = self.run_bash_cmd(clean)
-       
-        if self.dry_run:
-            for msg in stdout.splitlines():
-                self.logger.critical(msg)
-        else:
-            for msg in stderr.splitlines():
-                self.logger.warning(msg)
+        
+        if stdout == None and stderr==None:
+            return
+
+        for msg in stderr.splitlines():
+            self.logger.warning(msg)
                    
     def clean_tables(self,tables=None):
         for table in self.table_map.values():
@@ -179,13 +162,10 @@ class BCLinkHelpers(BashHelpers):
             
     def get_table_jobs(self,table,head=1):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
-        if self.dry_run:
-            cmd = 'echo '+cmd
         status,_ = self.run_bash_cmd(cmd)
-        if self.dry_run:
-            for msg in status.splitlines():
-                self.logger.critical(msg)
+        if status == None:
             return
+
         info = pd.read_csv(io.StringIO(status),
                            sep='\t',
                            usecols=['BATCH',
@@ -207,11 +187,10 @@ class BCLinkHelpers(BashHelpers):
    
         query=f"SELECT * FROM {self.global_ids} "
         cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
-        if self.dry_run:
-            self.logger.critical(" ".join(cmd))
-            return None
-
+        
         stdout,stderr = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return None
         if len(stdout.splitlines()) == 0:
             return None
             
@@ -236,13 +215,8 @@ class BCLinkHelpers(BashHelpers):
         while True:
             query=f"select exists(select 1 from {self.global_ids} where TARGET_SUBJECT in ({_list}) )"
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
-            if self.dry_run:
-                cmd.insert(0,'echo')
             stdout,stderr = self.run_bash_cmd(cmd)
-
-            if self.dry_run:
-                for msg in stdout.splitlines():
-                    self.logger.critical(msg)
+            if stdout == None:
                 exists = False   
             else:    
                 exists = bool(int(stdout.splitlines()[1]))
@@ -255,8 +229,6 @@ class BCLinkHelpers(BashHelpers):
                 query=f"select SOURCE_SUBJECT,SOURCE_SUBJECT from {self.global_ids} where (SOURCE_SUBJECT,TARGET_SUBJECT) in ({_list}) "
                 cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
                 stdout,stderr = self.run_bash_cmd(cmd)
-                print (stdout)
-                print (len(stdout.splitlines()))
                 info = pd.read_csv(io.StringIO(stdout),
                                    sep='\t').set_index("SOURCE_SUBJECT")
                 self.logger.error(info)
@@ -279,13 +251,10 @@ class BCLinkHelpers(BashHelpers):
            
         cmd = ['dataset_tool', '--load',f'--table={self.global_ids}',f'--user={self.gui_user}',
                f'--data_file={data_file}','--support','--bcqueue',self.database]
-        if self.dry_run:
-            cmd.insert(0,'echo')
+        
         stdout,stderr = self.run_bash_cmd(cmd)
-        for msg in stdout.splitlines():
-            if self.dry_run:
-                self.logger.critical(msg)
-            else:
+        if not stdout == None:
+            for msg in stdout.splitlines():
                 self.logger.info(f"submitted job to bclink queue: {msg}")
 
         table_name = self.global_ids
@@ -321,13 +290,10 @@ class BCLinkHelpers(BashHelpers):
 
             cmd = ['dataset_tool', '--load',f'--table={tablename}',f'--user={self.gui_user}',
                    f'--data_file={data_file}','--support','--bcqueue',self.database]
-            if self.dry_run:
-                cmd.insert(0,'echo')
+            
             stdout,stderr = self.run_bash_cmd(cmd)
-            for msg in stdout.splitlines():
-                if self.dry_run:
-                    self.logger.critical(msg)
-                else:
+            if not stdout == None:
+                for msg in stdout.splitlines():
                     self.logger.info(f"submitted job to bclink queue: {msg}")
 
 
@@ -361,14 +327,10 @@ class BCLinkHelpers(BashHelpers):
             if table_name == None:
                 continue
             cmd=['bc_sqlselect',f'--user={self.user}',f'--query=SELECT count(*) FROM {table_name}',self.database]
-            if self.dry_run:
-                cmd.insert(0,'echo')
-
+            
             stdout,stderr = self.run_bash_cmd(cmd)
-            if self.dry_run:
-                for msg in stdout.splitlines():
-                    self.logger.critical(msg)
-            else:
+            if not stdout == None:
+                
                 count = stdout.splitlines()[1]
                 info[table] = {'bclink_table':table_name,
                                'nrows':count}
@@ -386,8 +348,8 @@ class BCLinkHelpers(BashHelpers):
       
                     #to-do warn/error if counts differ betwene person and global ids table
         
-        if not self.dry_run:
-            self.logger.info("======== SUMMARY ========")
+        if info:
+            self.logger.info("======== BCLINK SUMMARY ========")
             self.logger.info(json.dumps(info,indent=6))
               
 
