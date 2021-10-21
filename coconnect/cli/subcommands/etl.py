@@ -41,6 +41,12 @@ class DuplicateDataDetected(Exception):
 class UnknownConfigurationSetting(Exception):
     pass
 
+class MissingRulesFile(Exception):
+    pass
+
+class BadRulesFile(Exception):
+    pass
+
 @click.group(help='Command group for running the full ETL of a dataset')
 def etl():
     pass
@@ -72,8 +78,15 @@ def bclink(ctx,force,config_file,interactive):
 
     config = _load_config(config_file)
     #put in protection for missing keys
-    rules = coconnect.tools.load_json(config['rules'])
-    destination_tables = list(rules['cdm'].keys())
+    if 'rules' not in config:
+        raise MissingRulesFile(f"you must specify a json rules file in your '{config_file}'"
+                               f" via 'rules:<path of file>'")
+
+    try:
+        rules = coconnect.tools.load_json(config['rules'])
+        destination_tables = list(rules['cdm'].keys())
+    except Exception as e:
+        raise BadRulesFile(e)
     
     bclink_settings = {}
     if 'bclink' in config:
