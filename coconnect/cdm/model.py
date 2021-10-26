@@ -22,6 +22,8 @@ from sqlalchemy_utils import database_exists, create_database
 class NoInputFiles(Exception):
     pass
 
+class PersonExists(Exception):
+    pass
 
 class CommonDataModel:
     """Pythonic Version of the OHDSI CDM.
@@ -36,6 +38,7 @@ class CommonDataModel:
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
+                 person_id_map=None,
                  inputs=None, use_profiler=False,
                  format_level=None,do_mask_person_id=True,
                  automatically_generate_missing_rules=False):
@@ -61,7 +64,7 @@ class CommonDataModel:
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
-        
+
         if format_level == None:
             format_level = 0
         try:
@@ -116,7 +119,7 @@ class CommonDataModel:
             self.logger.info(f"Turning on automatic rule generation")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = self.get_existing_person_id_masker()
+        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -246,12 +249,16 @@ class CommonDataModel:
                                 "has not be passed, so starting from 1")
             return 1
 
-    def get_existing_person_id_masker(self):
-        fname = f"{self.output_folder}{os.path.sep}global_ids.tsv"
-        if os.path.exists(fname):
+    def get_existing_person_id_masker(self,fname):
+        if fname == None:
+            return fname
+        elif os.path.exists(fname):
+            #this needs to be scalable for large number of person ids
             _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
             return _df.to_dict()
         else:
+            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids "
+                              "file does not exist!!")
             return None
             
     def get_objects(self,destination_table):
@@ -296,28 +303,36 @@ class CommonDataModel:
                     self.person_id_masker = {}
                     start_index = self.get_start_index(destination_table)
 
-                self.person_id_masker.update({
-                    x:i+start_index
-                    for i,x in enumerate(df['person_id'].unique())
-                })
-               
-
-                if destination_table == 'person':
-                    os.makedirs(self.output_folder,exist_ok=True)
-                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
-                    dfp.index.name = 'TARGET_SUBJECT'
-                    dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
-                    file_extension = self.get_outfile_extension()
-                    fname = f"{self.output_folder}{os.path.sep}global_ids.{file_extension}"
-                    header = True
-                    mode = 'w'
-                    if start_index > self.get_start_index(destination_table):
-                        header = False
-                        mode = 'a'
+                for i,x in enumerate(df['person_id'].unique()):
+                    index = i+start_index
+                    if x in self.person_id_masker:
+                        existing_index = self.person_id_masker[x]
+                        self.logger.error(f"'{x}' already found in the person_id_masker")
+                        self.logger.error(f"'{existing_index}' assigned to this already")
+                        self.logger.error(f"was trying to set '{index}'")
+                        self.logger.error(f"Most likely cause is this is duplicate data!")
+                        raise PersonExists('Duplicate person found!')
+                    self.person_id_masker[x] = index
+                                   
+                
+                os.makedirs(self.output_folder,exist_ok=True)
+                dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
+                dfp.index.name = 'TARGET_SUBJECT'
+                dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
+                file_extension = self.get_outfile_extension()
+                fname = f"{self.output_folder}{os.path.sep}global_ids.{file_extension}"
+                header = True
+                mode = 'w'
+                if start_index > self.get_start_index(destination_table):
+                    header = False
+                    mode = 'a'
                         
-                    dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
+                dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
                     
             #apply the masking
+            if self.person_id_masker is None:
+                raise Exception(f"Person ID masking cannot be performed on"
+                                f" {destination_table} as no masker based on a person table has been defined!")
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
         return df
