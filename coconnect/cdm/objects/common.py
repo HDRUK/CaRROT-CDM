@@ -84,7 +84,7 @@ class DataFormatter(collections.OrderedDict):
             self.logger.warning(f"\n {df}")
             raise DataStandardError(f"{series.name} has not been formatted correctly")
     
-    def __init__(self,errors='raise'):
+    def __init__(self,errors='coerce'):
         super().__init__()
 
         self.logger = Logger("Column Formatter")
@@ -339,12 +339,12 @@ class DestinationTable(object):
             if is_nan_already:
                 continue
 
-            #dont try and format the person_id,
-            #we're going to mask it later or it should be parsed directly
-            if col == 'person_id':
+            obj = getattr(self,col)
+
+            #dont try any formatting for primary keys that need to be integers
+            if obj.pk == True or col == 'person_id':
                 continue
             
-            obj = getattr(self,col)
             dtype = obj.dtype
             formatter_function = self.dtypes[dtype]
             
@@ -354,7 +354,14 @@ class DestinationTable(object):
 
             if self.format_level is FormatterLevel.ON:
                 self.logger.debug(f"Formatting {col}")
-                df[col] = formatter_function(df[col])
+                try:
+                    df[col] = formatter_function(df[col])
+                except Exception as e:
+                    self.logger.critical(e)
+                    if 'source_files' in self._meta:
+                        self.logger.error("This is coming from the source file (table & column) ...")
+                        self.logger.error(self._meta['source_files'][col])
+                    raise(e)
             elif self.format_level is FormatterLevel.CHECK:
                 self.logger.debug(f"Checking formatting of {col} to {dtype}")
                 try:
@@ -371,7 +378,11 @@ class DestinationTable(object):
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                 self.logger.info(f"Sample of this column before formatting:")
                 self.logger.error(sample)
-
+                if 'source_files' in self._meta:
+                    self.logger.error("This is coming from the source file (table & column) ...")
+                    self.logger.error(self._meta['source_files'][col])
+                    
+                
                 raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
 
         return df

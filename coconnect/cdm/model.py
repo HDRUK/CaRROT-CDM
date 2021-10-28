@@ -22,6 +22,8 @@ from sqlalchemy_utils import database_exists, create_database
 class NoInputFiles(Exception):
     pass
 
+class PersonExists(Exception):
+    pass
 
 class CommonDataModel:
     """Pythonic Version of the OHDSI CDM.
@@ -35,8 +37,10 @@ class CommonDataModel:
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
+                 indexing_conf=None,
+                 person_id_map=None,
                  inputs=None, use_profiler=False,
-                 format_level=None,do_mask_person_id=False,
+                 format_level=None,do_mask_person_id=True,
                  automatically_generate_missing_rules=False):
         """
         CommonDataModel class initialisation 
@@ -59,7 +63,8 @@ class CommonDataModel:
         self.output_folder = output_folder
 
         self.do_mask_person_id = do_mask_person_id
-        
+        self.indexing_conf = indexing_conf
+
         if format_level == None:
             format_level = 0
         try:
@@ -114,7 +119,7 @@ class CommonDataModel:
             self.logger.info(f"Turning on automatic rule generation")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = None
+        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -227,7 +232,35 @@ class CommonDataModel:
 
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
-        
+
+    def get_start_index(self,destination_table):
+        self.logger.debug(f'getting start index for {destination_table}')
+
+        if self.indexing_conf == None or not self.indexing_conf :
+            self.logger.debug(f"no indexing specified, so starting the index for {destination_table} from 1")
+            return 1
+
+        if destination_table in self.indexing_conf:
+            return int(self.indexing_conf[destination_table])
+        else:
+            self.logger.warning(self.indexing_conf)
+            self.logger.warning("indexing configuration has be parsed "
+                                f"but this table ({destination_table}) "
+                                "has not be passed, so starting from 1")
+            return 1
+
+    def get_existing_person_id_masker(self,fname):
+        if fname == None:
+            return fname
+        elif os.path.exists(fname):
+            #this needs to be scalable for large number of person ids
+            _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
+            return _df.to_dict()
+        else:
+            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids "
+                              "file does not exist!!")
+            return None
+            
     def get_objects(self,destination_table):
         """
         For a given destination table:
@@ -262,30 +295,44 @@ class CommonDataModel:
 
         if 'person_id' in df.columns:
             #if masker has not been defined, define it
-            if self.person_id_masker is None or destination_table == 'person':
-                start_index = 1
+                                                 
+            if destination_table == 'person':
                 if self.person_id_masker is not None:
                     start_index = list(self.person_id_masker.values())[-1] + 1
+                else:
+                    self.person_id_masker = {}
+                    start_index = self.get_start_index(destination_table)
 
-                self.person_id_masker = {
-                    x:i+start_index
-                    for i,x in enumerate(df['person_id'].unique())
-                }
+                for i,x in enumerate(df['person_id'].unique()):
+                    index = i+start_index
+                    if x in self.person_id_masker:
+                        existing_index = self.person_id_masker[x]
+                        self.logger.error(f"'{x}' already found in the person_id_masker")
+                        self.logger.error(f"'{existing_index}' assigned to this already")
+                        self.logger.error(f"was trying to set '{index}'")
+                        self.logger.error(f"Most likely cause is this is duplicate data!")
+                        raise PersonExists('Duplicate person found!')
+                    self.person_id_masker[x] = index
+                                   
                 
-                if destination_table == 'person':
-                    os.makedirs(self.output_folder,exist_ok=True)
-                    dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['masked_id'])
-                    dfp.index.name = 'original_id'
-                    fname = f"{self.output_folder}{os.path.sep}masked_person_ids.csv"
-                    header = True
-                    mode = 'w'
-                    if start_index > 1:
-                        header = False
-                        mode = 'a'
+                os.makedirs(self.output_folder,exist_ok=True)
+                dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
+                dfp.index.name = 'TARGET_SUBJECT'
+                dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
+                file_extension = self.get_outfile_extension()
+                fname = f"{self.output_folder}{os.path.sep}global_ids.{file_extension}"
+                header = True
+                mode = 'w'
+                if start_index > self.get_start_index(destination_table):
+                    header = False
+                    mode = 'a'
                         
-                    dfp.to_csv(fname,header=header,mode=mode)
+                dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
                     
             #apply the masking
+            if self.person_id_masker is None:
+                raise Exception(f"Person ID masking cannot be performed on"
+                                f" {destination_table} as no masker based on a person table has been defined!")
             df['person_id'] = df['person_id'].map(self.person_id_masker)
             self.logger.info(f"Just masked person_id")
         return df
@@ -447,9 +494,8 @@ class CommonDataModel:
 
         #register the total length of the output dataframe
         logs['ntotal'] = len(df_destination)
-        
-        #! this section of code may need some work ...
-        #person_id masking turned off... assume we dont need this (?)
+
+        #mask the person id
         if self.do_mask_person_id:
             df_destination = self.mask_person_id(df_destination,destination_table)
 
@@ -459,7 +505,7 @@ class CommonDataModel:
         #if it's not the person_id
         if primary_column != 'person_id':
             #create an index from 1-N
-            start_index = 1
+            start_index = self.get_start_index(destination_table)
             #if we're processing chunked data, and nrows have already been created (processed)
             #start the index from this number
             total_data_processed = self.logs['meta']['total_data_processed']
@@ -468,8 +514,6 @@ class CommonDataModel:
                 start_index += nrows_processed_so_far
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
-            
-            
         else:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)

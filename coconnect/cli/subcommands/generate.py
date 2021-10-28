@@ -24,11 +24,12 @@ def synthetic():
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
 @click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("--get-json",help="also download the json",is_flag=True)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default="https://ccom.azurewebsites.net")
 def ccom(report_id,number_of_events,output_directory,
-         fill_column_with_values,token,
+         fill_column_with_values,token,get_json,
          url):
 
     fill_column_with_values = list(fill_column_with_values)
@@ -43,7 +44,19 @@ def ccom(report_id,number_of_events,output_directory,
         "charset": "utf-8",
         "Authorization": f"Token {token}"
     }
-
+    
+    if get_json:
+        response = requests.get(
+            f"{url}/api/json/?id={report_id}",
+            headers=headers
+        )
+        print (json.dumps(response.json()[0],indent=6))
+        fname = response.json()[0]['metadata']['dataset']
+        with open(f'{fname}.json', 'w') as outfile:
+            print ('saving',fname)
+            json.dump(response.json()[0],outfile,indent=6)
+            
+    
     response = requests.get(
         f"{url}/api/scanreporttablesfilter/?scan_report={report_id}",
         headers=headers
@@ -58,26 +71,28 @@ def ccom(report_id,number_of_events,output_directory,
     for table in response.json():
         name = table['name']
         _id = table['id']
-
+        
         #get which is the person_id and automatically fill this with incrementing values
         #so they are not all NaN in the synthetic data (because of List Truncated...)
         person_id = table['person_id']
+        if person_id == None:
+            continue
+        
         _url = f"{url}/api/scanreportfieldsfilter/?id={person_id}&fields=name"
+
         person_id = requests.get(
             _url, headers=headers,
             allow_redirects=True,
-        )
-        print (person_id)
-        print (person_id.json())
-        person_id = person_id.json()[0]['name'].lstrip('\ufeff')
-
-        fill_column_with_values.append(person_id)
+        ).json()[0]['name'].lstrip('\ufeff')
         
+                
         _url = f"{url}/api/scanreportvaluesfilterscanreporttable/?scan_report_table={_id}&fields=value,frequency,scan_report_field"
         response = requests.get(
             _url, headers=headers,
             allow_redirects=True,
         )
+
+                
         df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')        
         _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}&fields=id,name"
         response = requests.get(
@@ -85,7 +100,7 @@ def ccom(report_id,number_of_events,output_directory,
             allow_redirects=True,
         )
 
-
+        
         res = json.loads(response.content.decode('utf-8'))
         id_to_col_name = {
             field['id']:field['name'].lstrip('\ufeff')
@@ -93,6 +108,7 @@ def ccom(report_id,number_of_events,output_directory,
         }
         
         df.index = df.index.map(id_to_col_name)
+
         
         df_synthetic = {}
         
@@ -127,6 +143,8 @@ def ccom(report_id,number_of_events,output_directory,
             df_synthetic[col_name] = values
 
         df_synthetic = pd.concat(df_synthetic.values(),axis=1)
+        
+        
         for col_name in fill_column_with_values:
             if col_name in df_synthetic.columns:
                 df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
@@ -136,10 +154,13 @@ def ccom(report_id,number_of_events,output_directory,
             os.makedirs(output_directory)
         fname = f"{output_directory}/{name}"
 
-        df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+        df_synthetic.index = 'pk'+df_synthetic.index.astype(str)
+        df_synthetic.rename_axis(person_id,inplace=True)
+        #df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
         print (df_synthetic)
         df_synthetic.to_csv(fname)
         print (f"created {fname} with {number_of_events} events")
+        
     
 @click.command(help="generate synthetic data from a ScanReport xlsx file")
 @click.argument("report")

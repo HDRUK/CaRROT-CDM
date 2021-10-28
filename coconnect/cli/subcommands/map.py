@@ -76,6 +76,9 @@ def test(ctx):
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
+@click.option("--indexing-conf",
+              default=None,
+              help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
               default=None,
               type=click.Choice([';',':','\t',',',' ',]),
@@ -100,17 +103,24 @@ def test(ctx):
               default=None,
               type=int,
               help="the total number of rows to process")
-@click.option("--mask-person-id",
+@click.option("--person-id-map",
+              default=None,
+              help="pass the location of a file containing existing masked person_ids")
+@click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
-              help="turn on masking of person_ids")
+              help="turn off automatic conversion (creation) of person_id to (as) Integer")
+@click.option("log_file","--log-file",
+              default = 'auto',
+              help="specify a path for a log file")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
 @click.pass_context
 def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
-        csv_separator,use_profiler,
-        mask_person_id,
+        csv_separator,use_profiler,log_file,
+        no_mask_person_id,indexing_conf,
+        person_id_map,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -119,10 +129,34 @@ def run(ctx,rules,inputs,format_level,
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
 
+    if output_folder is None:
+        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+
+    if log_file == 'auto':
+        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
+        coconnect.params['log_file'] = log_file
+        
+    
     #load the json loads
-    config = tools.load_json(rules)
+    if type(rules) == dict:
+        config = rules
+    else:
+        config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
+    if indexing_conf is not None:
+        if isinstance(indexing_conf,dict):
+            pass
+        elif indexing_conf.endswith(".json") and os.path.exists(indexing_conf):
+            indexing_conf = tools.load_json(indexing_conf)
+        elif indexing_conf.endswith(".csv") and os.path.exists(indexing_conf):
+            try:
+                indexing_conf = pd.read_csv(indexing_conf,header=None,index_col=0)[1].to_dict()
+            except pd.errors.EmptyDataError:
+                indexing_conf = None
+                pass
+                
+    
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
         #get the fields that are going to be used/loaded
@@ -178,9 +212,7 @@ def run(ctx,rules,inputs,format_level,
         for x in inputs
     }
     
-    if output_folder is None:
-        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
-
+        
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
@@ -190,7 +222,9 @@ def run(ctx,rules,inputs,format_level,
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         format_level=format_level,
-                                        do_mask_person_id=mask_person_id,
+                                        do_mask_person_id=not no_mask_person_id,
+                                        indexing_conf=indexing_conf,
+                                        person_id_map=person_id_map,
                                         output_folder=output_folder,
                                         output_database=output_database,
                                         use_profiler=use_profiler)
@@ -345,14 +379,14 @@ def gui(ctx):
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
-        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT ETL-Tool",font = ("Roboto", 25))],
+        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT: Dataset2CDM",font = ("Roboto", 25))],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select the input CSVs:')],
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select an output folder:')],
         [sg.Input(key='_OUTPUT_',default_text='.'), sg.FolderBrowse(initial_folder=os.getcwd())],
-        [sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
+        #[sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
         #[[sg.T('Change the default data chunksize:'),
         #  sg.Slider(range=(0,1000000),
         #            default_value=100000,
@@ -388,10 +422,11 @@ def gui(ctx):
             continue
         inputs = inputs.split(';')
 
-        mask_person_id = values['_MASK_PERSON_ID_']
+        #mask_person_id = values['_MASK_PERSON_ID_']
 
         try:
-            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            #ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
             sg.Popup("Done!")
         except Exception as err:
             sg.popup_error("An exception occurred!",err)

@@ -56,6 +56,7 @@ def dataframe(fname,drop_na,markdown,head,separator):
         separator = tools.get_separator_from_filename(fname)
         
     df = pandas.read_csv(fname,nrows=head,sep=separator)
+    df.set_index(df.columns[0],inplace=True)
     if drop_na:
         df = df.dropna(axis=1,how='all')
     if markdown:
@@ -89,7 +90,9 @@ def plot(fnames,x,y,save_plot):
 @click.argument("rules")
 def dag(rules):
     data = tools.load_json(rules)
-    tools.make_dag(data['cdm'],name=data['metadata']['dataset'],render=True) 
+    if 'cdm' in data:
+        data = data['cdm']
+    tools.make_dag(data,render=True)
 
 
 @click.command(help="Show the OMOP mapping json")
