@@ -1,9 +1,24 @@
 import coconnect
 import logging
+DEBUG_LEVELV_NUM = 9 
+logging.addLevelName(DEBUG_LEVELV_NUM, "NOTICE")
+def notice(self, message, *args, **kws):
+    self._log(DEBUG_LEVELV_NUM, message, args, **kws) 
+logging.Logger.notice = notice
+
+
+logging.addLevelName(10, "TEXT")
+def spam(self, message, *args, **kws):
+    self._log(10, message, args, **kws) 
+logging.Logger.info_v2 = spam
+
 import coloredlogs
 import textwrap
 import os
 coloredlogs.DEFAULT_FIELD_STYLES['levelname']['color'] = 'white'
+
+coloredlogs.DEFAULT_LEVEL_STYLES['text'] = {'color': 219}
+
 
 class Logger(logging.Logger):
     def __init__(self,name):
@@ -21,11 +36,12 @@ class Logger(logging.Logger):
             debug_level = logging.INFO
         else:
             debug_level = logging.DEBUG
-            
+        
         self.setLevel(debug_level)
         format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+           
         formatter = coloredlogs.ColoredFormatter(format_str)
-
+                
         ch = logging.StreamHandler()
         ch.setFormatter(formatter)
         self.addHandler(ch)

@@ -1,5 +1,6 @@
 import os
 import glob
+import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
@@ -81,6 +82,37 @@ class InputData:
         self.__file_readers[key] = obj
         
     
+def load_json_delta(f_in,original):
+    logger = Logger("load_json_delta")
+    logger.info(f"loading a json from '{f_in}' as a delta")
+    data = load_json(f_in)
+    
+    original_date = original['metadata']['date_created']
+    data_date = data['metadata']['date_created']
+
+    logger.info(f"Original JSON date: {original_date}")
+    logger.info(f"New JSON date: {data_date}")
+
+    _data = copy.deepcopy(data)
+
+    for destination_table,rule_set in data['cdm'].items():
+        for name,rules in rule_set.items():
+            exists_in_original_rules = None
+            if destination_table in original['cdm']:
+                if name in original['cdm'][destination_table]:
+                    exists_in_original_rules = original['cdm'][destination_table][name]
+            
+            if exists_in_original_rules:
+                _data['cdm'][destination_table].pop(name)
+            else:
+                logger.info(f"Detected a new rule for {name}")
+                logger.debug(json.dumps(rules,indent=6))
+        
+        if not _data['cdm'][destination_table]:
+            _data['cdm'].pop(destination_table)
+
+    logger.info(json.dumps(_data,indent=6))
+    return _data
     
 
 def load_json(f_in):
@@ -172,6 +204,16 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
     return retval
 
 
+def get_subfolders(input_folder):
+    return { 
+        os.path.basename(f.path):f.path 
+        for f in os.scandir(input_folder) 
+        if f.is_dir() and not os.path.basename(f.path).startswith('.')
+    }
+
+def get_files(path,type='csv'):
+    return [x.path for x in os.scandir(path) if x.path.endswith(f'.{type}')]
+
 def get_file_map_from_dir(_dir):
     if not os.path.isdir(_dir):
         _dir = os.path.abspath(
@@ -186,6 +228,46 @@ def get_file_map_from_dir(_dir):
     
     return _map
  
+def remove_missing_sources_from_rules(rules,tables):
+    logger = Logger("remove_missing_sources_from_rules")
+
+    tables = [os.path.basename(x) for x in tables]
+   
+    rules_copy = copy.deepcopy(rules)
+
+    for destination_table,cdm_table in rules['cdm'].items():
+        for table_name,sub_table in cdm_table.items():
+            first = list(sub_table.keys())[0]
+            source_table = sub_table[first]['source_table']
+            if source_table not in tables:
+                rules_copy['cdm'][destination_table].pop(table_name)
+                logger.debug(f"removed {table_name} from rules")
+                
+        if not rules_copy['cdm'][destination_table]:
+            rules_copy['cdm'].pop(destination_table)
+            logger.debug(f"removed cdm table '{destination_table}' from rules")
+        
+    return rules_copy
+
+def filter_rules_by_destination_tables(rules,tables):
+    rules_copy = copy.deepcopy(rules)
+
+    for destination_table,cdm_table in rules['cdm'].items():
+        if not destination_table in tables:
+            rules_copy['cdm'].pop(destination_table)
+           
+    return rules_copy
+    
+
+def get_source_tables_from_rules(rules,table):
+    sources = [ 
+        x['source_table']
+        for dest_table,cdm_obj_set in rules['cdm'].items()
+        for cdm_obj in cdm_obj_set.values()
+        for x in cdm_obj.values()
+        if dest_table == table
+    ]
+    return list(set(sources))
 
 def get_mapped_fields_from_rules(rules):
     #extract a tuple of source tables and source fields

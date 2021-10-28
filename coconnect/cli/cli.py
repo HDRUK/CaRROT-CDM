@@ -11,14 +11,23 @@ import click
 import json
 
 
-@click.group()
+@click.group(invoke_without_command=True)
+@click.option("--version","-v",is_flag=True)
 @click.option("--log-level","-l",
               type=click.Choice(['0','1','2','3']),
               default='2',
               help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
 @click.option("-cp", "--cprofile", is_flag=True, help='use cProfile to profile the tool')
 @click.pass_context
-def coconnect(ctx,log_level,cprofile):
+def coconnect(ctx,version,log_level,cprofile):
+    if ctx.invoked_subcommand == None :
+        if version:
+            click.echo(cc.__version__)
+        else:
+            click.echo(ctx.get_help()) 
+        return
+           
+
     cc.params['debug_level'] = int(log_level)
     log = Logger("coconnect")
     if cprofile:
