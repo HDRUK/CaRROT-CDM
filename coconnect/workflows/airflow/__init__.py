@@ -31,10 +31,11 @@ f_schedule = {'days': 5}
 
 default_args = {
     'owner': 'airflow',
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=1),
 }
 
+from airflow.api.client.local_client import Client
 
 def get_headers(token):
     return {
@@ -44,36 +45,72 @@ def get_headers(token):
         "Authorization": f"Token {token}"
     }
 
-def create_template(f_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
-
-    f_name = f_name.replace(" ","_")
-    
-    template = f'''
-from coconnect.workflows.airflow import create_dag
-import json
-import coconnect
-
-dag = create_dag("{f_name}",
-                f_inputs="{f_inputs}",
-                f_output_folder="{f_output_folder}",
-                f_rules="{f_rules}")
-
-'''
-
-    _dir = os.environ.get('AIRFLOW_HOME')
+def get_dag_folder():
+    airflow_home = os.environ.get('AIRFLOW_HOME')
 
     config = configparser.RawConfigParser()
-    config.read(f'{_dir}/airflow.cfg')
+    config.read(f'{airflow_home}/airflow.cfg')
+    dags_folder = dict(config.items('core'))['dags_folder']
+    return dags_folder
+
+def create_template(report_name,report_id):
+
+    f_name = re.sub("[^a-zA-Z0-9 ]+", "", report_name).replace(" ","_")
+    f_name = f"{f_name}_{report_id}"
+    
+    airflow_home = os.environ.get('AIRFLOW_HOME')
+
+    workdir = f"{airflow_home}/data/{f_name}"
+    os.makedirs(workdir,exist_ok=True)
+    
+    config = configparser.RawConfigParser()
+    config.read(f'{airflow_home}/airflow.cfg')
     dags_folder = dict(config.items('core'))['dags_folder']
     
     _dir = f"{dags_folder}/etl_dags"
     os.makedirs(_dir,exist_ok=True)
+
+    
+    template = f'''
+from coconnect.workflows.airflow import create_etl_dag
+import json
+import coconnect
+
+dag = create_etl_dag("{f_name}",
+                      report_name="{report_name}",
+                      report_id="{report_id}",
+                      workdir="{workdir}")
+
+'''
+
 
     f_name = f"{_dir}/{f_name}.py"
     with open(f_name,"w") as f:
         f.write(template)
 
     return f_name
+
+
+def get_etl_dags():
+    from airflow.models import DagBag
+    from airflow.utils.cli import  process_subdir
+    
+    _dir = get_dag_folder()
+    
+    dagbag = DagBag(process_subdir(_dir))
+
+    tags = ['etl','scanreport']
+    return [ dag.dag_id
+             for dag in dagbag.dags.values()
+             if all([tag in dag.tags for tag in tags])
+    ]
+    
+def trigger_etl_dags():
+    c = Client(None, None)
+    dag_ids = get_etl_dags()
+    for dag_id in dag_ids:
+        c.trigger_dag(dag_id=dag_id)
+
 
 def get_dir():
     _dir = os.environ.get('AIRFLOW_HOME')
@@ -115,11 +152,12 @@ def decide_trigger(**kwargs):
     return 'finish'
 
 
-#def coconnect_report_manager():
 
 
 @dag(default_args=default_args,
      schedule_interval=None,
+     #max_active_runs=2,
+     #max_active_tasks=6,
      start_date=days_ago(2),
      tags=['manager'])
 def etl():
@@ -129,10 +167,8 @@ def etl():
 
     def get_info_from_scan_report(_id):
         _url = f'{url}/api/scanreports/{_id}'
-        print (_url)
         headers = get_headers(token)
         response = requests.get(_url,headers=headers)
-        print (response)
         info = response.json()
 
         dataset = info['dataset']
@@ -181,7 +217,7 @@ def etl():
         }
     )
 
-    nevents = 100
+    nevents = 1000
     output_directory = '{{ ti.xcom_pull("start")["workdir"] }}/input_data/'
     generate_synthetic = BashOperator(
         task_id=f"generate_synthetic",
@@ -189,7 +225,7 @@ def etl():
         --url {url}  --number-of-events {nevents} --report-id {_id} \
         --output-directory \"{output_directory}\" '
     )
-
+ 
     output_directory = '{{ ti.xcom_pull("start")["workdir"] }}/output_data/'
     inputs = '{{ ti.xcom_pull("start")["workdir"] }}/input_data/'
     rules = '{{ ti.xcom_pull("get_json") }}'
@@ -200,8 +236,13 @@ def etl():
         \"{inputs}\" '
     )
 
+    create_dag = PythonOperator(
+        task_id=f"make_dag",
+         python_callable=make_dag
+    )
     
-    start >> [ download_json, generate_synthetic] >> run_coconnect_tools
+    start >> create_dag#[ download_json, generate_synthetic] >> create_dag
+    #run_coconnect_tools
     
     
     # create_dag = PythonOperator(
@@ -253,90 +294,118 @@ def get_url_and_token(ti=None):
     return url,token
 
     
+def get_reports():
+    url,token = get_url_and_token()
+    headers = get_headers(token)
+    _url = f"{url}/api/scanreports/"
+    response = requests.get(_url,headers=headers).json()
+    reports = {}
+    for report in response:
+        if report['hidden'] == True:
+            continue
+        reports[str(report['id'])] = report['dataset']
+        
+    return reports
 
-@dag(default_args=default_args,
-     schedule_interval=None,
-     start_date=days_ago(2),
-     tags=['manager'])
+
 def coconnect_report_getters():
 
+
     url,token = get_url_and_token()
-
-    def get_reports():
-        headers = get_headers(token)
-        _url = f"{url}/api/scanreports/"
-        print (_url)
-        response = requests.get(_url,headers=headers).json()
-        print (json.dumps(response,indent=6))
-        reports = {}
-        for report in response:
-            if report['hidden'] == False:
-                continue
-            reports[str(report['id'])] = (report['dataset'],report['updated_at'])
-
-        print (json.dumps(reports,indent=6))
-        return reports
-
-    start = DummyOperator(task_id="start")
-
     reports = get_reports()
     task_ids = []
     for _id,(name,date) in reports.items():
-        name = f"{name}_{date}"
-        task_id = re.sub("[^a-zA-Z0-9 ]+", "", name).replace(" ","_")
+        name = re.sub("[^a-zA-Z0-9 ]+", "", name).replace(" ","_")
+        task_id = f"{name}_{_id}"
 
-        task_ids.append(task_id)
-        op = TriggerDagRunOperator(
-            task_id=f"trigger_{task_id}",
-            trigger_dag_id='etl',
-            conf={"report_id":_id},
-            wait_for_completion=True,
-            retries=0
-        )
+
+def create_etl_dag(dag_name,report_name=None,report_id=None,workdir="./",schedule=None):
+
+    url,token = get_url_and_token()
+    
+    def check_data(workdir):
+        f_json = f"{workdir}/rules.json"
+        f_data = f"{workdir}/data/"
+
+        json_exists = os.path.exists(f_json)
+        data_exists = os.path.isdir(f_data)
+        
+        if not json_exists or not data_exists:
+            return "get_data"
+        #elif json_exists and not data_exists:
+        #    return "get_synthetic_data"
+        #elif not json_exists and data_exists:
+        #    return "get_json"
+        else:
+            return "transform"
+
+    def get_json(_id,workdir):
+        _url = f'{url}/api/json/?id={_id}'
+        headers = get_headers(token)
+        response = requests.get(_url,headers=headers).json()[0]
+        print (json.dumps(response,indent=6))
+
+        dataset = response['metadata']['dataset']
+        created = response['metadata']['date_created']
+        os.makedirs(workdir,exist_ok=True)
+
+        f_name = f"{workdir}/rules.json"
+        with open(f_name,'w') as outfile:
+            json.dump(response, outfile, indent=6)
+            
+        return f_name
 
         
-        start >> op
-
-def create_simple_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4}):
     
     with DAG(
             dag_name,
             default_args=default_args,
-            description='A simple tutorial DAG',
-            schedule_interval=timedelta(days=1),
+            description=f'ETL for {report_name} with id {report_id}',
+            schedule_interval=schedule,
             start_date=days_ago(2),
-            tags=['example'],
+            tags=['scanreport','etl',report_name,report_id],
     ) as dag:
 
-        salt = BashOperator(
-            task_id='run_pseudonymisation',
-            bash_command=f'echo "salting dataset"'
+
+        do_extract = BranchPythonOperator(
+           task_id=f"do_extract",
+           python_callable=check_data,
+           op_kwargs={
+               'workdir':workdir
+           }
         )
 
-        run = BashOperator(
-            task_id='run_python_tool',
-            bash_command=f'coconnect map run --rules {f_rules} --output-folder {f_output_folder} {f_inputs} ',
+        get_data = DummyOperator(task_id=f"get_data")
+        get_json = PythonOperator(
+            task_id=f"get_json",
+            python_callable=get_json,
+            op_kwargs={
+                '_id':report_id,
+                'workdir':workdir
+            }
         )
 
-        config = json.load(open(f_rules))
-        tables = list(config['cdm'].keys())
-
-        templated_command = dedent(
-            """
-        {% for table in params.tables %}
-            echo {{ table }} 
-            echo datasettool2 delete-all-rows {{ table }}  --database=bclink
-            echo dataset_tool --load --table={{ table }} --user=data --data_file="{{ params.output }}{{ table }}.tsv" --support  --bcqueue --bcqueue-res-path=./logs/{{ table }}  bclink
-        {% endfor %}
-           """
+        nevents = 1000
+        output_directory = f'{workdir}/data/'
+        get_synthetic_data = BashOperator(
+            task_id=f"get_synthetic_data",
+            bash_command=f'coconnect generate synthetic ccom --token {token} \
+            --url {url}  --number-of-events {nevents} --report-id {report_id} \
+            --output-directory \"{output_directory}\" '
+        )
+ 
+        rules = f"{workdir}/rules.json"
+        data = f"{workdir}/data/"
+        transform = BashOperator(
+            task_id="transform",
+            trigger_rule='none_failed_min_one_success',
+            bash_command=f'coconnect map run --rules {rules} {data}'
         )
 
-        upload = BashOperator(
-            task_id=f'insert_into_bclink',
-            bash_command=templated_command,
-            params={'tables': tables,"output":f_output_folder},
-        )
-        salt >> run >> upload
+                
+        do_extract >> [transform,get_data]
+
+        get_data >> [get_json,get_synthetic_data] >> transform
         
         return dag
     
