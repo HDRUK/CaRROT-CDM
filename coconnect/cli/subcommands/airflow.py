@@ -1,5 +1,4 @@
 import click
-import coconnect.workflows.airflow as airflow_helpers
 
 @click.group(help='Command group for configuring runs with airflow')
 def airflow():
@@ -7,6 +6,7 @@ def airflow():
 
 @click.command(help='Create dags for usage with airflow')
 def make_dags():
+    import coconnect.workflows.airflow as airflow_helpers
     reports = airflow_helpers.get_reports()
     for report_id,report_name in reports.items():
         click.echo(f"creating {report_id} {report_name}")
@@ -14,6 +14,7 @@ def make_dags():
 
 @click.command(help='Create dags for usage with airflow')
 def trigger_dags():
+    import coconnect.workflows.airflow as airflow_helpers
     airflow_helpers.trigger_etl_dags()
     
 
