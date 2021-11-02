@@ -16,6 +16,7 @@ class BCLinkHelpers(BashHelpers):
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
         super().__init__(dry_run=dry_run)
         self.logger = Logger("bclink_helpers")
+        self.report = []
         self.user = user
         self.gui_user = gui_user
         self.database = database
@@ -59,7 +60,10 @@ class BCLinkHelpers(BashHelpers):
         fields = self.get_fields(table)
         pk = fields[0]
         duplicates = self.get_duplicates(table)
-        
+        if len(duplicates) == 0:
+            self.logger.info('no duplicates detected')
+            return duplicates
+
         duplicates = ','.join([str(x) for x in duplicates])
         
         cmd=[
@@ -160,7 +164,7 @@ class BCLinkHelpers(BashHelpers):
 
         return retval
 
-    def check_logs(self,job_id):
+    def check_logs(self,job_id,table=None,bclink_table=None):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
         if not os.path.exists(cover):
             return False
@@ -170,11 +174,32 @@ class BCLinkHelpers(BashHelpers):
         if stdout == None:
             return False
 
+        job_id=str(job_id)
+        
+        report = {
+            'job_id':job_id,
+            'table':table,
+            'bclink_table':bclink_table
+        }
+             
+        
         for msg in stdout.splitlines():
             if 'data row(s) discarded,' in msg:
-                self.logger.warning(msg)
+                self.logger.critical(msg)
+                report['dropped_rows'] = msg
+            elif 'new row' in msg:
+                report['new_rows'] = msg
+            elif '>>> From:' in msg:
+                report['From'] = msg.split('>>> From:')[1]
+            elif '>>> To:' in msg:
+                report['To'] = msg.split('>>> To:')[1]
             else:
                 self.logger.info_v2(msg)
+            
+        if report not in self.report:
+            self.report.append(report)
+        
+
         return True
         
     def clean_table(self,table):
@@ -311,7 +336,7 @@ class BCLinkHelpers(BashHelpers):
                 stats = self.get_table_jobs(table_name)
                 self.logger.info(stats)
                 self.logger.info(f"Getting log for {table_name} id={job_id}")
-                success = self.check_logs(job_id)
+                success = self.check_logs(job_id,'global_ids',table_name)
                 if success:
                     break
                 else:
@@ -355,7 +380,7 @@ class BCLinkHelpers(BashHelpers):
                     stats = self.get_table_jobs(table_name)
                     self.logger.info(stats)
                     self.logger.info(f"Getting log for {table_name} id={job_id}")
-                    success = self.check_logs(job_id)
+                    success = self.check_logs(job_id,table,table_name)
                     if success:
                         break
                     else:
@@ -363,6 +388,10 @@ class BCLinkHelpers(BashHelpers):
                         time.sleep(1)
 
         self.print_summary()
+
+    def print_report(self):
+        if self.report:
+            self.logger.info(json.dumps(self.report,indent=6))
 
     def print_summary(self):
         info = {}
