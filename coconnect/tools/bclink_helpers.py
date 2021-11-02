@@ -54,17 +54,45 @@ class BCLinkHelpers(BashHelpers):
         
         raise Exception(f"Request look up ofr table {table} which is unknown")
 
-    def get_duplicates(self,table,fields):
+
+    def drop_duplicates(self,table):
+        fields = self.get_fields(table)
         pk = fields[0]
-        fields = ",".join(fields[1:])
+        duplicates = self.get_duplicates(table)
+        
+        duplicates = ','.join([str(x) for x in duplicates])
+        
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query=DELETE FROM {table} WHERE {pk} IN ({duplicates})',
+            self.database
+        ]         
+        stdout,stderr = self.run_bash_cmd(cmd)
+        return duplicates
+
+    def get_duplicates(self,table):
+        fields = self.get_fields(table)
+        pk = fields[0]
+        batch = fields[-1]
+        fields = ",".join(fields[1:-1])
+        
         cmd=[
             'bc_sqlselect',
             f'--user={self.user}',
             f'--query=SELECT array_agg({pk}) as duplicates FROM {table} GROUP BY {fields} HAVING COUNT(*)>1',
             self.database
         ]
-        return self.run_bash_cmd(cmd)
-       
+        stdout,stderr = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return [] 
+        duplicates = [
+            sorted([int(x) for x in dups[1:-1].split(",")])[1:]
+            for dups in stdout.splitlines()[1:]
+        ]
+        duplicates = sorted(list(set([item for sublist in duplicates for item in sublist])))
+
+        return duplicates
 
     def get_pk(self,table):
         query = f"SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
@@ -80,6 +108,21 @@ class BCLinkHelpers(BashHelpers):
             return 'person_id'
         else:
             return stdout.splitlines()[1]
+    
+    def get_fields(self,table):
+        query = f"SELECT * FROM {table} LIMIT 1;"
+        cmd = [
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}', 
+            self.database
+        ]
+
+        stdout,stdin = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return []
+        else:
+            return stdout.splitlines()[0].split("\t")
                       
     def get_last_index(self,table):
         pk = self.get_pk(table)
