@@ -451,7 +451,31 @@ def delete_data(ctx):
             click.echo(f"Deleting {f}")
             os.remove(f)
     
-    
+
+@click.command(help='check and drop for duplicates')
+@click.pass_obj
+def drop_duplicates(ctx):
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("drop_duplicates")
+
+    retval = {}
+    logger.info("printing to see if tables exist")
+    for cdm_table,bclink_table in bclink_helpers.table_map.items():
+        #dont do this for person table
+        #a person with the same sex and date of birth isnt a duplicate
+        if cdm_table == "person":
+            continue
+        logger.info(f"Looking for duplicates in {cdm_table} ({bclink_table})")
+
+        #if the table hasnt been created, skip
+        exists = bclink_helpers.check_table_exists(bclink_table)
+        if not exists:
+            continue
+        #find out what the primary key is 
+        droped_duplicates = bclink_helpers.drop_duplicates(bclink_table)
+        if len(droped_duplicates)>0:
+            logger.warning(f"Found and dropped {len(droped_duplicates)} duplicates in {bclink_table}")
+            
 
 
 @click.command(help='check the bclink tables')
@@ -756,6 +780,11 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
           bclink_helpers
     )
 
+    #final check for duplicates
+    logger.info(f"looking for duplicates and deleting any")
+    ctx.invoke(drop_duplicates)
+   
+
 
 def _get_table_map(table_map,destination_tables):
     #if it's not a dict, and is a file, load the json
@@ -819,6 +848,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
 bclink.add_command(clean_tables,'clean_tables')
 bclink.add_command(delete_data,'delete_data')
+bclink.add_command(drop_duplicates,'drop_duplicates')
 bclink.add_command(check_tables,'check_tables')
 bclink.add_command(create_tables,'create_tables')
 bclink.add_command(execute,'execute')
