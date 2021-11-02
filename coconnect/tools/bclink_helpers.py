@@ -120,7 +120,7 @@ class BCLinkHelpers(BashHelpers):
 
         stdout,stdin = self.run_bash_cmd(cmd)
         if stdout == None:
-            return []
+            return ['person_id','birth_datetime']
         else:
             return stdout.splitlines()[0].split("\t")
                       
