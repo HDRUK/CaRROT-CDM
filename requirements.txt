@@ -16,3 +16,4 @@ sqlalchemy-utils
 pyyaml
 python-daemon
 inquirer
+python-dotenv

@@ -35,6 +35,7 @@ def table(names,markdown,latex):
         df = pd.DataFrame(data, columns=['name','pk','dtype'])#.set_index('name')
         df['table'] = name
         df.set_index('table',inplace=True)
+        df.set_index('name',inplace=True)
         
         if markdown:
             df = df.to_markdown()
@@ -45,22 +46,37 @@ def table(names,markdown,latex):
 
 @click.command(help="Display a dataframe")
 @click.argument('fname')
+@click.option('--drop-col',multiple=True)
 @click.option('--drop-na',is_flag=True)
 @click.option('--markdown',is_flag=True)
+@click.option('--latex',is_flag=True)
 @click.option('--head',type=int,default=None)
+@click.option('--sample',type=int,default=None)
 @click.option('--separator','--sep',type=str,default=None)
-def dataframe(fname,drop_na,markdown,head,separator):
+def dataframe(fname,drop_na,drop_col,markdown,head,sample,separator,latex):
 
     #if separator not specified, get it from the file extension 
     if separator == None:
         separator = tools.get_separator_from_filename(fname)
-        
+
+
+    if sample and head:
+        head = None
     df = pandas.read_csv(fname,nrows=head,sep=separator)
+    if sample:
+        df = df.sample(sample)
     df.set_index(df.columns[0],inplace=True)
     if drop_na:
         df = df.dropna(axis=1,how='all')
+
+    drop_col = list(drop_col)
+    df = df.drop(drop_col,axis=1)
+        
     if markdown:
         df = df.to_markdown()
+    elif latex:
+        df = df.to_latex()
+
     print (df)
 
 @click.command(help="plot from a csv file")

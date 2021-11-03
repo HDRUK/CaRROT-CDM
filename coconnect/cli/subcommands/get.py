@@ -5,34 +5,78 @@ import coconnect
 import pandas as pd
 import numpy as np
 import requests
-
+from dotenv import dotenv_values
+    
 class MissingToken(Exception):
     pass
 
 
 @click.group(help='Commands to get data from the CCOM api.')
-def get():
-    pass
-
-
-@click.command(help="get a report of the concepts that have been mapped")
 @click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default="https://ccom.azurewebsites.net")
-def concepts(token,url):
+@click.pass_context
+def get(ctx,token,url):
+    config = dotenv_values(".env")
+    if token:
+        config['CCOM_TOKEN'] = token
+    if url:
+        config['CCOM_URL'] = url
 
-    token = os.environ.get("COCONNECT_TOKEN") or token
-    if token == None:
-        raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+    if 'CCOM_TOKEN' not in config:
+        raise MissingToken("you must use the option --token or create a .env file containing CCOM_TOKEN to be able to use this functionality.")
 
-    headers = {
+    token = config['CCOM_TOKEN']
+    config['headers'] = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
         "Content-type": "application/json",
         "charset": "utf-8",
         "Authorization": f"Token {token}"
     }
+    ctx.obj = config
+    
 
+@click.command(help="get information about a concept")
+@click.argument("concept_id",required=True)
+@click.pass_obj
+def concept(config,concept_id):
+    url = config['CCOM_URL']
+    print ("getting response")
+    url = "http://localhost:8080"
+    url = f"{url}/api/omop/concepts/"
+    headers=config['headers'] 
+    #response = requests.get(
+    #    f"{url}/api/omop/concepts/",#{concept_id}/",
+    #    headers=config['headers']
+    #)
+    local_filename = "test.json"
+    with requests.get(url, stream=True, headers=headers) as r:
+        r.raise_for_status()
+        with open(local_filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                print (chunk)
+                # If you have chunk encoded response uncomment if
+                # and set chunk_size parameter to None.
+                #if chunk: 
+                f.write(chunk)
+    #print ("got response")
+    #print (response)
+    #print (response.json())
+    #res = response.json()
+    #json.dump(res,open("concepts.json","w"),indent=6)
+    #click.echo(json.dumps(response.json(),indent=6))
+
+
+
+@click.command(help="get a report of the concepts that have been mapped")
+@click.pass_obj
+def concepts(config):
+
+    token = config['CCOM_TOKEN']
+    url = config['CCOM_URL']
+    headers = config['headers']
+ 
 
     response = requests.get(
         f"{url}/api/scanreports",
@@ -77,20 +121,31 @@ def concepts(token,url):
                     else:
                         concept_ids = list(term_mapping.items())
 
+                                             
                     for source_value,concept_id in concept_ids:
+
+                        if concept_id not in inverted:
+                            inverted[concept_id] = {
+                                'name':concept_name,
+                                'domain':cdm_table_name,
+                                'sources':[]
+                            }
+                    
+                        
                         if concept_id not in inverted:
                             inverted[concept_id] = []
                             
                         obj = {
-                            'concept_name':concept_name,
                             'source_field':source_field,
                             'source_table':source_table,
                             'source_dataset':source_dataset
                         }
                         if source_value is not None:
                             obj['source_value'] = source_value
-                        if obj not in inverted[concept_id]:
-                            inverted[concept_id].append(obj)
+
+                        
+                        if obj not in inverted[concept_id]['sources']:
+                            inverted[concept_id]['sources'].append(obj)
 
     print (json.dumps(inverted,indent=6))
             
@@ -124,3 +179,4 @@ def _json(report_id,token,url):
     
 get.add_command(_json,"json")
 get.add_command(concepts,"concepts")
+get.add_command(concept,"concept")
