@@ -16,6 +16,7 @@ class BCLinkHelpers(BashHelpers):
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
         super().__init__(dry_run=dry_run)
         self.logger = Logger("bclink_helpers")
+        self.report = []
         self.user = user
         self.gui_user = gui_user
         self.database = database
@@ -54,17 +55,48 @@ class BCLinkHelpers(BashHelpers):
         
         raise Exception(f"Request look up ofr table {table} which is unknown")
 
-    def get_duplicates(self,table,fields):
+
+    def drop_duplicates(self,table):
+        fields = self.get_fields(table)
         pk = fields[0]
-        fields = ",".join(fields[1:])
+        duplicates = self.get_duplicates(table)
+        if len(duplicates) == 0:
+            self.logger.info('no duplicates detected')
+            return duplicates
+
+        duplicates = ','.join([str(x) for x in duplicates])
+        
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query=DELETE FROM {table} WHERE {pk} IN ({duplicates})',
+            self.database
+        ]         
+        stdout,stderr = self.run_bash_cmd(cmd)
+        return duplicates
+
+    def get_duplicates(self,table):
+        fields = self.get_fields(table)
+        pk = fields[0]
+        batch = fields[-1]
+        fields = ",".join(fields[1:-1])
+        
         cmd=[
             'bc_sqlselect',
             f'--user={self.user}',
             f'--query=SELECT array_agg({pk}) as duplicates FROM {table} GROUP BY {fields} HAVING COUNT(*)>1',
             self.database
         ]
-        return self.run_bash_cmd(cmd)
-       
+        stdout,stderr = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return [] 
+        duplicates = [
+            sorted([int(x) for x in dups[1:-1].split(",")])[1:]
+            for dups in stdout.splitlines()[1:]
+        ]
+        duplicates = sorted(list(set([item for sublist in duplicates for item in sublist])))
+
+        return duplicates
 
     def get_pk(self,table):
         query = f"SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
@@ -80,6 +112,21 @@ class BCLinkHelpers(BashHelpers):
             return 'person_id'
         else:
             return stdout.splitlines()[1]
+    
+    def get_fields(self,table):
+        query = f"SELECT * FROM {table} LIMIT 1;"
+        cmd = [
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}', 
+            self.database
+        ]
+
+        stdout,stdin = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return ['person_id','birth_datetime']
+        else:
+            return stdout.splitlines()[0].split("\t")
                       
     def get_last_index(self,table):
         pk = self.get_pk(table)
@@ -117,7 +164,7 @@ class BCLinkHelpers(BashHelpers):
 
         return retval
 
-    def check_logs(self,job_id):
+    def check_logs(self,job_id,table=None,bclink_table=None):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
         if not os.path.exists(cover):
             return False
@@ -127,11 +174,32 @@ class BCLinkHelpers(BashHelpers):
         if stdout == None:
             return False
 
+        job_id=str(job_id)
+        
+        report = {
+            'job_id':job_id,
+            'table':table,
+            'bclink_table':bclink_table
+        }
+             
+        
         for msg in stdout.splitlines():
             if 'data row(s) discarded,' in msg:
-                self.logger.warning(msg)
+                self.logger.critical(msg)
+                report['dropped_rows'] = msg
+            elif 'new row' in msg:
+                report['new_rows'] = msg
+            elif '>>> From:' in msg:
+                report['From'] = msg.split('>>> From:')[1]
+            elif '>>> To:' in msg:
+                report['To'] = msg.split('>>> To:')[1]
             else:
                 self.logger.info_v2(msg)
+            
+        if report not in self.report:
+            self.report.append(report)
+        
+
         return True
         
     def clean_table(self,table):
@@ -268,7 +336,7 @@ class BCLinkHelpers(BashHelpers):
                 stats = self.get_table_jobs(table_name)
                 self.logger.info(stats)
                 self.logger.info(f"Getting log for {table_name} id={job_id}")
-                success = self.check_logs(job_id)
+                success = self.check_logs(job_id,'global_ids',table_name)
                 if success:
                     break
                 else:
@@ -312,7 +380,7 @@ class BCLinkHelpers(BashHelpers):
                     stats = self.get_table_jobs(table_name)
                     self.logger.info(stats)
                     self.logger.info(f"Getting log for {table_name} id={job_id}")
-                    success = self.check_logs(job_id)
+                    success = self.check_logs(job_id,table,table_name)
                     if success:
                         break
                     else:
@@ -320,6 +388,10 @@ class BCLinkHelpers(BashHelpers):
                         time.sleep(1)
 
         self.print_summary()
+
+    def print_report(self):
+        if self.report:
+            self.logger.info(json.dumps(self.report,indent=6))
 
     def print_summary(self):
         info = {}
