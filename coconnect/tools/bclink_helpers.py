@@ -46,7 +46,28 @@ class BCLinkHelpers(BashHelpers):
         if stdout == None:
             return True
         return bool(int(stdout.splitlines()[1]))
-       
+
+    def create_tables(self):
+        for table,table_name in self.table_map.items():
+            exists = self.check_table_exists(table_name)
+            if exists:
+                self.logger.info(f"{table_name} ({table}) already exists, not creating")
+                continue
+
+            table_upper = table.upper()
+            table_name_upper = table_name.upper()
+            cmd = [
+                'dataset_tool', 
+                '--create',
+                f'--table={table_name}',
+                f'--setname={table_name_upper}',
+                f'--user={self.gui_user}',
+                f'--form={table_upper}',
+                self.database
+            ]
+            stdout,stderr = self.run_bash_cmd(cmd)
+            self.logger.info(stdout)
+
     def get_bclink_table(self,table):
         if table in self.table_map:
             return self.table_map[table]

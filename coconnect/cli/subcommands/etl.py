@@ -194,10 +194,16 @@ def _process_list_data(ctx):
 
         logger.debug(f"re-execute {re_execute}")
         if re_execute:
+            current_data = copy.deepcopy(new_data)
             #loop over any new data
             for item in new_data:
-                input_folder = item['input']
-                inputs = coconnect.tools.get_files(input_folder,type='csv')
+                if isinstance(item['input'],list):
+                    inputs = item['input']
+                else:
+                    input_folder = item['input']
+                    if not os.path.isdir(input_folder):
+                        raise Exception(f"{input_folder} is not a directory containing files!")
+                    inputs = coconnect.tools.get_files(input_folder,type='csv')
                 filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
 
                 _execute(ctx,
@@ -206,8 +212,8 @@ def _process_list_data(ctx):
                          clean=_clean
                      )
                 _clean = False
-        
-            data += [x for x in new_data if x not in data]
+            
+            data += [x for x in current_data if x not in data]
             display_msg=True
        
 
@@ -273,13 +279,13 @@ def _process_dict_data(ctx):
             
         #     subfolders = {k:v for k,v in subfolders.items() if k in answers['folders']}
         #     logger.info(f"selected {subfolders}")
-               
+        
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
   
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
-          
+                  
         njobs=0
         #print (reversed(sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1]))))
         for name,path in sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1])):
@@ -324,7 +330,7 @@ def _process_dict_data(ctx):
             _execute(ctx,
                      data=_data,
                      rules=filtered_rules,
-                     clean=False
+                     clean=clean if (i==0 and njobs==0) else False
             )
             njobs+=1
             
@@ -504,23 +510,8 @@ def check_tables(ctx):
 @click.pass_context
 def create_tables(ctx):
     logger = Logger("create_tables")
-    exist = ctx.invoke(check_tables)
-
-    tables_to_create = [
-        bclink_table
-        for bclink_table,exists in exist.items()
-        if exists == False
-    ]
-
-    if len(tables_to_create) == 0:
-        logger.info("All tables already exist!")
-        return
-
-    for table_name in tables_to_create:
-        print (table_name)
-
-    os.kill(os.getpid(), signal.SIGINT)
-                
+    bclink_helpers = ctx.obj['bclink_helpers']
+    bclink_helpers.create_tables()                
 
 @click.command(help='Run the Extract part of ETL process for CO-CONNECT integrated with BCLink')
 @click.pass_context
@@ -600,8 +591,6 @@ def _extract(ctx,data,rules,bclink_helpers):
     do_pseudonymise=False
     _pseudonymise = {}
     if 'pseudonymise' in data:
-        print ("need to fix watch folders")
-        exit(0)
         _pseudonymise = data['pseudonymise']
         do_pseudonymise = True
         if 'do' in _pseudonymise:
@@ -671,6 +660,12 @@ def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
     if isinstance(inputs,str):
         inputs = [inputs]
 
+    logger.info(f"inputs: {inputs}")
+    logger.info(f"output_folder: {output_folder}")
+    logger.info(f"indexer: {indexer}")
+    logger.info(f"existing_global_ids: {existing_global_ids}")
+    
+
     ctx.invoke(run,
                rules=rules,
                inputs=inputs,
@@ -719,6 +714,7 @@ def _execute(ctx,
     logger = Logger("execute")
     logger.info(f"Executing steps {steps}")
    
+
     if clean and 'clean' in steps:
         logger.info(f"cleaning existing bclink tables")
         ctx.invoke(clean_tables,data=data)
