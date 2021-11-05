@@ -6,6 +6,7 @@ from .subcommands.airflow import airflow
 from .subcommands.generate import generate
 
 from .subcommands.get import get
+from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
 
 from coconnect.tools.logger import Logger
@@ -54,6 +55,7 @@ coconnect.add_command(info, "info")
 coconnect.add_command(display, "display")
 coconnect.add_command(generate, "generate")
 coconnect.add_command(get, "get")
+coconnect.add_command(search, "search")
 coconnect.add_command(pseudonymise, "pseudonymise")
 coconnect.add_command(airflow,'airflow')
 

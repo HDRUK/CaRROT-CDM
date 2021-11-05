@@ -15,7 +15,7 @@ class MissingToken(Exception):
 @click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
-              default="https://ccom.azurewebsites.net")
+              default=None)
 @click.pass_context
 def get(ctx,token,url):
     config = dotenv_values(".env")
@@ -42,30 +42,13 @@ def get(ctx,token,url):
 @click.pass_obj
 def concept(config,concept_id):
     url = config['CCOM_URL']
-    print ("getting response")
-    url = "http://localhost:8080"
-    url = f"{url}/api/omop/concepts/"
     headers=config['headers'] 
-    #response = requests.get(
-    #    f"{url}/api/omop/concepts/",#{concept_id}/",
-    #    headers=config['headers']
-    #)
-    local_filename = "test.json"
-    with requests.get(url, stream=True, headers=headers) as r:
-        r.raise_for_status()
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                print (chunk)
-                # If you have chunk encoded response uncomment if
-                # and set chunk_size parameter to None.
-                #if chunk: 
-                f.write(chunk)
-    #print ("got response")
-    #print (response)
-    #print (response.json())
-    #res = response.json()
-    #json.dump(res,open("concepts.json","w"),indent=6)
-    #click.echo(json.dumps(response.json(),indent=6))
+    response = requests.get(
+        f"{url}/api/omop/concepts/{concept_id}/",
+        headers=config['headers']
+    )
+    res = response.json()
+    click.echo(json.dumps(response.json(),indent=6))
 
 
 
@@ -77,7 +60,6 @@ def concepts(config):
     url = config['CCOM_URL']
     headers = config['headers']
  
-
     response = requests.get(
         f"{url}/api/scanreports",
         headers=headers
@@ -96,11 +78,14 @@ def concepts(config):
         )
         try:
             all_rules.append(response.json()[0])
+            break
         except:
-            print (f"report {_id} failed")
-            
+            pass
+
+        
     
     inverted = {}
+    _list = []
     for rules in all_rules:
     
         source_dataset = rules['metadata']['dataset']
@@ -126,12 +111,12 @@ def concepts(config):
 
                         if concept_id not in inverted:
                             inverted[concept_id] = {
-                                'name':concept_name,
+                                'concept_name':concept_name,
                                 'domain':cdm_table_name,
                                 'sources':[]
                             }
-                    
-                        
+
+
                         if concept_id not in inverted:
                             inverted[concept_id] = []
                             
@@ -143,11 +128,24 @@ def concepts(config):
                         if source_value is not None:
                             obj['source_value'] = source_value
 
-                        
+                        temp = {
+                            'concept_id':concept_id,
+                            'concept_name':concept_name,
+                            'domain':cdm_table_name,
+                            **obj
+                        }
+                        _list.append(temp)
+                            
                         if obj not in inverted[concept_id]['sources']:
                             inverted[concept_id]['sources'].append(obj)
 
-    print (json.dumps(inverted,indent=6))
+    inverted = [
+        {'concept_id':_id,**obj}
+        for _id,obj in inverted.items()
+    ]
+                            
+    #print (json.dumps(inverted,indent=6))
+    print (json.dumps(_list,indent=6))
             
 
 @click.command(help="get a json file")
