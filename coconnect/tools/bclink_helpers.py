@@ -296,6 +296,10 @@ class BCLinkHelpers(BashHelpers):
                        
     
     def check_global_ids(self,output_directory,chunksize=10):
+
+        if not self.global_ids:
+            return True
+
         data_file = f'{output_directory}/person.tsv'
         if not os.path.exists(data_file):
             self.logger.warning(f"{output_directory}/person.tsv file does not exist")
