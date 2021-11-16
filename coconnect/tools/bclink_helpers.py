@@ -26,8 +26,8 @@ class BCLinkHelpers(BashHelpers):
         if self.table_map == None:
             raise BCLinkHelpersException("Table map between the dataset id and the OMOP tables must be defined")
 
-        if self.global_ids == None:
-            raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
+        #if self.global_ids == None:
+        #    raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
 
     def create_table(self,table):
         print ("creating table")
@@ -246,8 +246,9 @@ class BCLinkHelpers(BashHelpers):
             if not self.global_ids in tables:
                 return
 
-        self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
-        self.clean_table(self.global_ids)
+        if self.global_ids:
+            self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
+            self.clean_table(self.global_ids)
             
     def get_table_jobs(self,table,head=1):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
@@ -268,6 +269,10 @@ class BCLinkHelpers(BashHelpers):
         return info
    
     def get_global_ids(self,f_out):
+
+        if not self.global_ids:
+            return None
+
         # todo: chunking needs to be developed here!
         _dir = os.path.dirname(f_out)
         if not os.path.exists(_dir):
@@ -291,6 +296,10 @@ class BCLinkHelpers(BashHelpers):
                        
     
     def check_global_ids(self,output_directory,chunksize=10):
+
+        if not self.global_ids:
+            return True
+
         data_file = f'{output_directory}/person.tsv'
         if not os.path.exists(data_file):
             self.logger.warning(f"{output_directory}/person.tsv file does not exist")
@@ -332,6 +341,9 @@ class BCLinkHelpers(BashHelpers):
         
    
     def load_global_ids(self,output_directory):
+        if self.global_ids == None:
+            return
+
         data_file = f'{output_directory}/global_ids.tsv'
         if not os.path.exists(data_file):
             #raise FileExistsError(
@@ -432,6 +444,7 @@ class BCLinkHelpers(BashHelpers):
                          f'--user={self.user}',
                          f'--query=SELECT count(*) FROM {self.global_ids}',
                          self.database]
+
                     stdout,stderr = self.run_bash_cmd(cmd)
                     count = stdout.splitlines()[1]
                     info[table]['global_ids'] = {

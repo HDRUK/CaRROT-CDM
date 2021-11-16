@@ -91,9 +91,13 @@ def bclink(ctx,force,config_file,interactive):
     bclink_settings = {}
     if 'bclink' in config:
         bclink_settings = config.pop('bclink')
-    else:
+    
+    if 'tables' not in bclink_settings:
         bclink_settings['tables'] = {x:x for x in destination_tables}
-        bclink_settings['global_ids'] = 'global_ids'
+
+    if 'global_ids' not in bclink_settings:
+        #change default behaviour to non-table
+        bclink_settings['global_ids'] = None#'global_ids'
 
     bclink_settings['tables'] = _get_table_map(bclink_settings['tables'],destination_tables)
     bclink_helpers = BCLinkHelpers(**bclink_settings)
