@@ -40,7 +40,7 @@ class DataFormatter(collections.OrderedDict):
 
     """
 
-    def check_formatting(self,series,function,nsample=50):
+    def check_formatting(self,series,function,nsample=50,tolerance=0.9):
         """
         Apply a formatting function to a subset of a series
         Args:
@@ -76,11 +76,25 @@ class DataFormatter(collections.OrderedDict):
                               f'{series.name}" is  already formatted!!')
             return series
         else:
-            self.logger.critical(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
-            df = pd.concat([series_slice,series_slice_formatted],axis=1).head(5)
-            df.columns = ['original','should be']
-            self.logger.warning(f"\n {df}")
-            raise DataStandardError(f"{series.name} has not been formatted correctly")
+            a=np.array(series_slice.values,dtype=str)
+            b=np.array(series_slice_formatted.values,dtype=str)
+
+            are_equal = a==b
+            ngood = are_equal.sum()
+            fraction_good = round(ngood / n,2)
+
+            logger = self.logger.critical if fraction_good <= tolerance else self.logger.error
+            
+            logger(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
+
+            df_bad = series_slice[~are_equal]
+            self.logger.warning(f"\n {df_bad}")
+
+            if logger == self.logger.critical:
+                logger(f"Fraction of good columns = {fraction_good} ({ngood} / {n} ), is below the tolerance threshold={tolerance}")
+                raise DataStandardError(f"{series.name} has not been formatted correctly")
+            else:
+                logger(f"Fraction of good columns ={fraction_good} ({ngood} / {n} ), is above the tolerance threshold={tolerance}")
     
     def __init__(self,errors='coerce'):
         super().__init__()
@@ -362,7 +376,7 @@ class DestinationTable(object):
             elif self.format_level is FormatterLevel.CHECK:
                 self.logger.debug(f"Checking formatting of {col}")
                 try:
-                    df[col] = self.dtypes.check_formatting(df[col],formatter_function)
+                    _ = self.dtypes.check_formatting(df[col],formatter_function)
                 except Exception as e:
                     if 'source_files' in self._meta:
                         self.logger.error("This is coming from the source file (table & column) ...")
