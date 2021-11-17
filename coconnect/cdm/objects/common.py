@@ -40,7 +40,7 @@ class DataFormatter(collections.OrderedDict):
 
     """
 
-    def check_formatting(self,series,function,nsample=50,tolerance=0.9):
+    def check_formatting(self,series,function,nsample=50,tolerance=0.8):
         """
         Apply a formatting function to a subset of a series
         Args:
@@ -78,23 +78,25 @@ class DataFormatter(collections.OrderedDict):
         else:
             a=np.array(series_slice.values,dtype=str)
             b=np.array(series_slice_formatted.values,dtype=str)
-
+            
             are_equal = a==b
             ngood = are_equal.sum()
-            fraction_good = round(ngood / n,2)
-
+            fraction_good = round(ngood / nsample,2)
+            
             logger = self.logger.critical if fraction_good <= tolerance else self.logger.error
             
             logger(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
 
-            df_bad = series_slice[~are_equal]
+            df_bad = pd.concat([series_slice[~are_equal],series_slice_formatted[~are_equal]],axis=1)
+            df_bad.columns = ['original','should be']
+            
             self.logger.warning(f"\n {df_bad}")
 
             if logger == self.logger.critical:
-                logger(f"Fraction of good columns = {fraction_good} ({ngood} / {n} ), is below the tolerance threshold={tolerance}")
+                logger(f"Fraction of good columns = {fraction_good} ({ngood} / {nsample} ), is below the tolerance threshold={tolerance}")
                 raise DataStandardError(f"{series.name} has not been formatted correctly")
             else:
-                logger(f"Fraction of good columns ={fraction_good} ({ngood} / {n} ), is above the tolerance threshold={tolerance}")
+                logger(f"Fraction of good columns ={fraction_good} ({ngood} / {nsample} ), is above the tolerance threshold={tolerance}")
     
     def __init__(self,errors='coerce'):
         super().__init__()
@@ -365,7 +367,14 @@ class DestinationTable(object):
 
             if self.format_level is FormatterLevel.ON:
                 self.logger.debug(f"Formatting {col}")
-                df[col] = formatter_function(df[col])
+                try:
+                    df[col] = formatter_function(df[col])
+                except Exception as e:
+                    self.logger.critical(e)
+                    if 'source_files' in self._meta:
+                        self.logger.error("This is coming from the source file (table & column) ...")
+                        self.logger.error(self._meta['source_files'][col])
+                    raise(e)
             elif self.format_level is FormatterLevel.CHECK:
                 self.logger.debug(f"Checking formatting of {col}")
                 try:
@@ -382,7 +391,11 @@ class DestinationTable(object):
                 self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                 self.logger.info(f"Sample of this column before formatting:")
                 self.logger.error(sample)
-
+                if 'source_files' in self._meta:
+                    self.logger.error("This is coming from the source file (table & column) ...")
+                    self.logger.error(self._meta['source_files'][col])
+                    
+                
                 raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
 
         return df
