@@ -40,7 +40,7 @@ class DataFormatter(collections.OrderedDict):
 
     """
 
-    def check_formatting(self,series,function,nsample=50,tolerance=0.9):
+    def check_formatting(self,series,function,nsample=50,tolerance=0.8):
         """
         Apply a formatting function to a subset of a series
         Args:
@@ -93,10 +93,10 @@ class DataFormatter(collections.OrderedDict):
             self.logger.warning(f"\n {df_bad}")
 
             if logger == self.logger.critical:
-                logger(f"Fraction of good columns = {fraction_good} ({ngood} / {n} ), is below the tolerance threshold={tolerance}")
+                logger(f"Fraction of good columns = {fraction_good} ({ngood} / {nsample} ), is below the tolerance threshold={tolerance}")
                 raise DataStandardError(f"{series.name} has not been formatted correctly")
             else:
-                logger(f"Fraction of good columns ={fraction_good} ({ngood} / {n} ), is above the tolerance threshold={tolerance}")
+                logger(f"Fraction of good columns ={fraction_good} ({ngood} / {nsample} ), is above the tolerance threshold={tolerance}")
     
     def __init__(self,errors='coerce'):
         super().__init__()
