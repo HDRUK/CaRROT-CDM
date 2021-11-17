@@ -78,11 +78,11 @@ class DataFormatter(collections.OrderedDict):
         else:
             a=np.array(series_slice.values,dtype=str)
             b=np.array(series_slice_formatted.values,dtype=str)
-
+            
             are_equal = a==b
             ngood = are_equal.sum()
-            fraction_good = round(ngood / n,2)
-
+            fraction_good = round(ngood / nsample,2)
+            
             logger = self.logger.critical if fraction_good <= tolerance else self.logger.error
             
             logger(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
