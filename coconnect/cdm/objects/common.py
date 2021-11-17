@@ -87,7 +87,9 @@ class DataFormatter(collections.OrderedDict):
             
             logger(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
 
-            df_bad = series_slice[~are_equal]
+            df_bad = pd.concat([series_slice[~are_equal],series_slice_formatted[~are_equal]],axis=1)
+            df_bad.columns = ['original','should be']
+            
             self.logger.warning(f"\n {df_bad}")
 
             if logger == self.logger.critical:
