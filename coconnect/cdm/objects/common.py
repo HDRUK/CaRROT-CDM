@@ -40,7 +40,7 @@ class DataFormatter(collections.OrderedDict):
 
     """
 
-    def check_formatting(self,series,function,nsample=50,tolerance=0.8):
+    def check_formatting(self,series,function,nsample=50,tolerance=0.3):
         """
         Apply a formatting function to a subset of a series
         Args:
@@ -83,7 +83,7 @@ class DataFormatter(collections.OrderedDict):
             ngood = are_equal.sum()
             fraction_good = round(ngood / nsample,2)
             
-            logger = self.logger.critical if fraction_good <= tolerance else self.logger.error
+            logger = self.logger.critical if fraction_good <= tolerance else self.logger.warning
             
             logger(f'Tested fomatting {nsample} rows of {series.name}. The original data is not in the right format.')
 
