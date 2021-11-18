@@ -68,6 +68,22 @@ class BCLinkHelpers(BashHelpers):
             stdout,stderr = self.run_bash_cmd(cmd)
             self.logger.info(stdout)
 
+    def get_table(self,table):
+        query = f"SELECT * FROM {table}"
+               
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}',
+            self.database
+        ]
+        stdout,_ = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return None
+
+        return pd.read_csv(io.StringIO(stdout),sep='\t')
+       
+  
     def get_bclink_table(self,table):
         if table in self.table_map:
             return self.table_map[table]
@@ -293,8 +309,7 @@ class BCLinkHelpers(BashHelpers):
         
         df_ids.to_csv(f_out,sep='\t')
         return f_out
-                       
-    
+
     def check_global_ids(self,output_directory,chunksize=10):
 
         if not self.global_ids:
