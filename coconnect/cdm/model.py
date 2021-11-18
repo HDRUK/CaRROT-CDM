@@ -661,8 +661,12 @@ class CommonDataModel:
                 self.logger.info(f'saving {name} to {fname}')
             else:
                 self.logger.info(f'updating {name} in {fname}')
+
+            for col in df.columns:
+                if col.endswith("_id"):
+                    df[col] = df[col].astype(float).astype(pd.Int64Dtype())
+                    
             df.set_index(df.columns[0],inplace=True)
-            df.index = df.index.astype(int)
             self.logger.debug(df.dtypes)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
 
