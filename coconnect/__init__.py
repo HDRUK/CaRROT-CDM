@@ -3,7 +3,7 @@ from . import cdm
 
 params = {
     'debug_level':1,
-    'log_file':None,
+    'log_file': 'coconnect.log',
     'version':__version__
 }
 
