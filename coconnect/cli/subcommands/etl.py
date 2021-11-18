@@ -713,7 +713,8 @@ def _execute(ctx,
     steps = ctx.obj['steps']
 
     ctx.obj['listen_for_changes'] = all([step in steps for step in ['extract','transform','load']])
-    
+
+    check_and_drop_duplicates = 'drop_duplicates' in steps
 
     logger = Logger("execute")
     logger.info(f"Executing steps {steps}")
@@ -835,9 +836,11 @@ def _execute(ctx,
           bclink_helpers
     )
 
-    #final check for duplicates
-    logger.info(f"looking for duplicates and deleting any")
-    ctx.invoke(drop_duplicates)
+    if check_and_drop_duplicates:
+        #final check for duplicates
+        logger.info(f"looking for duplicates and deleting any")
+        ctx.invoke(drop_duplicates)
+
     bclink_helpers.print_report()
     logger.info("done!")
 
