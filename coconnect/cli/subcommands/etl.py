@@ -140,6 +140,7 @@ def _process_data(ctx):
 def _process_list_data(ctx):
     logger = Logger("_process_list_data")
     logger.info("ETL process has begun")
+    #exit(0)
 
     interactive = ctx.obj['interactive']
     data = []
