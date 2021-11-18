@@ -662,6 +662,8 @@ class CommonDataModel:
             else:
                 self.logger.info(f'updating {name} in {fname}')
             df.set_index(df.columns[0],inplace=True)
+            df.index = df.index.astype(int)
+            self.logger.debug(df.dtypes)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
 
             if 'output_files' not in self.logs['meta']:
