@@ -185,7 +185,6 @@ def run(ctx,rules,inputs,format_level,
         if number_of_rows_per_chunk <= 0 :
             number_of_rows_per_chunk = None
     
-    
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(coconnect.__file__)
