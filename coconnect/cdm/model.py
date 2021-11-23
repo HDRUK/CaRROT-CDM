@@ -66,7 +66,7 @@ class CommonDataModel:
         self.indexing_conf = indexing_conf
 
         if format_level == None:
-            format_level = 0
+            format_level = 1
         try:
             format_level = int(format_level)
         except ValueError:
