@@ -140,7 +140,7 @@ def _process_data(ctx):
 def _process_list_data(ctx):
     logger = Logger("_process_list_data")
     logger.info("ETL process has begun")
-
+   
     interactive = ctx.obj['interactive']
     data = []
     clean = ctx.obj['clean']
@@ -348,7 +348,39 @@ def _process_dict_data(ctx):
 
         i+=1
         time.sleep(tdelta.total_seconds())
-        
+
+@click.command(help='print all tables in the bclink tables defined in the config file')
+@click.option('--drop-na',is_flag=True)
+@click.option('--markdown',is_flag=True)
+@click.option('--head',type=int,default=None)
+@click.argument("tables",nargs=-1)
+@click.pass_obj
+def print_tables(ctx,drop_na,markdown,head,tables):
+
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("print_tables")
+
+    tables_to_print = list(tables)
+    if len(tables_to_print) == 0:
+        tables_to_print = list(bclink_helpers.table_map.keys())
+
+    tables = [
+        table 
+        for table_name,table in bclink_helpers.table_map.items()
+        if table_name in tables_to_print
+    ]
+
+    for table in tables:
+        df = bclink_helpers.get_table(table)
+        df.set_index(df.columns[0],inplace=True)
+        if drop_na:
+            df = df.dropna(axis=1,how='all')
+        if markdown:
+            df = df.to_markdown()
+
+        click.echo(df)
+
+                
 
 @click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
 @click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
@@ -713,7 +745,8 @@ def _execute(ctx,
     steps = ctx.obj['steps']
 
     ctx.obj['listen_for_changes'] = all([step in steps for step in ['extract','transform','load']])
-    
+
+    check_and_drop_duplicates = 'drop_duplicates' in steps
 
     logger = Logger("execute")
     logger.info(f"Executing steps {steps}")
@@ -835,9 +868,11 @@ def _execute(ctx,
           bclink_helpers
     )
 
-    #final check for duplicates
-    logger.info(f"looking for duplicates and deleting any")
-    ctx.invoke(drop_duplicates)
+    if check_and_drop_duplicates:
+        #final check for duplicates
+        logger.info(f"looking for duplicates and deleting any")
+        ctx.invoke(drop_duplicates)
+
     bclink_helpers.print_report()
     logger.info("done!")
 
@@ -902,6 +937,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
+bclink.add_command(print_tables,'print_tables')
 bclink.add_command(clean_tables,'clean_tables')
 bclink.add_command(delete_data,'delete_data')
 bclink.add_command(drop_duplicates,'drop_duplicates')

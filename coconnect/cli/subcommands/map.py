@@ -132,7 +132,7 @@ def run(ctx,rules,inputs,format_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    if log_file == 'auto':
+    if log_file == 'auto' and coconnect.params['log_file'] is None:
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
         

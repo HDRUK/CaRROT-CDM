@@ -47,9 +47,10 @@ class Logger(logging.Logger):
         self.addHandler(ch)
 
         if save_to_file:
-            self.info(f"Saving logs to file {save_to_file}")
+            self.debug(f"Saving logs to file {save_to_file}")
             file_formatter = logging.Formatter(format_str)
-            _dir = os.path.dirname(save_to_file)
+            _dir = os.path.realpath(os.path.dirname(save_to_file))
+            
             if not os.path.exists(_dir):
                 os.makedirs(_dir)
             
