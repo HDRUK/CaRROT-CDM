@@ -16,6 +16,7 @@ class BCLinkHelpers(BashHelpers):
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
         super().__init__(dry_run=dry_run)
         self.logger = Logger("bclink_helpers")
+        self.report = []
         self.user = user
         self.gui_user = gui_user
         self.database = database
@@ -25,8 +26,8 @@ class BCLinkHelpers(BashHelpers):
         if self.table_map == None:
             raise BCLinkHelpersException("Table map between the dataset id and the OMOP tables must be defined")
 
-        if self.global_ids == None:
-            raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
+        #if self.global_ids == None:
+        #    raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
 
     def create_table(self,table):
         print ("creating table")
@@ -45,7 +46,44 @@ class BCLinkHelpers(BashHelpers):
         if stdout == None:
             return True
         return bool(int(stdout.splitlines()[1]))
+
+    def create_tables(self):
+        for table,table_name in self.table_map.items():
+            exists = self.check_table_exists(table_name)
+            if exists:
+                self.logger.info(f"{table_name} ({table}) already exists, not creating")
+                continue
+
+            table_upper = table.upper()
+            table_name_upper = table_name.upper()
+            cmd = [
+                'dataset_tool', 
+                '--create',
+                f'--table={table_name}',
+                f'--setname={table_name_upper}',
+                f'--user={self.gui_user}',
+                f'--form={table_upper}',
+                self.database
+            ]
+            stdout,stderr = self.run_bash_cmd(cmd)
+            self.logger.info(stdout)
+
+    def get_table(self,table):
+        query = f"SELECT * FROM {table}"
+               
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}',
+            self.database
+        ]
+        stdout,_ = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return None
+
+        return pd.read_csv(io.StringIO(stdout),sep='\t')
        
+  
     def get_bclink_table(self,table):
         if table in self.table_map:
             return self.table_map[table]
@@ -54,17 +92,48 @@ class BCLinkHelpers(BashHelpers):
         
         raise Exception(f"Request look up ofr table {table} which is unknown")
 
-    def get_duplicates(self,table,fields):
+
+    def drop_duplicates(self,table):
+        fields = self.get_fields(table)
         pk = fields[0]
-        fields = ",".join(fields[1:])
+        duplicates = self.get_duplicates(table)
+        if len(duplicates) == 0:
+            self.logger.info('no duplicates detected')
+            return duplicates
+
+        duplicates = ','.join([str(x) for x in duplicates])
+        
+        cmd=[
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query=DELETE FROM {table} WHERE {pk} IN ({duplicates})',
+            self.database
+        ]         
+        stdout,stderr = self.run_bash_cmd(cmd)
+        return duplicates
+
+    def get_duplicates(self,table):
+        fields = self.get_fields(table)
+        pk = fields[0]
+        batch = fields[-1]
+        fields = ",".join(fields[1:-1])
+        
         cmd=[
             'bc_sqlselect',
             f'--user={self.user}',
             f'--query=SELECT array_agg({pk}) as duplicates FROM {table} GROUP BY {fields} HAVING COUNT(*)>1',
             self.database
         ]
-        return self.run_bash_cmd(cmd)
-       
+        stdout,stderr = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return [] 
+        duplicates = [
+            sorted([int(x) for x in dups[1:-1].split(",")])[1:]
+            for dups in stdout.splitlines()[1:]
+        ]
+        duplicates = sorted(list(set([item for sublist in duplicates for item in sublist])))
+
+        return duplicates
 
     def get_pk(self,table):
         query = f"SELECT column_name FROM INFORMATION_SCHEMA. COLUMNS WHERE table_name = '{table}' LIMIT 1 "
@@ -80,6 +149,21 @@ class BCLinkHelpers(BashHelpers):
             return 'person_id'
         else:
             return stdout.splitlines()[1]
+    
+    def get_fields(self,table):
+        query = f"SELECT * FROM {table} LIMIT 1;"
+        cmd = [
+            'bc_sqlselect',
+            f'--user={self.user}',
+            f'--query={query}', 
+            self.database
+        ]
+
+        stdout,stdin = self.run_bash_cmd(cmd)
+        if stdout == None:
+            return ['person_id','birth_datetime']
+        else:
+            return stdout.splitlines()[0].split("\t")
                       
     def get_last_index(self,table):
         pk = self.get_pk(table)
@@ -117,7 +201,7 @@ class BCLinkHelpers(BashHelpers):
 
         return retval
 
-    def check_logs(self,job_id):
+    def check_logs(self,job_id,table=None,bclink_table=None):
         cover = f'/data/var/lib/bcos/download/data/job{job_id}/cover.{job_id}'
         if not os.path.exists(cover):
             return False
@@ -127,11 +211,32 @@ class BCLinkHelpers(BashHelpers):
         if stdout == None:
             return False
 
+        job_id=str(job_id)
+        
+        report = {
+            'job_id':job_id,
+            'table':table,
+            'bclink_table':bclink_table
+        }
+             
+        
         for msg in stdout.splitlines():
             if 'data row(s) discarded,' in msg:
-                self.logger.warning(msg)
+                self.logger.critical(msg)
+                report['dropped_rows'] = msg
+            elif 'new row' in msg:
+                report['new_rows'] = msg
+            elif '>>> From:' in msg:
+                report['From'] = msg.split('>>> From:')[1]
+            elif '>>> To:' in msg:
+                report['To'] = msg.split('>>> To:')[1]
             else:
                 self.logger.info_v2(msg)
+            
+        if report not in self.report:
+            self.report.append(report)
+        
+
         return True
         
     def clean_table(self,table):
@@ -157,8 +262,9 @@ class BCLinkHelpers(BashHelpers):
             if not self.global_ids in tables:
                 return
 
-        self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
-        self.clean_table(self.global_ids)
+        if self.global_ids:
+            self.logger.info(f"Cleaning existing person ids in {self.global_ids}")
+            self.clean_table(self.global_ids)
             
     def get_table_jobs(self,table,head=1):
         cmd = f'datasettool2 list-updates --dataset={table} --user={self.gui_user} --database={self.database}'
@@ -179,6 +285,10 @@ class BCLinkHelpers(BashHelpers):
         return info
    
     def get_global_ids(self,f_out):
+
+        if not self.global_ids:
+            return None
+
         # todo: chunking needs to be developed here!
         _dir = os.path.dirname(f_out)
         if not os.path.exists(_dir):
@@ -199,9 +309,12 @@ class BCLinkHelpers(BashHelpers):
         
         df_ids.to_csv(f_out,sep='\t')
         return f_out
-                       
-    
+
     def check_global_ids(self,output_directory,chunksize=10):
+
+        if not self.global_ids:
+            return True
+
         data_file = f'{output_directory}/person.tsv'
         if not os.path.exists(data_file):
             self.logger.warning(f"{output_directory}/person.tsv file does not exist")
@@ -243,6 +356,9 @@ class BCLinkHelpers(BashHelpers):
         
    
     def load_global_ids(self,output_directory):
+        if self.global_ids == None:
+            return
+
         data_file = f'{output_directory}/global_ids.tsv'
         if not os.path.exists(data_file):
             #raise FileExistsError(
@@ -268,7 +384,7 @@ class BCLinkHelpers(BashHelpers):
                 stats = self.get_table_jobs(table_name)
                 self.logger.info(stats)
                 self.logger.info(f"Getting log for {table_name} id={job_id}")
-                success = self.check_logs(job_id)
+                success = self.check_logs(job_id,'global_ids',table_name)
                 if success:
                     break
                 else:
@@ -312,7 +428,7 @@ class BCLinkHelpers(BashHelpers):
                     stats = self.get_table_jobs(table_name)
                     self.logger.info(stats)
                     self.logger.info(f"Getting log for {table_name} id={job_id}")
-                    success = self.check_logs(job_id)
+                    success = self.check_logs(job_id,table,table_name)
                     if success:
                         break
                     else:
@@ -320,6 +436,10 @@ class BCLinkHelpers(BashHelpers):
                         time.sleep(1)
 
         self.print_summary()
+
+    def print_report(self):
+        if self.report:
+            self.logger.info(json.dumps(self.report,indent=6))
 
     def print_summary(self):
         info = {}
@@ -339,6 +459,7 @@ class BCLinkHelpers(BashHelpers):
                          f'--user={self.user}',
                          f'--query=SELECT count(*) FROM {self.global_ids}',
                          self.database]
+
                     stdout,stderr = self.run_bash_cmd(cmd)
                     count = stdout.splitlines()[1]
                     info[table]['global_ids'] = {

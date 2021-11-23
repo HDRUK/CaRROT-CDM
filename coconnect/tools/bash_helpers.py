@@ -19,4 +19,8 @@ class BashHelpers:
             return None,None
         session = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout, stderr = (x.decode("utf-8") for x in session.communicate())
+
+        if 'ERROR' in stderr:
+            self.__logger.critical(stderr)
+            raise Exception("failled executing bash command")
         return stdout,stderr

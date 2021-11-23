@@ -41,7 +41,7 @@ class CommonDataModel:
                  person_id_map=None,
                  inputs=None, use_profiler=False,
                  format_level=None,do_mask_person_id=True,
-                 automatically_fill_missing_columns=False):
+                 automatically_generate_missing_rules=True):
         """
         CommonDataModel class initialisation 
         Args:
@@ -66,7 +66,7 @@ class CommonDataModel:
         self.indexing_conf = indexing_conf
 
         if format_level == None:
-            format_level = 0
+            format_level = 1
         try:
             format_level = int(format_level)
         except ValueError:
@@ -298,7 +298,7 @@ class CommonDataModel:
                                                  
             if destination_table == 'person':
                 if self.person_id_masker is not None:
-                    start_index = list(self.person_id_masker.values())[-1] + 1
+                    start_index = int(list(self.person_id_masker.values())[-1]) + 1
                 else:
                     self.person_id_masker = {}
                     start_index = self.get_start_index(destination_table)
@@ -314,7 +314,6 @@ class CommonDataModel:
                         raise PersonExists('Duplicate person found!')
                     self.person_id_masker[x] = index
                                    
-                
                 os.makedirs(self.output_folder,exist_ok=True)
                 dfp = pd.DataFrame.from_dict(self.person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
                 dfp.index.name = 'TARGET_SUBJECT'
@@ -328,7 +327,8 @@ class CommonDataModel:
                     mode = 'a'
                         
                 dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
-                    
+            
+            
             #apply the masking
             if self.person_id_masker is None:
                 raise Exception(f"Person ID masking cannot be performed on"
@@ -661,7 +661,13 @@ class CommonDataModel:
                 self.logger.info(f'saving {name} to {fname}')
             else:
                 self.logger.info(f'updating {name} in {fname}')
+
+            for col in df.columns:
+                if col.endswith("_id"):
+                    df[col] = df[col].astype(float).astype(pd.Int64Dtype())
+                    
             df.set_index(df.columns[0],inplace=True)
+            self.logger.debug(df.dtypes)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
 
             if 'output_files' not in self.logs['meta']:

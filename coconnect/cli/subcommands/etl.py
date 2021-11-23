@@ -91,9 +91,13 @@ def bclink(ctx,force,config_file,interactive):
     bclink_settings = {}
     if 'bclink' in config:
         bclink_settings = config.pop('bclink')
-    else:
+    
+    if 'tables' not in bclink_settings:
         bclink_settings['tables'] = {x:x for x in destination_tables}
-        bclink_settings['global_ids'] = 'global_ids'
+
+    if 'global_ids' not in bclink_settings:
+        #change default behaviour to non-table
+        bclink_settings['global_ids'] = None#'global_ids'
 
     bclink_settings['tables'] = _get_table_map(bclink_settings['tables'],destination_tables)
     bclink_helpers = BCLinkHelpers(**bclink_settings)
@@ -119,6 +123,9 @@ def bclink(ctx,force,config_file,interactive):
     if 'pseudonymise' in config:
         ctx.obj['pseudonymise'] = config['pseudonymise']
 
+    #define the default steps to execute
+    ctx.obj['steps']=['clean','extract','transform','load']
+
     unknown_keys = list( set(config.keys()) - set(ctx.obj.keys()) )
     if len(unknown_keys) > 0 :
         raise UnknownConfigurationSetting(f'"{unknown_keys}" are not valid settings in the yaml file')
@@ -133,7 +140,7 @@ def _process_data(ctx):
 def _process_list_data(ctx):
     logger = Logger("_process_list_data")
     logger.info("ETL process has begun")
-
+   
     interactive = ctx.obj['interactive']
     data = []
     clean = ctx.obj['clean']
@@ -191,10 +198,16 @@ def _process_list_data(ctx):
 
         logger.debug(f"re-execute {re_execute}")
         if re_execute:
+            current_data = copy.deepcopy(new_data)
             #loop over any new data
             for item in new_data:
-                input_folder = item['input']
-                inputs = coconnect.tools.get_files(input_folder,type='csv')
+                if isinstance(item['input'],list):
+                    inputs = item['input']
+                else:
+                    input_folder = item['input']
+                    if not os.path.isdir(input_folder):
+                        raise Exception(f"{input_folder} is not a directory containing files!")
+                    inputs = coconnect.tools.get_files(input_folder,type='csv')
                 filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
 
                 _execute(ctx,
@@ -203,8 +216,8 @@ def _process_list_data(ctx):
                          clean=_clean
                      )
                 _clean = False
-        
-            data += [x for x in new_data if x not in data]
+            
+            data += [x for x in current_data if x not in data]
             display_msg=True
        
 
@@ -215,6 +228,8 @@ def _process_list_data(ctx):
             # --> we dont want to just apply the delta to the new data
             rules = coconnect.tools.load_json(current_rules_file)
        
+        if ctx.obj['listen_for_changes'] == False:
+            break
     
         if display_msg:
             logger.info(f"Finished!... Listening for changes to data in {config_file}")
@@ -268,13 +283,13 @@ def _process_dict_data(ctx):
             
         #     subfolders = {k:v for k,v in subfolders.items() if k in answers['folders']}
         #     logger.info(f"selected {subfolders}")
-               
+        
         logger.debug(f"Found and checking {len(subfolders.values())} subfolders")
         logger.debug(list(subfolders.values()))
   
         if len(subfolders.values())> 0:
             logger.debug(f"{list(subfolders.values())}")
-          
+                  
         njobs=0
         #print (reversed(sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1]))))
         for name,path in sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1])):
@@ -319,7 +334,7 @@ def _process_dict_data(ctx):
             _execute(ctx,
                      data=_data,
                      rules=filtered_rules,
-                     clean=False
+                     clean=clean if (i==0 and njobs==0) else False
             )
             njobs+=1
             
@@ -333,7 +348,39 @@ def _process_dict_data(ctx):
 
         i+=1
         time.sleep(tdelta.total_seconds())
-        
+
+@click.command(help='print all tables in the bclink tables defined in the config file')
+@click.option('--drop-na',is_flag=True)
+@click.option('--markdown',is_flag=True)
+@click.option('--head',type=int,default=None)
+@click.argument("tables",nargs=-1)
+@click.pass_obj
+def print_tables(ctx,drop_na,markdown,head,tables):
+
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("print_tables")
+
+    tables_to_print = list(tables)
+    if len(tables_to_print) == 0:
+        tables_to_print = list(bclink_helpers.table_map.keys())
+
+    tables = [
+        table 
+        for table_name,table in bclink_helpers.table_map.items()
+        if table_name in tables_to_print
+    ]
+
+    for table in tables:
+        df = bclink_helpers.get_table(table)
+        df.set_index(df.columns[0],inplace=True)
+        if drop_na:
+            df = df.dropna(axis=1,how='all')
+        if markdown:
+            df = df.to_markdown()
+
+        click.echo(df)
+
+                
 
 @click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
 @click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
@@ -451,7 +498,31 @@ def delete_data(ctx):
             click.echo(f"Deleting {f}")
             os.remove(f)
     
-    
+
+@click.command(help='check and drop for duplicates')
+@click.pass_obj
+def drop_duplicates(ctx):
+    bclink_helpers = ctx['bclink_helpers']
+    logger = Logger("drop_duplicates")
+
+    retval = {}
+    logger.info("printing to see if tables exist")
+    for cdm_table,bclink_table in bclink_helpers.table_map.items():
+        #dont do this for person table
+        #a person with the same sex and date of birth isnt a duplicate
+        if cdm_table == "person":
+            continue
+        logger.info(f"Looking for duplicates in {cdm_table} ({bclink_table})")
+
+        #if the table hasnt been created, skip
+        exists = bclink_helpers.check_table_exists(bclink_table)
+        if not exists:
+            continue
+        #find out what the primary key is 
+        droped_duplicates = bclink_helpers.drop_duplicates(bclink_table)
+        if len(droped_duplicates)>0:
+            logger.warning(f"Found and dropped {len(droped_duplicates)} duplicates in {bclink_table}")
+            
 
 
 @click.command(help='check the bclink tables')
@@ -475,24 +546,32 @@ def check_tables(ctx):
 @click.pass_context
 def create_tables(ctx):
     logger = Logger("create_tables")
-    exist = ctx.invoke(check_tables)
+    bclink_helpers = ctx.obj['bclink_helpers']
+    bclink_helpers.create_tables()                
 
-    tables_to_create = [
-        bclink_table
-        for bclink_table,exists in exist.items()
-        if exists == False
-    ]
+@click.command(help='Run the Extract part of ETL process for CO-CONNECT integrated with BCLink')
+@click.pass_context
+def extract(ctx):
+    logger = Logger("Extract")
+    logger.info("doing extract only")
+    ctx.obj['steps'] = ['extract']
+    ctx.invoke(execute)
 
-    if len(tables_to_create) == 0:
-        logger.info("All tables already exist!")
-        return
+@click.command(help='Run the Transform part of ETL process for CO-CONNECT integrated with BCLink')
+@click.pass_context
+def transform(ctx):
+    logger = Logger("Transform")
+    logger.info("doing transform only")
+    ctx.obj['steps'] = ['transform']
+    ctx.invoke(execute)
 
-    for table_name in tables_to_create:
-        print (table_name)
-
-    os.kill(os.getpid(), signal.SIGINT)
-                
-
+@click.command(help='Run the Load part of ETL process for CO-CONNECT integrated with BCLink')
+@click.pass_context
+def load(ctx):
+    logger = Logger("Load")
+    logger.info("doing load only")
+    ctx.obj['steps'] = ['load']
+    ctx.invoke(execute)
 
 
 @click.command(help='Run the full ETL process for CO-CONNECT integrated with BCLink')
@@ -500,7 +579,7 @@ def create_tables(ctx):
 @click.pass_context
 def execute(ctx,run_as_daemon):
     logger = Logger("Execute")
-
+    
     if run_as_daemon and daemon is None:
         raise ImportError(f"You are trying to run in daemon mode, "
                           "but the package 'daemon' hasn't been installed. "
@@ -529,7 +608,9 @@ def execute(ctx,run_as_daemon):
 
 
 def _extract(ctx,data,rules,bclink_helpers):
-    
+    if not 'extract' in ctx.obj['steps']:
+        return {'data':data}
+
     logger = Logger("extract")
     logger.info(f"starting extraction processes")
 
@@ -546,8 +627,6 @@ def _extract(ctx,data,rules,bclink_helpers):
     do_pseudonymise=False
     _pseudonymise = {}
     if 'pseudonymise' in data:
-        print ("need to fix watch folders")
-        exit(0)
         _pseudonymise = data['pseudonymise']
         do_pseudonymise = True
         if 'do' in _pseudonymise:
@@ -608,11 +687,20 @@ def _extract(ctx,data,rules,bclink_helpers):
     }
 
 def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
+    if not 'transform' in ctx.obj['steps']:
+        return 
+
     logger = Logger("transform")
     logger.info("starting data transform processes")
 
     if isinstance(inputs,str):
         inputs = [inputs]
+
+    logger.info(f"inputs: {inputs}")
+    logger.info(f"output_folder: {output_folder}")
+    logger.info(f"indexer: {indexer}")
+    logger.info(f"existing_global_ids: {existing_global_ids}")
+    
 
     ctx.invoke(run,
                rules=rules,
@@ -622,7 +710,11 @@ def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
                person_id_map=existing_global_ids
     ) 
 
-def _load(output_folder,cdm_tables,global_ids,bclink_helpers):
+def _load(ctx,output_folder,cdm_tables,global_ids,bclink_helpers):
+
+    if not 'load' in ctx.obj['steps']:
+        return 
+
     logger = Logger("load")
     logger.info("starting loading data processes")
 
@@ -634,7 +726,11 @@ def _load(output_folder,cdm_tables,global_ids,bclink_helpers):
     bclink_helpers.load_tables(output_folder,cdm_tables)
 
         
-def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
+def _execute(ctx,
+             rules=None,
+             data=None,
+             clean=None,
+             bclink_helpers=None):
     
     if data == None:
         data = ctx.obj['data']
@@ -646,14 +742,23 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
         bclink_helpers = ctx.obj['bclink_helpers']
     
     interactive = ctx.obj['interactive']
+    steps = ctx.obj['steps']
+
+    ctx.obj['listen_for_changes'] = all([step in steps for step in ['extract','transform','load']])
+
+    check_and_drop_duplicates = 'drop_duplicates' in steps
+
     logger = Logger("execute")
-    if clean:
+    logger.info(f"Executing steps {steps}")
+   
+
+    if clean and 'clean' in steps:
         logger.info(f"cleaning existing bclink tables")
         ctx.invoke(clean_tables,data=data)
    
 
     tables = list(rules['cdm'].keys())
-    if interactive:
+    if interactive and ('extract' in steps or 'transform' in steps):
         choices = []
         #location = f"{output_folder}/{name}"
         for table in tables:
@@ -688,9 +793,10 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
                            rules,
                            bclink_helpers
     ) 
-    indexer = extract_data['indexer']
-    existing_global_ids = extract_data['existing_global_ids']
-    data = extract_data['data']
+    indexer = extract_data.get('indexer')
+    existing_global_ids = extract_data.get('existing_global_ids')
+    data = extract_data.get('data')
+   
     #----------------------------------
 
     inputs = data['input']
@@ -709,6 +815,11 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
     #remove this lookup file once done with it
     if existing_global_ids and os.path.exists(existing_global_ids):
         os.remove(existing_global_ids)
+
+
+    if 'load' not in steps:
+        logger.info("done!")
+        return
 
     cdm_tables = coconnect.tools.get_files(output_folder,type='tsv')
     if interactive:
@@ -750,11 +861,20 @@ def _execute(ctx,rules=None,data=None,clean=None,bclink_helpers=None):
     
     #call load
     #----------------------------------        
-    _load(output_folder,
+    _load(ctx,
+          output_folder,
           cdm_tables,
           global_ids,
           bclink_helpers
     )
+
+    if check_and_drop_duplicates:
+        #final check for duplicates
+        logger.info(f"looking for duplicates and deleting any")
+        ctx.invoke(drop_duplicates)
+
+    bclink_helpers.print_report()
+    logger.info("done!")
 
 
 def _get_table_map(table_map,destination_tables):
@@ -817,11 +937,16 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
+bclink.add_command(print_tables,'print_tables')
 bclink.add_command(clean_tables,'clean_tables')
 bclink.add_command(delete_data,'delete_data')
+bclink.add_command(drop_duplicates,'drop_duplicates')
 bclink.add_command(check_tables,'check_tables')
 bclink.add_command(create_tables,'create_tables')
 bclink.add_command(execute,'execute')
+bclink.add_command(extract,'extract')
+bclink.add_command(transform,'transform')
+bclink.add_command(load,'load')
 etl.add_command(manual,'bclink-manual')
 etl.add_command(bclink,'bclink')
 

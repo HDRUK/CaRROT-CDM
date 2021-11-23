@@ -87,7 +87,7 @@ def test(ctx):
               is_flag=True,
               help="turn on saving statistics for profiling CPU and memory usage")
 @click.option("format_level","--format-level",
-              default='2',
+              default='1',
               type=click.Choice(['0','1','2']),
               help="Choose the level of formatting to apply on the output data. 0 - no formatting. 1 - automatic formatting. 2 (default) - check formatting (will crash if input data is not already formatted).")
 @click.option("--output-folder",
@@ -136,7 +136,7 @@ def run(ctx,rules,inputs,format_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    if log_file == 'auto':
+    if log_file == 'auto' and coconnect.params['log_file'] is None:
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
         
@@ -188,7 +188,6 @@ def run(ctx,rules,inputs,format_level,
         #turn off chunking if 0 or negative chunksizes are given
         if number_of_rows_per_chunk <= 0 :
             number_of_rows_per_chunk = None
-    
     
     #check if exists
     if any('*' in x for x in inputs):
