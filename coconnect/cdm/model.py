@@ -41,7 +41,7 @@ class CommonDataModel:
                  person_id_map=None,
                  inputs=None, use_profiler=False,
                  format_level=None,do_mask_person_id=True,
-                 automatically_generate_missing_rules=False):
+                 automatically_generate_missing_rules=True):
         """
         CommonDataModel class initialisation 
         Args:
@@ -66,7 +66,7 @@ class CommonDataModel:
         self.indexing_conf = indexing_conf
 
         if format_level == None:
-            format_level = 0
+            format_level = 1
         try:
             format_level = int(format_level)
         except ValueError:

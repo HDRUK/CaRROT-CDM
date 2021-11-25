@@ -15,6 +15,7 @@ from .file_helpers import (
     load_json,
     load_json_delta,
     load_csv,
+    InputData,
     remove_missing_sources_from_rules,
     filter_rules_by_destination_tables,
     get_separator_from_filename,

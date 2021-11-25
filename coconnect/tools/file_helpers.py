@@ -14,16 +14,15 @@ class DifferingRows(Exception):
 
 
 class InputData:
-    def __init__(self,chunksize):
-        self.chunksize = chunksize
+    def __init__(self):
+        self.chunksize = None
 
         self.__file_readers = {}
         self.__dataframe = {}
 
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("InputData Object Created")
-        if self.chunksize is not None:
-            self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
+
 
     def all(self):
         return {
@@ -80,7 +79,13 @@ class InputData:
                                       f"{pd.DataFrame} or {pd.io.parsers.TextFileReader} ")
         self.logger.info(f"Registering  {key} [{type(obj)}]")
         self.__file_readers[key] = obj
-        
+        if isinstance(obj,pd.io.parsers.TextFileReader):
+            chunksize = obj.chunksize
+            if self.chunksize == None:
+                self.chunksize = chunksize
+            elif self.chunksize != obj.chunksize:
+                raise NotImplementedError("Needs input data to be all chunked with the same number of rows")
+                        
     
 def load_json_delta(f_in,original):
     logger = Logger("load_json_delta")
@@ -173,7 +178,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-    retval = InputData(chunksize)
+    retval = InputData()
         
     for key,obj in _map.items():
         fields = None
