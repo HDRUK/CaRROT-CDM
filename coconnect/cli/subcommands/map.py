@@ -72,7 +72,7 @@ def test(ctx):
         tools.diff_csv(fname,fname)
 
 
-@click.command()
+@click.command(help="apply operations (transforms) to a dataset")
 @click.option("--config","-c",required=True,type=str)
 @click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
 @click.option("--output-folder","-o",required=True,type=str)
@@ -181,7 +181,6 @@ def format_input_data(column,operation,input):
     n = 5 if len(df_input) > 5 else len(df_input)
     print (df_input[column].sample(n))
     df_input.to_csv(input)
-    
     
         
 @click.command()
@@ -564,6 +563,7 @@ py.add_command(list_classes,"list")
 py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
+map.add_command(apply_operations,"apply_operations")
 map.add_command(run,"run")
 map.add_command(format,"format")
 map.add_command(transform,"transform")
