@@ -14,10 +14,6 @@ from coconnect.tools.file_helpers import InputData
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.schema import CreateSchema
-from sqlalchemy_utils import database_exists, create_database
-
 
 class NoInputFiles(Exception):
     pass
@@ -81,6 +77,7 @@ class CommonDataModel:
         if self.output_database is not None:
             self.logger.info(f"Running with the output set to '{self.output_database}'")
             try:
+                from sqlalchemy import create_engine
                 self.psql_engine = create_engine(self.output_database)
             except Exception as err:
                 self.logger.critical(f"Failed to make a connection to {self.output_database}")
@@ -581,6 +578,7 @@ class CommonDataModel:
 
     def save_to_psql(self,mode='a'):
         #creat an inspector based on the psql engine
+        from sqlalchemy import inspect
         insp  = inspect(self.psql_engine)
         #get the names of existing tables
         existing_tables = insp.get_table_names()

@@ -30,6 +30,10 @@ setuptools.setup(
         ],
     },
     packages=setuptools.find_packages(),
+    extras_require = {
+        'sql':['sqlalchemy','psycopg2-binary==2.8.6','sqlalchemy-utils'],
+        'performance':['snakeviz'],
+    },
     install_requires=required,
     package_data={'coconnect': ['data/cdm/*','data/example/*/*','data/test/*/*','data/test/*/*/*']},
     include_package_data=True,
