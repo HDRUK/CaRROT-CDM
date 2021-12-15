@@ -330,8 +330,22 @@ class CommonDataModel:
             if self.person_id_masker is None:
                 raise Exception(f"Person ID masking cannot be performed on"
                                 f" {destination_table} as no masker based on a person table has been defined!")
+
+            nbefore = len(df['person_id'])
             df['person_id'] = df['person_id'].map(self.person_id_masker)
-            self.logger.info(f"Just masked person_id")
+            self.logger.info(f"Just masked person_id using integers")
+            if destination_table != 'person':
+                df.dropna(subset=['person_id'],inplace=True) 
+                nafter = len(df['person_id'])
+                ndiff = nbefore - nafter
+                #if rows have been removed
+                if ndiff>0:
+                    self.logger.error("There are person_ids in this table that are not in the output person table!")
+                    self.logger.error("Either they are not in the original data, or while creating the person table, ")
+                    self.logger.error("studies have been removed due to lack of required fields, such as birthdate.")
+                    self.logger.error(f"{nafter}/{nbefore} were good, {ndiff} studies are removed.")
+            
+            
         return df
 
     def count_objects(self):
