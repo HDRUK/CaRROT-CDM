@@ -5,7 +5,7 @@ import coconnect
 import pandas as pd
 import numpy as np
 import requests
-
+import secrets
 class MissingToken(Exception):
     pass
 
@@ -253,5 +253,14 @@ def cdm(table,version):
             
         string = f'self.{index} = DestinationField(dtype="{dtype}", required={required} {extra})'
         print (string)
-    
+        
 generate.add_command(cdm,"cdm")
+
+
+@click.command(help="generate a hash token to be used as a salt")
+@click.option("length","--length",default=64)
+def salt(length):
+    salt = secrets.token_hex(length)
+    click.echo(salt)
+
+generate.add_command(salt,"salt")
