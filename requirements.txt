@@ -12,3 +12,4 @@ openpyxl
 pyyaml
 python-daemon
 inquirer
+co-connect-pseudonymise
