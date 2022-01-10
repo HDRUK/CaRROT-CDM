@@ -13,7 +13,8 @@ from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
-
+from .objects import get_cdm_class, get_cdm_decorator
+from .decorators import load_file
 
 class NoInputFiles(Exception):
     pass
@@ -30,13 +31,27 @@ class CommonDataModel:
 
     """
 
+    @classmethod
+    def load(cls,**kwargs):
+        cdm = cls(**kwargs)
+        inputs = kwargs['inputs']
+        for fname in inputs.keys():
+            destination_table,_ = os.path.splitext(fname)
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+    
+
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
                  person_id_map=None,
-                 inputs=None, use_profiler=False,
-                 format_level=None,do_mask_person_id=True,
+                 save_files=True,
+                 inputs=None,
+                 use_profiler=False,
+                 format_level=None,
+                 do_mask_person_id=True,
                  automatically_generate_missing_rules=True):
         """
         CommonDataModel class initialisation 
@@ -57,6 +72,7 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+        self.save_files = save_files
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
@@ -98,14 +114,11 @@ class CommonDataModel:
             self.logger.info("Running with an InputData object")
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
-        elif self.inputs is None or inputs is None: 
-            self.logger.error(inputs)
-            raise NoInputFiles("setting up inputs that are not valid!")
 
-        if hasattr(self,'inputs'):
-            self.logger.waring("overwriting inputs")
-
-        self.inputs = inputs
+        if inputs is not None:
+            if hasattr(self,'inputs'):
+                self.logger.warning("overwriting inputs")
+            self.inputs = inputs
             
         #register opereation tools
         self.tools = OperationTools()
@@ -185,6 +198,26 @@ class CommonDataModel:
             self.logger.info(f"Writen the memory/cpu statistics to {fname}")
             self.logger.info("Finished")
 
+    @classmethod
+    def from_existing(cls,**kwargs):
+        """
+        Initialise the CDM model from existing data in the CDM format
+        """
+        cdm = cls(**kwargs)
+        if 'inputs' not in kwargs:
+            raise NoInputFiles("you need to specify some inputs")
+        inputs = kwargs['inputs']
+        #loop over all input names
+        for fname in inputs.keys():
+            #obtain the name of the destination table
+            #e.g fname='person.tsv' we want 'person'
+            destination_table,_ = os.path.splitext(fname)
+            #
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+
+            
         
     def __getitem__(self,key):
         """
@@ -426,9 +459,11 @@ class CommonDataModel:
             mode = 'w'
             if i>0:
                 mode='a'
-                
-            self.save_dataframes(mode=mode)
-            self.save_logs(extra=f'_slice_{i}')
+
+            if self.save_files:
+                self.save_dataframes(mode=mode)
+                self.save_logs(extra=f'_slice_{i}')
+
             i+=1
             
             try:
@@ -448,8 +483,9 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
-        self.save_dataframes()
-        self.save_logs()
+        if self.save_files:
+            self.save_dataframes()
+            self.save_logs()
                 
             
     def process_table(self,destination_table):

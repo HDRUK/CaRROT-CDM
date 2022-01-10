@@ -29,7 +29,10 @@ class InputData:
             key:self[key]
             for key in self.keys()
         }
-        
+
+    def __iter__(self):
+        return iter(self.__file_readers)
+    
     def keys(self):
         return self.__file_readers.keys()
 
@@ -140,7 +143,6 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             x:x
             for x in _map
         }
-
     
     logger = Logger("coconnect.tools.load_csv")
 
@@ -198,6 +200,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
                          usecols=fields)
 
         df.attrs = {'original_file':load_path+fname}
+
         
         if isinstance(df,pd.DataFrame):
             #this should be removed
@@ -207,6 +210,11 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
         retval[key] = df
 
     return retval
+
+def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+    sep="\t"
+    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
+                    lower_col_names=lower_col_names,load_path=load_path,rules=rules)
 
 
 def get_subfolders(input_folder):

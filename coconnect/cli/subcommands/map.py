@@ -13,7 +13,6 @@ def map():
     pass
 
 
-
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
               help="give the name of the dataset, this will be the name of the .py class file created")
@@ -71,7 +70,120 @@ def test(ctx):
     ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
     for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
         tools.diff_csv(fname,fname)
-          
+
+
+@click.command()
+@click.option("--config","-c",required=True,type=str)
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def transform(inputs,config,number_of_rows_per_chunk,output_folder):
+
+    logger = tools.logger.Logger("transform")
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    if os.path.isfile(config):
+        config = json.load(open(config))
+    else:
+        config = json.loads(config)
+
+    logger.info(json.dumps(config,indent=6))
+        
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    input_data = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
+
+    operation_tools = coconnect.cdm.OperationTools()
+
+    header=True
+    mode='w'
+
+    i = 0 
+    while True:
+        if i > 0:
+            mode = 'a'
+            header=False
+        i+=1
+        for fname,rules in config.items():
+            logger.info(f"Working on {fname}") 
+            df = input_data[fname]
+            for colname,operations in rules.items():
+                series = df[colname]
+                for operation in operations:
+                    logger.info(f".. transforming '{colname}' with operation '{operation}'")
+                    fn_operation = operation_tools[operation]
+                    series = fn_operation(series)
+                df[colname] = series
+            fout = f"{output_folder}/{fname}"
+            df.to_csv(fout,header=header,mode=mode,index=False)
+
+        try:
+            input_data.next()
+        except StopIteration:
+            break
+
+@click.command()
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def format(inputs,number_of_rows_per_chunk,output_folder):
+    """
+    Format a CDM model by passing all CDM objects and applying formatting.
+    """
+    types = list(set([
+        os.path.splitext(fname)[1]
+        for fname in inputs
+    ]))
+    if len(types) > 1:
+        raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
+    types = types[0]
+    
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    if types == '.csv':
+        inputs = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
+    else:
+        inputs = tools.load_tsv(inputs,chunksize=number_of_rows_per_chunk)
+
+    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+                                                      output_folder=output_folder,
+                                                      format_level=1)
+    #cdm.save_files = False
+    cdm.process()
+        
+@click.command()
+@click.option("--input",
+              required=True,
+              help='input csv file')
+@click.option("--column",
+              required=True,
+              help="which column of the input data to modify")
+@click.option("--operation",
+              required=True,
+              help="which operation to apply to the column")
+def format_input_data(column,operation,input):
+    """
+    Useful formatting command for applying an operation on some data before being passed into the ETL-Tool
+
+    """
+    optools = coconnect.cdm.OperationTools()
+    allowed_operations = optools.keys()
+    if operation not in allowed_operations:
+        raise Exception(f"Operation '{operation}' is not a known operation. Choose from {allowed_operations}")
+    df_input = pd.read_csv(input)
+    df_input[column] = optools[operation](df_input[column])
+    n = 5 if len(df_input) > 5 else len(df_input)
+    print (df_input[column].sample(n))
+    df_input.to_csv(input)
+    
+    
+        
 @click.command()
 @click.option("--rules",
               required=True,
@@ -433,12 +545,13 @@ def gui(ctx):
         break
         
     window.close()
-
     
 
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
+
+
 
 py.add_command(make_class,"make")
 py.add_command(register_class,"register")
@@ -447,5 +560,7 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(format,"format")
+map.add_command(transform,"transform")
 map.add_command(gui,"gui")
 map.add_command(test,"test")
