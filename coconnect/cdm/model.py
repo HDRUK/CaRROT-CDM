@@ -52,7 +52,7 @@ class CommonDataModel:
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
-                 automatically_generate_missing_rules=True):
+                 automatically_fill_missing_columns=True):
         """
         CommonDataModel class initialisation 
         Args:

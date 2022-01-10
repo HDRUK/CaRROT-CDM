@@ -52,14 +52,17 @@ def concept(psql_engine,concept_id,concept_name,standard):
     if concept_id:
         query = f"SELECT * FROM concept WHERE concept_id='{concept_id}'"
     elif concept_name:
-        query = f"SELECT * FROM concept WHERE concept_name LIKE '%{concept_name}%'"
+        #query = f"SELECT * FROM concept WHERE concept_name LIKE '%{concept_name}%'"
         query = f"SELECT * FROM concept WHERE concept_name ILIKE '%%{concept_name}%%'"
+    else:
+        click.echo("Error... you must used --concept-id or --concept-name")
+        return
 
     if standard:
         query += " and standard_concept='S'"
         
     df = pd.read_sql(query,psql_engine).astype(str)#.squeeze(axis=0)
-    print (df)#json.dumps(df.to_dict(),indent=6))
+    #print (df)#json.dumps(df.to_dict(),indent=6))
     #for series in df:
     #    print (series)
     data = df.to_dict(orient='records')
