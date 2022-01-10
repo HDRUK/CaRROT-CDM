@@ -31,7 +31,7 @@ setuptools.setup(
     },
     packages=setuptools.find_packages(),
     extras_require = {
-        'airflow':["apache-airflow['postgres']"]
+        'airflow':['apache-airflow'],
         'sql':['sqlalchemy','psycopg2-binary==2.8.6','sqlalchemy-utils'],
         'performance':['snakeviz'],
     },
