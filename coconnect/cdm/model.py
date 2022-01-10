@@ -52,7 +52,7 @@ class CommonDataModel:
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
-                 automatically_generate_missing_rules=True):
+                 automatically_fill_missing_columns=True):
         """
         CommonDataModel class initialisation 
         Args:
@@ -124,9 +124,9 @@ class CommonDataModel:
         self.tools = OperationTools()
 
         #allow rules to be generated automatically or not
-        self.automatically_generate_missing_rules = automatically_generate_missing_rules
-        if self.automatically_generate_missing_rules:
-            self.logger.info(f"Turning on automatic rule generation")
+        self.automatically_fill_missing_columns = automatically_fill_missing_columns
+        if self.automatically_fill_missing_columns:
+            self.logger.info(f"Turning on automatic cdm column filling")
 
         #define a person_id masker, if the person_id are to be masked
         self.person_id_masker = self.get_existing_person_id_masker(person_id_map)

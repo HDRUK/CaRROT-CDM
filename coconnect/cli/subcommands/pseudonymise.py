@@ -27,12 +27,11 @@ def pseudonymise(input,output_folder,chunksize,salt,person_id):
 
     i = 0 
     while True:
-
         data[input][person_id] =  data[input][person_id].apply(
-            lambda x: hashlib.sha256(x.encode("UTF-8")).hexdigest()
+            lambda x: hashlib.sha256((x+salt).encode("UTF-8")).hexdigest()
         )
         logger.info(data[input][person_id])
-        
+
         mode = 'w'
         header=True
         if i > 0 :
@@ -40,7 +39,7 @@ def pseudonymise(input,output_folder,chunksize,salt,person_id):
             header=False
         
         data[input].to_csv(f_out,mode=mode,header=header,index=False)
-        
+        log.info(f"Finished {input} of size={len(data[input])} on iteration {i}")
         i+=1
         
         try:

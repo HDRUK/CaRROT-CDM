@@ -68,9 +68,9 @@ class DataFormatter(collections.OrderedDict):
         #if it's formatting of text i.e. date string 
         #and the pre- and post-formatting of the series are equal
         #dont waste time formatting the entire series, just return it as it is
-        series_slice_values = series_slice.dropna().astype(str).values
-        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).values
-
+        series_slice_values = series_slice.dropna().astype(str).unique()
+        series_slice_formatted_values = series_slice_formatted.dropna().astype(str).replace('', np.nan).dropna().unique()
+        
         if np.array_equal(series_slice_values,series_slice_formatted_values):
             self.logger.debug(f'Sampling {nsample}/{n} values suggests the column '\
                               f'{series.name}" is  already formatted!!')
@@ -97,6 +97,7 @@ class DataFormatter(collections.OrderedDict):
                 raise DataStandardError(f"{series.name} has not been formatted correctly")
             else:
                 logger(f"Fraction of good columns ={fraction_good} ({ngood} / {nsample} ), is above the tolerance threshold={tolerance}")
+
     
     def __init__(self,errors='coerce'):
         super().__init__()
@@ -287,7 +288,7 @@ class DestinationTable(object):
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
             return self.__df 
-        
+
         #get a dict of all series
         #each object is a pandas series
         dfs = {}
@@ -308,7 +309,8 @@ class DestinationTable(object):
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:
-            return None
+            self.logger.warning("no objects defined")
+            return pd.DataFrame(columns = self.fields)
 
         #check the lengths of the dataframes
         lengths = list(set([len(df) for df in dfs.values()]))
@@ -383,7 +385,7 @@ class DestinationTable(object):
                         self.logger.error(self._meta['source_files'][col])
                     raise(e)
             elif self.format_level is FormatterLevel.CHECK:
-                self.logger.debug(f"Checking formatting of {col}")
+                self.logger.debug(f"Checking formatting of {col} to {dtype}")
                 try:
                     _ = self.dtypes.check_formatting(df[col],formatter_function)
                 except Exception as e:

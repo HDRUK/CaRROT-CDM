@@ -136,7 +136,7 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=[]):
+def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 
     if isinstance(_map,list):
         _map = {

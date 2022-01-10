@@ -49,7 +49,7 @@ class Person(DestinationTable):
         """
         df = super().get_df(**kwargs)
 
-        if self.automatically_generate_missing_rules == True:
+        if self.automatically_fill_missing_columns == True:
             if df['year_of_birth'].isnull().all():
                 df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
                 

@@ -221,6 +221,9 @@ def format_input_data(column,operation,input):
 @click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
               help="turn off automatic conversion (creation) of person_id to (as) Integer")
+@click.option("dont_automatically_fill_missing_columns","--no-fill-missing-columns",
+              is_flag=True,
+              help="Turn off automatically filling missing CDM columns")
 @click.option("log_file","--log-file",
               default = 'auto',
               help="specify a path for a log file")
@@ -233,6 +236,7 @@ def run(ctx,rules,inputs,format_level,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
         person_id_map,
+        dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -338,6 +342,7 @@ def run(ctx,rules,inputs,format_level,
                                         person_id_map=person_id_map,
                                         output_folder=output_folder,
                                         output_database=output_database,
+                                        automatically_fill_missing_columns=not dont_automatically_fill_missing_columns,
                                         use_profiler=use_profiler)
     
     #allow the csv separator to be changed

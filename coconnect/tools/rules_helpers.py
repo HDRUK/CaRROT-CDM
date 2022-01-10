@@ -33,6 +33,13 @@ def get_source_table(inputs,name):
     inputs[name].name = name
     return inputs[name]
 
+
+def load_from_file(this):
+    df = this.inputs[this.fname].dropna(axis=1)
+    for colname in df.columns:
+        this[colname].series = df[colname]
+
+
 def apply_rules(this):
     this.logger.info("Called apply_rules")
 

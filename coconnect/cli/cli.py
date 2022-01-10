@@ -2,8 +2,13 @@ from .subcommands.info import info
 from .subcommands.etl import etl
 from .subcommands.display import display
 from .subcommands.map import map
+from .subcommands.airflow import airflow
 from .subcommands.generate import generate
+
+from .subcommands.get import get
+from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
+
 from coconnect.tools.logger import Logger
 import coconnect as cc
 
@@ -49,7 +54,11 @@ coconnect.add_command(map, "map")
 coconnect.add_command(info, "info")
 coconnect.add_command(display, "display")
 coconnect.add_command(generate, "generate")
+coconnect.add_command(get, "get")
+coconnect.add_command(search, "search")
 coconnect.add_command(pseudonymise, "pseudonymise")
+coconnect.add_command(airflow,'airflow')
+
 
 
 if __name__ == "__main__":
