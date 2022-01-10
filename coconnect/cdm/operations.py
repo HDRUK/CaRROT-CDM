@@ -3,7 +3,7 @@ import datetime
 
 class OperationTools:
 
-    get_datetime = lambda self,df : pd.to_datetime(df,errors='coerce').dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
+    get_datetime = lambda self,df : pd.to_datetime(df,errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S.%f')
     get_date = lambda self,df : pd.to_datetime(df,errors='coerce').dt.strftime('%Y-%m-%d')
     get_year = lambda self,df : pd.to_datetime(df,errors='coerce').dt.year
     get_month = lambda self,df : pd.to_datetime(df,errors='coerce').dt.month
