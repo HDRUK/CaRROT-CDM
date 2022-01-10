@@ -47,6 +47,7 @@ class CommonDataModel:
                  output_database=None,
                  indexing_conf=None,
                  person_id_map=None,
+                 save_files=True,
                  inputs=None,
                  use_profiler=False,
                  format_level=None,
@@ -458,9 +459,10 @@ class CommonDataModel:
             mode = 'w'
             if i>0:
                 mode='a'
-                
-            self.save_dataframes(mode=mode)
-            self.save_logs(extra=f'_slice_{i}')
+
+            if self.save_files:
+                self.save_dataframes(mode=mode)
+                self.save_logs(extra=f'_slice_{i}')
 
             i+=1
             
@@ -481,8 +483,9 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
-        self.save_dataframes()
-        self.save_logs()
+        if self.save_files:
+            self.save_dataframes()
+            self.save_logs()
                 
             
     def process_table(self,destination_table):
