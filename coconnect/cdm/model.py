@@ -13,11 +13,8 @@ from coconnect.tools.file_helpers import InputData
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
-
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.schema import CreateSchema
-from sqlalchemy_utils import database_exists, create_database
-
+from .objects import get_cdm_class, get_cdm_decorator
+from .decorators import load_file
 
 class NoInputFiles(Exception):
     pass
@@ -34,13 +31,27 @@ class CommonDataModel:
 
     """
 
+    @classmethod
+    def load(cls,**kwargs):
+        cdm = cls(**kwargs)
+        inputs = kwargs['inputs']
+        for fname in inputs.keys():
+            destination_table,_ = os.path.splitext(fname)
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+    
+
     def __init__(self, name=None, 
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
                  person_id_map=None,
-                 inputs=None, use_profiler=False,
-                 format_level=None,do_mask_person_id=True,
+                 save_files=True,
+                 inputs=None,
+                 use_profiler=False,
+                 format_level=None,
+                 do_mask_person_id=True,
                  automatically_generate_missing_rules=True):
         """
         CommonDataModel class initialisation 
@@ -61,6 +72,7 @@ class CommonDataModel:
         self.logger.info(f"CommonDataModel created with version {cc_version}")
 
         self.output_folder = output_folder
+        self.save_files = save_files
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
@@ -81,6 +93,7 @@ class CommonDataModel:
         if self.output_database is not None:
             self.logger.info(f"Running with the output set to '{self.output_database}'")
             try:
+                from sqlalchemy import create_engine
                 self.psql_engine = create_engine(self.output_database)
             except Exception as err:
                 self.logger.critical(f"Failed to make a connection to {self.output_database}")
@@ -101,14 +114,11 @@ class CommonDataModel:
             self.logger.info("Running with an InputData object")
         elif isinstance(inputs,InputData):
             self.logger.info("Running with an InputData object")
-        elif self.inputs is None or inputs is None: 
-            self.logger.error(inputs)
-            raise NoInputFiles("setting up inputs that are not valid!")
 
-        if hasattr(self,'inputs'):
-            self.logger.waring("overwriting inputs")
-
-        self.inputs = inputs
+        if inputs is not None:
+            if hasattr(self,'inputs'):
+                self.logger.warning("overwriting inputs")
+            self.inputs = inputs
             
         #register opereation tools
         self.tools = OperationTools()
@@ -188,6 +198,26 @@ class CommonDataModel:
             self.logger.info(f"Writen the memory/cpu statistics to {fname}")
             self.logger.info("Finished")
 
+    @classmethod
+    def from_existing(cls,**kwargs):
+        """
+        Initialise the CDM model from existing data in the CDM format
+        """
+        cdm = cls(**kwargs)
+        if 'inputs' not in kwargs:
+            raise NoInputFiles("you need to specify some inputs")
+        inputs = kwargs['inputs']
+        #loop over all input names
+        for fname in inputs.keys():
+            #obtain the name of the destination table
+            #e.g fname='person.tsv' we want 'person'
+            destination_table,_ = os.path.splitext(fname)
+            #
+            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            cdm.add(obj)
+        return cdm
+
+            
         
     def __getitem__(self,key):
         """
@@ -333,8 +363,22 @@ class CommonDataModel:
             if self.person_id_masker is None:
                 raise Exception(f"Person ID masking cannot be performed on"
                                 f" {destination_table} as no masker based on a person table has been defined!")
+
+            nbefore = len(df['person_id'])
             df['person_id'] = df['person_id'].map(self.person_id_masker)
-            self.logger.info(f"Just masked person_id")
+            self.logger.info(f"Just masked person_id using integers")
+            if destination_table != 'person':
+                df.dropna(subset=['person_id'],inplace=True) 
+                nafter = len(df['person_id'])
+                ndiff = nbefore - nafter
+                #if rows have been removed
+                if ndiff>0:
+                    self.logger.error("There are person_ids in this table that are not in the output person table!")
+                    self.logger.error("Either they are not in the original data, or while creating the person table, ")
+                    self.logger.error("studies have been removed due to lack of required fields, such as birthdate.")
+                    self.logger.error(f"{nafter}/{nbefore} were good, {ndiff} studies are removed.")
+            
+            
         return df
 
     def count_objects(self):
@@ -415,9 +459,11 @@ class CommonDataModel:
             mode = 'w'
             if i>0:
                 mode='a'
-                
-            self.save_dataframes(mode=mode)
-            self.save_logs(extra=f'_slice_{i}')
+
+            if self.save_files:
+                self.save_dataframes(mode=mode)
+                self.save_logs(extra=f'_slice_{i}')
+
             i+=1
             
             try:
@@ -437,8 +483,9 @@ class CommonDataModel:
             self[destination_table] = self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
-        self.save_dataframes()
-        self.save_logs()
+        if self.save_files:
+            self.save_dataframes()
+            self.save_logs()
                 
             
     def process_table(self,destination_table):
@@ -581,6 +628,7 @@ class CommonDataModel:
 
     def save_to_psql(self,mode='a'):
         #creat an inspector based on the psql engine
+        from sqlalchemy import inspect
         insp  = inspect(self.psql_engine)
         #get the names of existing tables
         existing_tables = insp.get_table_names()

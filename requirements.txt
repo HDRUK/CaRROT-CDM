@@ -4,16 +4,13 @@ coloredlogs
 Jinja2
 graphviz
 click
-sqlalchemy
 tabulate
 psutil
 pysimplegui
 requests
 openpyxl
-snakeviz
-psycopg2-binary==2.8.6
-sqlalchemy-utils
 pyyaml
 python-daemon
 inquirer
 python-dotenv
+co-connect-pseudonymise
