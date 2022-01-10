@@ -80,7 +80,7 @@ class DrugExposure(DestinationTable):
 
 
 
-        if self.automatically_generate_missing_rules == True:
+        if self.automatically_fill_missing_columns == True:
             if df['drug_exposure_start_date'].isnull().all():
                 df['drug_exposure_start_date'] = self.tools.get_date(df['drug_exposure_start_datetime'])
 

@@ -76,7 +76,7 @@ class Observation(DestinationTable):
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
 
-        if self.automatically_generate_missing_rules == True:
+        if self.automatically_fill_missing_columns == True:
             if df['observation_date'].isnull().all():
                 df['observation_date'] = self.tools.get_date(df['observation_datetime'])
             
