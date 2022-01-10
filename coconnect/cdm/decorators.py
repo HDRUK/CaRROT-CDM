@@ -23,10 +23,8 @@ def from_table(obj,table):
     return obj
 
 
-def define_person(input=None):
-    print ("define person")
+def define_person_v2(input=None):
     def decorator(defs):
-        print ("in decorator")
         def wrapper(obj):
             if input is not None:
                 obj = from_table(obj,input)
@@ -36,8 +34,13 @@ def define_person(input=None):
         p.define = wrapper 
         p.set_name(defs.__name__)
         return p
-    print (decorator)
     return decorator
+
+def define_person(defs):
+    c = Person()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c
 
 def define_condition_occurrence(defs):
     c = ConditionOccurrence()
