@@ -88,7 +88,7 @@ class DataCollection:
             ]
     
         df = brick.get_df()
-        self.logger.info(f"Got brick {brick}")
+        self.logger.debug(f"Got brick {brick}")
         return df
                 
     def __setitem__(self,key,obj):
