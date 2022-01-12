@@ -60,8 +60,8 @@ class CommonDataModel:
             output_folder (str): Path of where the output tsv/csv files should be written to.
                                  The default is to save to a folder in the current directory
                                  called 'output_data'.
-            inputs (dict or InputData): Input Data can be a dictionary mapping file names to pandas dataframes,
-                                        or can be an InputData object
+            inputs (dict or DataCollection): inputs can be a dictionary mapping file names to pandas dataframes,
+                                        or can be a DataCollection object
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
@@ -474,7 +474,7 @@ class CommonDataModel:
             self.count_objects()
             
             #switch to process the data in chunks or not
-            if isinstance(self.inputs,InputData):
+            if isinstance(self.inputs,DataCollection):
                 if self.inputs.chunksize == None:
                     self.process_flat_data()
                 else:
