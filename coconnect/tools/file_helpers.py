@@ -181,8 +181,8 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-    retval = local.DataCollection(chunksize=chunksize)
-        
+    retval = local.LocalDataCollection(chunksize=chunksize)
+    
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):

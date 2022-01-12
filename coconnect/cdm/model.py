@@ -9,7 +9,7 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-from coconnect.io.plugins.local import DataCollection
+from coconnect.io import DataCollection
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel

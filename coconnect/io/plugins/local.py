@@ -1,5 +1,5 @@
 import pandas as pd
-from coconnect.tools.logger import Logger
+from coconnect.io.common import DataCollection
 
 class DataBrick:
     def __init__(self,df_handler,name=None):
@@ -28,14 +28,13 @@ class DataBrick:
     def get_df(self):
         return self.__df
         
-class DataCollection:
+class LocalDataCollection(DataCollection):
     def __init__(self,file_map=None,chunksize=None):
+        super().__init__()
         self.chunksize = chunksize
         
         self.__bricks = {}
 
-        self.logger = Logger(self.__class__.__name__)
-        self.logger.info("InputData Object Created")
         if self.chunksize is not None:
             self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
 
