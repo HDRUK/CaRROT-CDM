@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import requests
 import secrets
+import random
 class MissingToken(Exception):
     pass
 
@@ -264,3 +265,159 @@ def salt(length):
     click.echo(salt)
 
 generate.add_command(salt,"salt")
+
+
+
+def report_to_xlsx(report,f_out):
+    with pd.ExcelWriter(f_out) as writer:  
+        for table in report:
+            table_name = table['table']
+            total = []
+            for field in table['fields']:
+                field_name = field['field']
+                values = field['values']
+                data = pd.DataFrame.from_records(values)
+                columns = [field_name,'Frequency']
+                if data.empty:
+                    data = pd.DataFrame(columns=columns)
+                else:
+                    data.columns=columns
+                    total.append(data)
+            df = pd.concat(total,axis=1)
+            click.echo(df)
+            df.to_excel(writer, sheet_name=table_name, index=False)
+
+
+
+@click.command(help="generate scan report json from input data")
+@click.option("max_distinct_values","--max-distinct-values",
+              default=10,
+              help='specify the maximum number of distinct values to include in the ScanReport.')
+@click.option("min_cell_count","--min-cell-count",
+              default=5,
+              help='specify the minimum number of occurrences of a cell value before it can appear in the ScanReport.')
+@click.option("rows_per_table","--rows-per-table",
+              default=None,
+              help='specify the maximum of rows to scan per input data file (table).')
+@click.option("randomise","--randomise",
+              is_flag=True,
+              help='randomise rows')
+@click.option("as_type","--as-type","--save-as",
+              default=None,
+              type=click.Choice(['xlsx','json']),
+              help='save the report as a json or xlsx (whiteRabbit style).')
+@click.option("f_out","--output-file-name",
+              default=None,
+              help='specify the output file name (to be used with --save-as)')
+@click.argument("inputs",
+                nargs=-1)
+def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
+    skiprows = None
+        
+    data = []
+    for fname in inputs:
+        #get the name of the data table
+        table_name = os.path.basename(fname)
+        #load as a pandas dataframe
+        #load it and preserve the original data (i.e. no NaN conversions)
+        df = pd.read_csv(fname,
+                         dtype=str,
+                         keep_default_na=False,
+                         nrows=rows_per_table,
+                         skiprows=skiprows)
+        if randomise:
+            df = df.sample(frac=1)
+
+        #get a list of all column (field) names
+        column_names = df.columns.tolist()
+        fields = []
+        #loop over all colimns
+        for col in column_names:
+            #value count the columns
+            series = df[col].value_counts()
+            #reduce the size of the value counts depending on specifications of max distinct values 
+            if max_distinct_values>0 and len(series)>=max_distinct_values:
+                series = series.iloc[:max_distinct_values]
+
+            #if the min cell count is set, remove value counts that are below this threshold
+            if not min_cell_count is None:
+                series = series[series >= min_cell_count]
+
+            #convert into a frequency instead of value count
+            series = (series/len(df)).rename('frequency').round(4) 
+
+            #convert the values to a dictionary 
+            frame = series.to_frame()
+            values = frame.rename_axis('value').reset_index().to_dict(orient='records')
+            #record the value (frequency counts) for this field
+            fields.append({'field':col,'values':values})
+
+        meta = {
+            'nscanned':len(df),
+            'max_distinct_values':max_distinct_values,
+            'min_cell_count':min_cell_count
+        }
+        data.append({'table':table_name,'fields':fields, 'meta':meta})
+
+    if as_type == 'json':
+        f_out = f_out if f_out != None else 'ScanReport.json'
+        click.echo(json.dumps(data,indent=6))
+        with open(f_out, 'w') as f:
+            json.dump(data, f,indent=6)
+    elif as_type == 'xlsx':
+        f_out = f_out if f_out != None else 'ScanReport.xlsx'
+        report_to_xlsx(data,f_out)
+    else:
+        click.echo(json.dumps(data,indent=6))
+            
+generate.add_command(report,"report")
+
+
+@click.command(help="Generate synthetic data from the json format of the scan report")
+@click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
+@click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
+@click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
+@click.argument("f_in")
+def synthetic_from_json(f_in,number_of_events,output_directory,fill_column_with_values):
+    fill_column_with_values = list(fill_column_with_values)
+    report = json.load(open(f_in))
+    for table in report:
+        table_name = table['table']
+        fields = table['fields']
+        df_synthetic = {}
+        for field in fields:
+            field_name = field['field']
+            values = field['values']
+            df = pd.DataFrame.from_records(values)
+            if len(df) == 0:
+                values = pd.Series([])
+            else:
+                frequency = df['frequency']
+                frequency = number_of_events*frequency / frequency.sum()
+                frequency = frequency.astype(int)
+                values = df['value'].repeat(frequency).sample(frac=1).reset_index(drop=True)
+            values.name = field_name
+            
+            df_synthetic[field_name] = values
+                
+        df_synthetic = pd.concat(df_synthetic.values(),axis=1)
+        for col_name in fill_column_with_values:
+            if col_name in df_synthetic.columns:
+                df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
+
+        df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+
+        if not os.path.isdir(output_directory):
+            os.makedirs(output_directory)
+        fname = f"{output_directory}/{table_name}"
+
+        click.echo(df_synthetic)
+        df_synthetic.to_csv(fname)
+        click.echo(f"created {fname} with {number_of_events} events")
+
+
+synthetic.add_command(synthetic_from_json,"json")
+
+
+            
+
