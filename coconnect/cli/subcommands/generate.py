@@ -267,6 +267,28 @@ def salt(length):
 generate.add_command(salt,"salt")
 
 
+
+def report_to_xlsx(report,f_out):
+    with pd.ExcelWriter(f_out) as writer:  
+        for table in report:
+            table_name = table['table']
+            total = []
+            for field in table['fields']:
+                field_name = field['field']
+                values = field['values']
+                data = pd.DataFrame.from_records(values)
+                columns = [field_name,'Frequency']
+                if data.empty:
+                    data = pd.DataFrame(columns=columns)
+                else:
+                    data.columns=columns
+                    total.append(data)
+            df = pd.concat(total,axis=1)
+            click.echo(df)
+            df.to_excel(writer, sheet_name=table_name, index=False)
+
+
+
 @click.command(help="generate scan report json from input data")
 @click.option("max_distinct_values","--max-distinct-values",
               default=10,
@@ -278,14 +300,19 @@ generate.add_command(salt,"salt")
               default=None,
               help='specify the maximum of rows to scan per input data file (table).')
 @click.option("randomise","--randomise",
-              default=True,
+              is_flag=True,
               help='randomise rows')
+@click.option("as_type","--as-type","--save-as",
+              default=None,
+              type=click.Choice(['xlsx','json']),
+              help='save the report as a json or xlsx (whiteRabbit style).')
+@click.option("f_out","--output-file-name",
+              default=None,
+              help='specify the output file name (to be used with --save-as)')
 @click.argument("inputs",
                 nargs=-1)
-def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise):
+def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
     skiprows = None
-    #p = 0.1
-    #skiprows=lambda i: i>0 and random.random() > p
         
     data = []
     for fname in inputs:
@@ -297,7 +324,10 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise):
                          dtype=str,
                          keep_default_na=False,
                          nrows=rows_per_table,
-                         skiprows=None)
+                         skiprows=skiprows)
+        if randomise:
+            df = df.sample(frac=1)
+
         #get a list of all column (field) names
         column_names = df.columns.tolist()
         fields = []
@@ -329,7 +359,16 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise):
         }
         data.append({'table':table_name,'fields':fields, 'meta':meta})
 
-    click.echo(json.dumps(data,indent=6))
+    if as_type == 'json':
+        f_out = f_out if f_out != None else 'ScanReport.json'
+        click.echo(json.dumps(data,indent=6))
+        with open(f_out, 'w') as f:
+            json.dump(data, f,indent=6)
+    elif as_type == 'xlsx':
+        f_out = f_out if f_out != None else 'ScanReport.xlsx'
+        report_to_xlsx(data,f_out)
+    else:
+        click.echo(json.dumps(data,indent=6))
             
 generate.add_command(report,"report")
 
@@ -385,33 +424,5 @@ def synthetic_from_json(f_in,number_of_events,output_directory,fill_column_with_
 synthetic.add_command(synthetic_from_json,"json")
 
 
-@click.command(help="convert the json report into a xlsx sheet")
-@click.option("-o","--output",help="name of the output xlsx file",type=str,default=None)
-@click.argument("f_in")
-def report_to_xlsx(f_in,output):
-    report = json.load(open(f_in))
-
-    if output == None:
-        output = f_in.replace(".json",".xlsx")
-
-    with pd.ExcelWriter(output) as writer:  
-        for table in report:
-            table_name = table['table']
-            total = []
-            for field in table['fields']:
-                field_name = field['field']
-                values = field['values']
-                data = pd.DataFrame.from_records(values)
-                columns = [field_name,'Frequency']
-                if data.empty:
-                    data = pd.DataFrame(columns=columns)
-                else:
-                    data.columns=columns
-                    total.append(data)
-            df = pd.concat(total,axis=1)
-            print (df)
-            df.to_excel(writer, sheet_name=table_name, index=False)
             
-                
-generate.add_command(report_to_xlsx,"xlsx")
 
