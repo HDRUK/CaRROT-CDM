@@ -1,4 +1,19 @@
-from .objects import Person, ConditionOccurrence, VisitOccurrence, Measurement, Observation, DrugExposure
+from .objects import (
+    Person,
+    ConditionOccurrence,
+    VisitOccurrence,
+    Measurement,
+    Observation,
+    DrugExposure
+)
+
+
+def load_file(fname):
+    def func(self):
+        for colname in self.inputs[fname]:
+            self[colname].series = self.inputs[fname][colname]
+    func.__name__ = fname
+    return func
 
 def from_table(table):
     def decorator(defs):
@@ -9,13 +24,18 @@ def from_table(table):
             return defs
         wrapper.__name__ = defs.__name__
         return wrapper
-    return decorator
+
+#def from_table(obj,table):
+#    df = obj.inputs[table]
+#    for colname in df.columns:
+#        obj[colname].series = df[colname]
+#    return obj
 
 def define_person(defs):
-    p = Person()
-    p.define = defs
-    p.set_name(defs.__name__)
-    return p
+    c = Person()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c
 
 def define_condition_occurrence(defs):
     c = ConditionOccurrence()

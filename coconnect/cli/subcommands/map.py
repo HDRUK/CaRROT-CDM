@@ -13,7 +13,6 @@ def map():
     pass
 
 
-
 @click.command(help="Generate a python class from the OMOP mapping json")
 @click.option("--name",
               help="give the name of the dataset, this will be the name of the .py class file created")
@@ -71,11 +70,126 @@ def test(ctx):
     ctx.invoke(run,inputs=inputs,rules=rules,output_folder=output_folder)
     for fname in glob.glob(f"{output_folder}{os.path.sep}*.tsv"):
         tools.diff_csv(fname,fname)
-          
+
+
+@click.command(help="apply operations (transforms) to a dataset")
+@click.option("--config","-c",required=True,type=str)
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def transform(inputs,config,number_of_rows_per_chunk,output_folder):
+
+    logger = tools.logger.Logger("transform")
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    if os.path.isfile(config):
+        config = json.load(open(config))
+    else:
+        config = json.loads(config)
+
+    logger.info(json.dumps(config,indent=6))
+        
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    input_data = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
+
+    operation_tools = coconnect.cdm.OperationTools()
+
+    header=True
+    mode='w'
+
+    i = 0 
+    while True:
+        if i > 0:
+            mode = 'a'
+            header=False
+        i+=1
+        for fname,rules in config.items():
+            logger.info(f"Working on {fname}") 
+            df = input_data[fname]
+            for colname,operations in rules.items():
+                series = df[colname]
+                for operation in operations:
+                    logger.info(f".. transforming '{colname}' with operation '{operation}'")
+                    fn_operation = operation_tools[operation]
+                    series = fn_operation(series)
+                df[colname] = series
+            fout = f"{output_folder}/{fname}"
+            df.to_csv(fout,header=header,mode=mode,index=False)
+
+        try:
+            input_data.next()
+        except StopIteration:
+            break
+
+@click.command()
+@click.option("--number-of-rows-per-chunk","--nc",default=1e5,type=int)
+@click.option("--output-folder","-o",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def format(inputs,number_of_rows_per_chunk,output_folder):
+    """
+    Format a CDM model by passing all CDM objects and applying formatting.
+    """
+    types = list(set([
+        os.path.splitext(fname)[1]
+        for fname in inputs
+    ]))
+    if len(types) > 1:
+        raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
+    types = types[0]
+    
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    if types == '.csv':
+        inputs = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
+    else:
+        inputs = tools.load_tsv(inputs,chunksize=number_of_rows_per_chunk)
+
+    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+                                                      output_folder=output_folder,
+                                                      format_level=1)
+    #cdm.save_files = False
+    cdm.process()
+        
+@click.command()
+@click.option("--input",
+              required=True,
+              help='input csv file')
+@click.option("--column",
+              required=True,
+              help="which column of the input data to modify")
+@click.option("--operation",
+              required=True,
+              help="which operation to apply to the column")
+def format_input_data(column,operation,input):
+    """
+    Useful formatting command for applying an operation on some data before being passed into the ETL-Tool
+
+    """
+    optools = coconnect.cdm.OperationTools()
+    allowed_operations = optools.keys()
+    if operation not in allowed_operations:
+        raise Exception(f"Operation '{operation}' is not a known operation. Choose from {allowed_operations}")
+    df_input = pd.read_csv(input)
+    df_input[column] = optools[operation](df_input[column])
+    n = 5 if len(df_input) > 5 else len(df_input)
+    print (df_input[column].sample(n))
+    df_input.to_csv(input)
+    
+        
 @click.command()
 @click.option("--rules",
               required=True,
               help="input json file containing all the mapping rules to be applied")
+@click.option("--indexing-conf",
+              default=None,
+              help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
               default=None,
               type=click.Choice([';',':','\t',',',' ',]),
@@ -83,9 +197,16 @@ def test(ctx):
 @click.option("--use-profiler",
               is_flag=True,
               help="turn on saving statistics for profiling CPU and memory usage")
+@click.option("format_level","--format-level",
+              default='1',
+              type=click.Choice(['0','1','2']),
+              help="Choose the level of formatting to apply on the output data. 0 - no formatting. 1 - automatic formatting. 2 (default) - check formatting (will crash if input data is not already formatted).")
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
+@click.option("output_database","--database",
+              default=None,
+              help="define the output database where to insert data into")
 @click.option("-nc","--number-of-rows-per-chunk",
               default='auto',
               help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking.")
@@ -93,16 +214,28 @@ def test(ctx):
               default=None,
               type=int,
               help="the total number of rows to process")
-@click.option("--log-level","-l",
-              type=click.Choice(['0','1','2','3']),
-              default='2',
-              help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
+@click.option("--person-id-map",
+              default=None,
+              help="pass the location of a file containing existing masked person_ids")
+@click.option("no_mask_person_id","--parse-original-person-id",
+              is_flag=True,
+              help="turn off automatic conversion (creation) of person_id to (as) Integer")
+@click.option("dont_automatically_fill_missing_columns","--no-fill-missing-columns",
+              is_flag=True,
+              help="Turn off automatically filling missing CDM columns")
+@click.option("log_file","--log-file",
+              default = 'auto',
+              help="specify a path for a log file")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,log_level,
-        output_folder,csv_separator,use_profiler,
+def run(ctx,rules,inputs,format_level,
+        output_folder,output_database,
+        csv_separator,use_profiler,log_file,
+        no_mask_person_id,indexing_conf,
+        person_id_map,
+        dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
     """
@@ -110,12 +243,35 @@ def run(ctx,rules,inputs,log_level,
 
     INPUTS should be a space separated list of individual input files or directories (which contain .csv files)
     """
-    #change the global log level
-    coconnect.params['debug_level'] = int(log_level)
+
+    if output_folder is None:
+        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+
+    if log_file == 'auto' and coconnect.params['log_file'] is None:
+        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
+        coconnect.params['log_file'] = log_file
+        
+    
     #load the json loads
-    config = tools.load_json(rules)
+    if type(rules) == dict:
+        config = rules
+    else:
+        config = tools.load_json(rules)
     name = config['metadata']['dataset']
 
+    if indexing_conf is not None:
+        if isinstance(indexing_conf,dict):
+            pass
+        elif indexing_conf.endswith(".json") and os.path.exists(indexing_conf):
+            indexing_conf = tools.load_json(indexing_conf)
+        elif indexing_conf.endswith(".csv") and os.path.exists(indexing_conf):
+            try:
+                indexing_conf = pd.read_csv(indexing_conf,header=None,index_col=0)[1].to_dict()
+            except pd.errors.EmptyDataError:
+                indexing_conf = None
+                pass
+                
+    
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
         #get the fields that are going to be used/loaded
@@ -141,9 +297,8 @@ def run(ctx,rules,inputs,log_level,
             raise ValueError(f"number_of_rows_per_chunk must be an Integer or 'auto', you inputted '{number_of_rows_per_chunk}'")
         
         #turn off chunking if 0 or negative chunksizes are given
-        if number_of_rows_per_chunk < 0 :
+        if number_of_rows_per_chunk <= 0 :
             number_of_rows_per_chunk = None
-    
     
     #check if exists
     if any('*' in x for x in inputs):
@@ -171,9 +326,7 @@ def run(ctx,rules,inputs,log_level,
         for x in inputs
     }
     
-    if output_folder is None:
-        output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
-
+        
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
@@ -182,7 +335,13 @@ def run(ctx,rules,inputs,log_level,
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
+                                        format_level=format_level,
+                                        do_mask_person_id=not no_mask_person_id,
+                                        indexing_conf=indexing_conf,
+                                        person_id_map=person_id_map,
                                         output_folder=output_folder,
+                                        output_database=output_database,
+                                        automatically_fill_missing_columns=not dont_automatically_fill_missing_columns,
                                         use_profiler=use_profiler)
     
     #allow the csv separator to be changed
@@ -196,7 +355,7 @@ def run(ctx,rules,inputs,log_level,
         #loop over each object instance in the rule set
         #for example, condition_occurrence may have multiple rulesx
         #for multiple condition_ocurrences e.g. Headache, Fever ..
-        for i,rules in enumerate(rules_set):
+        for name,rules in rules_set.items():
             #make a new object for the cdm object
             #Example:
             # destination_table : person
@@ -204,7 +363,7 @@ def run(ctx,rules,inputs,log_level,
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
             #set the name of the object
-            obj.set_name(f"{destination_table}_{i}")
+            obj.set_name(name)
             
             #call the apply_rules function to setup how to modify the inputs
             #based on the rules
@@ -341,13 +500,14 @@ def gui(ctx):
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
-        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT ETL-Tool",font = ("Roboto", 25))],
+        [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT: Dataset2CDM",font = ("Roboto", 25))],
         [sg.T('Select the rules json:')],
         [sg.Input(key='_RULES_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select the input CSVs:')],
         [sg.Input(key='_INPUTS_'), sg.FilesBrowse(initial_folder=os.getcwd())],
         [sg.T('Select an output folder:')],
         [sg.Input(key='_OUTPUT_',default_text='.'), sg.FolderBrowse(initial_folder=os.getcwd())],
+        #[sg.Checkbox("Mask the person_id",key="_MASK_PERSON_ID_",default=False)],
         #[[sg.T('Change the default data chunksize:'),
         #  sg.Slider(range=(0,1000000),
         #            default_value=100000,
@@ -381,19 +541,27 @@ def gui(ctx):
         if inputs == '':
             sg.Popup(f'Error: please select at least one file or directory for the inputs')
             continue
-        
         inputs = inputs.split(';')
-        ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
-        sg.Popup("Done!")
+
+        #mask_person_id = values['_MASK_PERSON_ID_']
+
+        try:
+            #ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder,mask_person_id=mask_person_id)
+            ctx.invoke(run,rules=rules,inputs=inputs,output_folder=output_folder)
+            sg.Popup("Done!")
+        except Exception as err:
+            sg.popup_error("An exception occurred!",err)
+            
         break
         
     window.close()
-
     
 
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
+
+
 
 py.add_command(make_class,"make")
 py.add_command(register_class,"register")
@@ -402,5 +570,7 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 map.add_command(py,"py")
 map.add_command(run,"run")
+map.add_command(format,"format")
+map.add_command(transform,"transform")
 map.add_command(gui,"gui")
 map.add_command(test,"test")

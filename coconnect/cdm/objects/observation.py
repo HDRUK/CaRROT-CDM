@@ -75,6 +75,10 @@ class Observation(DestinationTable):
             self.logger.error("the observation_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
+
+        if self.automatically_fill_missing_columns == True:
+            if df['observation_date'].isnull().all():
+                df['observation_date'] = self.tools.get_date(df['observation_datetime'])
             
         df = df[~nulls]
         return df

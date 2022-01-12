@@ -1,5 +1,6 @@
 import os
 import glob
+import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
@@ -9,26 +10,30 @@ class MissingInputFiles(Exception):
     pass
 class DifferingColumns(Exception):
     pass
+class DifferingRows(Exception):
+    pass
 
 
 class InputData:
-    def __init__(self,chunksize):
-        self.chunksize = chunksize
-        
+    def __init__(self):
+        self.chunksize = None
+
         self.__file_readers = {}
         self.__dataframe = {}
 
         self.logger = Logger(self.__class__.__name__)
         self.logger.info("InputData Object Created")
-        if self.chunksize is not None:
-            self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
+
 
     def all(self):
         return {
             key:self[key]
             for key in self.keys()
         }
-        
+
+    def __iter__(self):
+        return iter(self.__file_readers)
+    
     def keys(self):
         return self.__file_readers.keys()
 
@@ -78,33 +83,79 @@ class InputData:
                                       f"{pd.DataFrame} or {pd.io.parsers.TextFileReader} ")
         self.logger.info(f"Registering  {key} [{type(obj)}]")
         self.__file_readers[key] = obj
-        
+        if isinstance(obj,pd.io.parsers.TextFileReader):
+            chunksize = obj.chunksize
+            if self.chunksize == None:
+                self.chunksize = chunksize
+            elif self.chunksize != obj.chunksize:
+                raise NotImplementedError("Needs input data to be all chunked with the same number of rows")
+                        
     
+def load_json_delta(f_in,original):
+    logger = Logger("load_json_delta")
+    logger.info(f"loading a json from '{f_in}' as a delta")
+    data = load_json(f_in)
+    
+    original_date = original['metadata']['date_created']
+    data_date = data['metadata']['date_created']
+
+    logger.info(f"Original JSON date: {original_date}")
+    logger.info(f"New JSON date: {data_date}")
+
+    _data = copy.deepcopy(data)
+
+    for destination_table,rule_set in data['cdm'].items():
+        for name,rules in rule_set.items():
+            exists_in_original_rules = None
+            if destination_table in original['cdm']:
+                if name in original['cdm'][destination_table]:
+                    exists_in_original_rules = original['cdm'][destination_table][name]
+            
+            if exists_in_original_rules:
+                _data['cdm'][destination_table].pop(name)
+            else:
+                logger.info(f"Detected a new rule for {name}")
+                logger.debug(json.dumps(rules,indent=6))
+        
+        if not _data['cdm'][destination_table]:
+            _data['cdm'].pop(destination_table)
+
+    logger.info(json.dumps(_data,indent=6))
+    return _data
     
 
 def load_json(f_in):
-    try:
+
+    if os.path.exists(f_in):
         data = json.load(open(f_in))
-    except FileNotFoundError as err:
+    else:
         try:
-            data_dir = os.path.abspath(
-                os.path.join(
-                    os.path.dirname(__file__),'..','data')
-                )
-            data =  json.load(open(f'{data_dir}{os.path.sep}{f_in}'))
-        except FileNotFoundError:
-            raise FileNotFoundError(err)
+            data = json.loads(f_in)
+        except Exception as err:
+            raise FileNotFoundError(f"{f_in} not found. Or cannot parse as json")
 
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 
-    logger = Logger("coconnect.tools.load_csv")
+    if isinstance(_map,list):
+        _map = {
+            x:x
+            for x in _map
+        }
     
+    logger = Logger("coconnect.tools.load_csv")
+
+    if isinstance(_map,list) or isinstance(_map,tuple):
+        _map = { x:x for x in _map}
+    elif isinstance(_map,str):
+        _map = { _map:_map }
+        
     if rules is not None:
         logger.debug("rules .json file supplied")
-        rules = load_json(rules)
+        if not isinstance(rules,dict):
+            rules = load_json(rules)
         source_map = get_mapped_fields_from_rules(rules)
 
         inputs_from_json = list(source_map.keys())
@@ -140,16 +191,18 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             fname = obj['file']
             fields = obj['fields']
 
-        sep = ','
-        if fname.endswith('tsv'):
-            sep = '\t'
         df = pd.read_csv(load_path+fname,
-                         sep=sep,
                          chunksize=chunksize,
                          nrows=nrows,
+                         sep=sep,
+                         keep_default_na=False,
+                         na_values=na_values,
                          dtype=str,
                          usecols=fields)
 
+        df.attrs = {'original_file':load_path+fname}
+
+        
         if isinstance(df,pd.DataFrame):
             #this should be removed
             if lower_col_names:
@@ -159,6 +212,21 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
     return retval
 
+def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+    sep="\t"
+    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
+                    lower_col_names=lower_col_names,load_path=load_path,rules=rules)
+
+
+def get_subfolders(input_folder):
+    return { 
+        os.path.basename(f.path):f.path 
+        for f in os.scandir(input_folder) 
+        if f.is_dir() and not os.path.basename(f.path).startswith('.')
+    }
+
+def get_files(path,type='csv'):
+    return [x.path for x in os.scandir(path) if x.path.endswith(f'.{type}')]
 
 def get_file_map_from_dir(_dir):
     if not os.path.isdir(_dir):
@@ -174,13 +242,53 @@ def get_file_map_from_dir(_dir):
     
     return _map
  
+def remove_missing_sources_from_rules(rules,tables):
+    logger = Logger("remove_missing_sources_from_rules")
+
+    tables = [os.path.basename(x) for x in tables]
+   
+    rules_copy = copy.deepcopy(rules)
+
+    for destination_table,cdm_table in rules['cdm'].items():
+        for table_name,sub_table in cdm_table.items():
+            first = list(sub_table.keys())[0]
+            source_table = sub_table[first]['source_table']
+            if source_table not in tables:
+                rules_copy['cdm'][destination_table].pop(table_name)
+                logger.debug(f"removed {table_name} from rules")
+                
+        if not rules_copy['cdm'][destination_table]:
+            rules_copy['cdm'].pop(destination_table)
+            logger.debug(f"removed cdm table '{destination_table}' from rules")
+        
+    return rules_copy
+
+def filter_rules_by_destination_tables(rules,tables):
+    rules_copy = copy.deepcopy(rules)
+
+    for destination_table,cdm_table in rules['cdm'].items():
+        if not destination_table in tables:
+            rules_copy['cdm'].pop(destination_table)
+           
+    return rules_copy
+    
+
+def get_source_tables_from_rules(rules,table):
+    sources = [ 
+        x['source_table']
+        for dest_table,cdm_obj_set in rules['cdm'].items()
+        for cdm_obj in cdm_obj_set.values()
+        for x in cdm_obj.values()
+        if dest_table == table
+    ]
+    return list(set(sources))
 
 def get_mapped_fields_from_rules(rules):
     #extract a tuple of source tables and source fields
     sources = [
         (x['source_table'],x['source_field'])
         for cdm_obj_set in rules['cdm'].values()
-        for cdm_obj in cdm_obj_set
+        for cdm_obj in cdm_obj_set.values()
         for x in cdm_obj.values()
     ]
     
@@ -237,7 +345,7 @@ def diff_csv(file1,file2,separator=None,nrows=None):
         m = m.rename(columns={'_merge':'Only Contained Within'})
         m.index.name = 'Row Number'
         logger.error(m.reset_index().to_dict(orient='records'))
-        raise Exception("differences detected")
+        raise DifferingRows("Something not right with the rows, changes detected.")
         
     elif len(df1.columns) != len(df2.columns):
         
@@ -250,3 +358,5 @@ def diff_csv(file1,file2,separator=None,nrows=None):
             if not (df1.iloc[i] == df2.iloc[i]).any():
                 print ('Row',i,'is in a different location')
         raise Exception("differences detected")
+
+    

@@ -70,6 +70,15 @@ class ConditionOccurrence(DestinationTable):
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
 
+        if self.automatically_fill_missing_columns == True:
+            if df['condition_start_date'].isnull().all():
+                df['condition_start_date'] = self.tools.get_date(df['condition_start_datetime'])
+
+            if df['condition_end_date'].isnull().all():
+                df['condition_end_date'] = self.tools.get_date(df['condition_end_datetime'])
+            
+
+            
         df = df[~nulls]
                 
         return df

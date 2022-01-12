@@ -77,6 +77,11 @@ class Measurement(DestinationTable):
             self.logger.error("the measurement_concept_id for this instance is all null")
             self.logger.error("most likely because there is no term mapping applied")
             self.logger.error("automatic conversion to a numeric has failed")
+
+        if self.automatically_fill_missing_columns == True:
+            if df['measurement_date'].isnull().all():
+                df['measurement_date'] = self.tools.get_date(df['measurement_datetime'])
+            
             
         df = df[~nulls]
         return df

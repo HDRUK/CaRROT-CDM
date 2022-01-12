@@ -4,6 +4,13 @@ class TableNotFoundError(Exception):
 class FieldNotFoundError(Exception):
     pass
 
+def get_person_ids(rules):
+    return {
+        subtable['person_id']['source_table']:subtable['person_id']['source_field'] 
+        for table in rules['cdm'].values() 
+        for subtable in table.values()
+    }
+
 
 def get_source_field(table,name):
     if name not in table:
@@ -26,11 +33,18 @@ def get_source_table(inputs,name):
     inputs[name].name = name
     return inputs[name]
 
+
+def load_from_file(this):
+    df = this.inputs[this.fname].dropna(axis=1)
+    for colname in df.columns:
+        this[colname].series = df[colname]
+
+
 def apply_rules(this):
     this.logger.info("Called apply_rules")
 
     rules = this.rules
-    
+    this._meta['source_files'] = {}
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']
         source_field_name = rule['source_field']
@@ -55,6 +69,11 @@ def apply_rules(this):
                 # value level mapping
                 # - term_mapping is a dictionary between values and concepts
                 # - map values in the input data, based on this map
+
+                #need to make the value a string for mapping
+                #pandas has a weird behaviour that when the value is an Int
+                #the resulting series is a float64
+                term_mapping = {k:str(v) for k,v in term_mapping.items()}
                 series = series.map(term_mapping)
             else:
                 # field level mapping.
@@ -63,4 +82,5 @@ def apply_rules(this):
                 series.values[:] = term_mapping
 
         this[destination_field].series = series
+        this._meta['source_files'][destination_field] = {'table':source_table_name,'field':source_field_name}
         this.logger.info(f"Mapped {destination_field}")

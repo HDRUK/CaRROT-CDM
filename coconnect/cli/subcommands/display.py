@@ -3,29 +3,80 @@ import click
 import pandas
 import json
 import coconnect.tools as tools
-
+import coconnect
+import pandas as pd
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
     pass
 
+@click.group(help='Commands for displaying various help for the CDM')
+def cdm():
+    pass
+
+
+@click.command(help="Display a table for the CDM")
+@click.argument('names',required=True,nargs=-1)
+@click.option('--markdown',is_flag=True)
+@click.option('--latex',is_flag=True)
+def table(names,markdown,latex):
+    for name in names:
+        obj = coconnect.cdm.get_cdm_class(name)()
+        data = []
+        for field in obj.fields:
+            pk = obj[field].pk
+            if pk == True:
+                pk = '✔'
+            else:
+                pk = ' '
+            
+            data.append([field,pk,obj[field].dtype])
+
+        df = pd.DataFrame(data, columns=['name','pk','dtype'])#.set_index('name')
+        df['table'] = name
+        df.set_index('table',inplace=True)
+        df.set_index('name',inplace=True)
+        
+        if markdown:
+            df = df.to_markdown()
+        elif latex:
+            df = df.to_latex()
+            
+        print (df)
+
 @click.command(help="Display a dataframe")
 @click.argument('fname')
+@click.option('--drop-col',multiple=True)
 @click.option('--drop-na',is_flag=True)
 @click.option('--markdown',is_flag=True)
+@click.option('--latex',is_flag=True)
 @click.option('--head',type=int,default=None)
+@click.option('--sample',type=int,default=None)
 @click.option('--separator','--sep',type=str,default=None)
-def dataframe(fname,drop_na,markdown,head,separator):
+def dataframe(fname,drop_na,drop_col,markdown,head,sample,separator,latex):
 
     #if separator not specified, get it from the file extension 
     if separator == None:
         separator = tools.get_separator_from_filename(fname)
-        
+
+
+    if sample and head:
+        head = None
     df = pandas.read_csv(fname,nrows=head,sep=separator)
+    if sample:
+        df = df.sample(sample)
+    df.set_index(df.columns[0],inplace=True)
     if drop_na:
         df = df.dropna(axis=1,how='all')
+
+    drop_col = list(drop_col)
+    df = df.drop(drop_col,axis=1)
+        
     if markdown:
         df = df.to_markdown()
+    elif latex:
+        df = df.to_latex()
+
     print (df)
 
 @click.command(help="plot from a csv file")
@@ -55,7 +106,9 @@ def plot(fnames,x,y,save_plot):
 @click.argument("rules")
 def dag(rules):
     data = tools.load_json(rules)
-    tools.make_dag(data['cdm'],render=True) 
+    if 'cdm' in data:
+        data = data['cdm']
+    tools.make_dag(data,render=True)
 
 
 @click.command(help="Show the OMOP mapping json")
@@ -114,7 +167,10 @@ def flatten(rules):
         
         exit(0)
 
-                
+
+cdm.add_command(table,"table")
+display.add_command(cdm,"cdm")
+
 display.add_command(dataframe,"dataframe")
 display.add_command(dag,"dag")
 display.add_command(print_json,"json")

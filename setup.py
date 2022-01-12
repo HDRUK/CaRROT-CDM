@@ -30,8 +30,13 @@ setuptools.setup(
         ],
     },
     packages=setuptools.find_packages(),
+    extras_require = {
+        'airflow':['apache-airflow'],
+        'sql':['sqlalchemy','psycopg2-binary==2.8.6','sqlalchemy-utils'],
+        'performance':['snakeviz'],
+    },
     install_requires=required,
-    package_data={'coconnect': ['data/cdm/*','data/example/*/*','data/test/*/*']},
+    package_data={'coconnect': ['data/cdm/*','data/example/*/*','data/test/*/*','data/test/*/*/*']},
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

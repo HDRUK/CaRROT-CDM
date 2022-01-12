@@ -48,25 +48,36 @@ class Person(DestinationTable):
            pandas.Dataframe: output dataframe
         """
         
-        if 'fill_missing_columns' in kwargs:
-            self.fill_missing_columns = kwargs['fill_missing_columns']
+        # if 'fill_missing_columns' in kwargs:
+        #     self.fill_missing_columns = kwargs['fill_missing_columns']
 
-        if hasattr(self,'fill_missing_columns'):
-            if self.fill_missing_columns == True:
-                kwargs['force_rebuild'] = True
+        # if hasattr(self,'fill_missing_columns'):
+        #     if self.fill_missing_columns == True:
+        #         kwargs['force_rebuild'] = True
 
-                birth_datetime = self['birth_datetime'].series
-                year_of_birth = self['year_of_birth'].series
-                if year_of_birth.isnull().all():
-                    self['year_of_birth'].series = self.tools.get_year(birth_datetime)
+        #         birth_datetime = self['birth_datetime'].series
+        #         year_of_birth = self['year_of_birth'].series
+        #         if year_of_birth.isnull().all():
+        #             self['year_of_birth'].series = self.tools.get_year(birth_datetime)
 
-                month_of_birth = self['month_of_birth'].series
-                if month_of_birth.isnull().all():
-                    self['month_of_birth'].series = self.tools.get_month(birth_datetime)
+        #         month_of_birth = self['month_of_birth'].series
+        #         if month_of_birth.isnull().all():
+        #             self['month_of_birth'].series = self.tools.get_month(birth_datetime)
                 
-                day_of_birth = self['day_of_birth'].series
-                if day_of_birth.isnull().all():
-                    self['day_of_birth'].series = self.tools.get_day(birth_datetime)
-        
+        #         day_of_birth = self['day_of_birth'].series
+        #         if day_of_birth.isnull().all():
+        #             self['day_of_birth'].series = self.tools.get_day(birth_datetime)
+
+        if self.automatically_fill_missing_columns == True:
+            if df['year_of_birth'].isnull().all():
+                df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
+                
+            if df['month_of_birth'].isnull().all():
+                df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
+
+            if df['day_of_birth'].isnull().all():
+                df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
+
+                    
         df = super().get_df(**kwargs)
         return df
