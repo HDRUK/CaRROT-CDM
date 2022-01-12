@@ -399,8 +399,6 @@ def synthetic_from_json(f_in,number_of_events,output_directory,fill_column_with_
             values.name = field_name
             
             df_synthetic[field_name] = values
-            #else:
-            #    df_synthetic[col_name] = df_stats.iloc[:,0]
                 
         df_synthetic = pd.concat(df_synthetic.values(),axis=1)
         for col_name in fill_column_with_values:
@@ -413,9 +411,6 @@ def synthetic_from_json(f_in,number_of_events,output_directory,fill_column_with_
             os.makedirs(output_directory)
         fname = f"{output_directory}/{table_name}"
 
-        #df_synthetic.index = 'pk'+df_synthetic.index.astype(str)
-        #df_synthetic.rename_axis(person_id,inplace=True)
-        #df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
         click.echo(df_synthetic)
         df_synthetic.to_csv(fname)
         click.echo(f"created {fname} with {number_of_events} events")
