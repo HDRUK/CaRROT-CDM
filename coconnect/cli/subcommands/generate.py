@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import requests
 import secrets
+import random
 class MissingToken(Exception):
     pass
 
@@ -267,34 +268,150 @@ generate.add_command(salt,"salt")
 
 
 @click.command(help="generate scan report json from input data")
+@click.option("max_distinct_values","--max-distinct-values",
+              default=10,
+              help='specify the maximum number of distinct values to include in the ScanReport.')
+@click.option("min_cell_count","--min-cell-count",
+              default=5,
+              help='specify the minimum number of occurrences of a cell value before it can appear in the ScanReport.')
+@click.option("rows_per_table","--rows-per-table",
+              default=None,
+              help='specify the maximum of rows to scan per input data file (table).')
+@click.option("randomise","--randomise",
+              default=True,
+              help='randomise rows')
 @click.argument("inputs",
                 nargs=-1)
-def report(inputs):
-    import pandas as pd
-    import os
-    import json
-
-    m_ntop = 10
-
+def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise):
+    skiprows = None
+    #p = 0.1
+    #skiprows=lambda i: i>0 and random.random() > p
+        
     data = []
     for fname in inputs:
+        #get the name of the data table
         table_name = os.path.basename(fname)
-        df = pd.read_csv(fname)
+        #load as a pandas dataframe
+        #load it and preserve the original data (i.e. no NaN conversions)
+        df = pd.read_csv(fname,
+                         dtype=str,
+                         keep_default_na=False,
+                         nrows=rows_per_table,
+                         skiprows=None)
+        #get a list of all column (field) names
         column_names = df.columns.tolist()
-
         fields = []
+        #loop over all colimns
         for col in column_names:
-            series = df[col].value_counts(normalize=True).rename('frequency').round(4)
-            if len(series)>=m_ntop:
-                series = series.iloc[:m_ntop]
+            #value count the columns
+            series = df[col].value_counts()
+            #reduce the size of the value counts depending on specifications of max distinct values 
+            if max_distinct_values>0 and len(series)>=max_distinct_values:
+                series = series.iloc[:max_distinct_values]
 
+            #if the min cell count is set, remove value counts that are below this threshold
+            if not min_cell_count is None:
+                series = series[series >= min_cell_count]
+
+            #convert into a frequency instead of value count
+            series = (series/len(df)).rename('frequency').round(4) 
+
+            #convert the values to a dictionary 
             frame = series.to_frame()
             values = frame.rename_axis('value').reset_index().to_dict(orient='records')
+            #record the value (frequency counts) for this field
             fields.append({'field':col,'values':values})
-            
-        data.append({'table':table_name,'fields':fields})
 
-    print (json.dumps(data,indent=6))
+        meta = {
+            'nscanned':len(df),
+            'max_distinct_values':max_distinct_values,
+            'min_cell_count':min_cell_count
+        }
+        data.append({'table':table_name,'fields':fields, 'meta':meta})
+
+    click.echo(json.dumps(data,indent=6))
             
 generate.add_command(report,"report")
+
+
+@click.command(help="Generate synthetic data from the json format of the scan report")
+@click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
+@click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
+@click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
+@click.argument("f_in")
+def synthetic_from_json(f_in,number_of_events,output_directory,fill_column_with_values):
+    fill_column_with_values = list(fill_column_with_values)
+    report = json.load(open(f_in))
+    for table in report:
+        table_name = table['table']
+        fields = table['fields']
+        df_synthetic = {}
+        for field in fields:
+            field_name = field['field']
+            values = field['values']
+            df = pd.DataFrame.from_records(values)
+            if len(df) == 0:
+                values = pd.Series([])
+            else:
+                frequency = df['frequency']
+                frequency = number_of_events*frequency / frequency.sum()
+                frequency = frequency.astype(int)
+                values = df['value'].repeat(frequency).sample(frac=1).reset_index(drop=True)
+            values.name = field_name
+            
+            df_synthetic[field_name] = values
+            #else:
+            #    df_synthetic[col_name] = df_stats.iloc[:,0]
+                
+        df_synthetic = pd.concat(df_synthetic.values(),axis=1)
+        for col_name in fill_column_with_values:
+            if col_name in df_synthetic.columns:
+                df_synthetic[col_name] = df_synthetic[col_name].reset_index()['index']
+
+        df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+
+        if not os.path.isdir(output_directory):
+            os.makedirs(output_directory)
+        fname = f"{output_directory}/{table_name}"
+
+        #df_synthetic.index = 'pk'+df_synthetic.index.astype(str)
+        #df_synthetic.rename_axis(person_id,inplace=True)
+        #df_synthetic.set_index(df_synthetic.columns[0],inplace=True)
+        click.echo(df_synthetic)
+        df_synthetic.to_csv(fname)
+        click.echo(f"created {fname} with {number_of_events} events")
+
+
+synthetic.add_command(synthetic_from_json,"json")
+
+
+@click.command(help="convert the json report into a xlsx sheet")
+@click.option("-o","--output",help="name of the output xlsx file",type=str,default=None)
+@click.argument("f_in")
+def report_to_xlsx(f_in,output):
+    report = json.load(open(f_in))
+
+    if output == None:
+        output = f_in.replace(".json",".xlsx")
+
+    with pd.ExcelWriter(output) as writer:  
+        for table in report:
+            table_name = table['table']
+            total = []
+            for field in table['fields']:
+                field_name = field['field']
+                values = field['values']
+                data = pd.DataFrame.from_records(values)
+                columns = [field_name,'Frequency']
+                if data.empty:
+                    data = pd.DataFrame(columns=columns)
+                else:
+                    data.columns=columns
+                    total.append(data)
+            df = pd.concat(total,axis=1)
+            print (df)
+            df.to_excel(writer, sheet_name=table_name, index=False)
+            
+                
+generate.add_command(report_to_xlsx,"xlsx")
 
