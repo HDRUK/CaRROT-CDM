@@ -305,12 +305,6 @@ class CommonDataModel:
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
-    #def get_cdm_class(self,destination_table):
-    #    print (f"gonna get {destination_table} for {self.omop_version}")
-    #    _get_cdm_class(destination_table,version=self.omop_version)
-    #    print ('get_cdm_class exit')
-    #    exit(0)
-    
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 
