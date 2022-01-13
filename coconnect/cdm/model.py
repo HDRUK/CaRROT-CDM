@@ -42,7 +42,7 @@ class CommonDataModel:
         return cdm
     
 
-    def __init__(self, name=None, 
+    def __init__(self, name=None, omop_version='5.3.1',
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
@@ -69,8 +69,9 @@ class CommonDataModel:
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
-        self.logger.info(f"CommonDataModel created with version {cc_version}")
+        self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {cc_version}")
 
+        self.omop_version = omop_version
         self.output_folder = output_folder
         self.save_files = save_files
 
@@ -304,6 +305,12 @@ class CommonDataModel:
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
+    #def get_cdm_class(self,destination_table):
+    #    print (f"gonna get {destination_table} for {self.omop_version}")
+    #    _get_cdm_class(destination_table,version=self.omop_version)
+    #    print ('get_cdm_class exit')
+    #    exit(0)
+    
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 

@@ -15,21 +15,26 @@ def load_file(fname):
     func.__name__ = fname
     return func
 
-def from_table(table):
+
+def from_table(obj,table):
+    df = obj.inputs[table]
+    for colname in df.columns:
+        obj[colname].series = df[colname]
+    return obj
+
+
+def define_person_v2(input=None):
     def decorator(defs):
         def wrapper(obj):
-            df = obj.inputs[table]
-            for colname in df.columns:
-                obj[colname].series = df[colname]
-            return defs
-        wrapper.__name__ = defs.__name__
-        return wrapper
+            if input is not None:
+                obj = from_table(obj,input)
+            defs(obj)
 
-#def from_table(obj,table):
-#    df = obj.inputs[table]
-#    for colname in df.columns:
-#        obj[colname].series = df[colname]
-#    return obj
+        p = Person()
+        p.define = wrapper 
+        p.set_name(defs.__name__)
+        return p
+    return decorator
 
 def define_person(defs):
     c = Person()

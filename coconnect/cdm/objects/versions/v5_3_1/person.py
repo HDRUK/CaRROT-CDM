@@ -1,4 +1,4 @@
-from .common import DestinationTable, DestinationField
+from ...common import DestinationTable, DestinationField
 
 class Person(DestinationTable):
     """

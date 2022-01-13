@@ -361,7 +361,10 @@ def run(ctx,rules,inputs,format_level,
             # destination_table : person
             # get_cdm_class returns <Person>
             # obj : Person()
-            obj = coconnect.cdm.get_cdm_class(destination_table)()
+            obj = cdm.get_cdm_class(destination_table)()
+            print (obj,'in subcommands map.py')
+            exit(0)
+            continue
             #set the name of the object
             obj.set_name(name)
             
@@ -375,7 +378,7 @@ def run(ctx,rules,inputs,format_level,
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
-            
+    exit(0)
     cdm.process()
 
 
