@@ -1,12 +1,16 @@
 import os
 import click
 import json
+import yaml
 import coconnect
 import pandas as pd
 import numpy as np
 import requests
 import secrets
 import random
+import datetime
+import time
+
 class MissingToken(Exception):
     pass
 
@@ -215,8 +219,50 @@ def xlsx(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
-synthetic.add_command(xlsx,"xlsx")
-synthetic.add_command(ccom,"ccom")
+synthetic.add_command(xlsx,"from_xlsx")
+synthetic.add_command(ccom,"from_ccom")
+
+@click.command(help="generate a synthetic CDM from a yaml file")
+@click.argument("config")
+def synthetic_cdm(config):
+    with open(config, 'r') as stream:
+        config = yaml.safe_load(stream)
+    for destination_table_name,destination_table in config.items():
+        n = destination_table['n']
+        obj = coconnect.cdm.get_cdm_class(destination_table_name)()
+        columns = destination_table['columns']
+        for column,spec in columns.items():
+            if 'range' in spec:
+                _range = spec['range']
+                _min = 0
+                if 'min' in _range:
+                    _min = _range['min']
+                _max = _min + n
+                x = range(_min,_max)
+            elif 'random' in spec:
+                _map = spec['random']
+                _df = pd.Series(_map).to_frame()
+                x = _df.index.to_series().repeat(_df[0]*n).sample(frac=1).values
+            elif 'map' in spec:
+                _map = spec['map']
+                col_to_map,_map = list(_map.items())[0]
+                x = obj[col_to_map].series.map(_map).values
+            elif 'gaus' in spec:
+                _range = spec['gaus']
+                mu = _range['mean']
+                sigma = (_range['max'] - _range['min']).total_seconds()/5
+                mu = time.mktime(mu.timetuple())
+                x = [datetime.date.fromtimestamp(x) for x in np.random.normal(mu,sigma,n)]
+            series = pd.Series(x)
+            obj[column].series = series
+
+        df = obj.get_df()
+        print (df.dropna(axis=1))
+        break
+    
+synthetic.add_command(synthetic_cdm,"cdm")
+
+
 generate.add_command(synthetic,"synthetic")
 
 

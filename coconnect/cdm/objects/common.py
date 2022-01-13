@@ -176,8 +176,10 @@ class DestinationTable(object):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
-
-
+        
+        self.automatically_fill_missing_columns = True
+        self.tools = OperationTools()
+        
     def get_field_names(self):
         """
         From the current object, loop over all member objects and find those that are instances
