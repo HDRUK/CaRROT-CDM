@@ -375,7 +375,6 @@ def run(ctx,rules,inputs,format_level,
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
-            
     cdm.process()
 
 
@@ -385,6 +384,9 @@ def run(ctx,rules,inputs,format_level,
 @click.option("--pyconf","--conf",
               required=True,
               help="Run with a python configuration file")
+@click.option("--object","objects",
+              multiple=True,
+              help="Only run specific objects.")
 @click.option("--type",
               default='csv',
               type=click.Choice(['csv']),
@@ -407,11 +409,14 @@ def run(ctx,rules,inputs,format_level,
                 #help="give a list of input files to process, and/or an input directory",
                 nargs=-1)
 @click.pass_context
-def run_pyconfig(ctx,rules,pyconf,inputs,
+def run_pyconfig(ctx,rules,pyconf,inputs,objects,
         output_folder,type,use_profiler,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
 
+    object_list = list(objects)
+    if len(object_list) == 0:
+        object_list = None
     
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
@@ -468,7 +473,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,
               output_folder=output_folder,
               use_profiler=use_profiler)
     #run it
-    cdm.process()
+    cdm.process(object_list)
       
 @click.command(help="run as a Graphical User Interface (GUI)")
 @click.pass_context

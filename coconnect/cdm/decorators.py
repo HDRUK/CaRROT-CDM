@@ -23,19 +23,6 @@ def from_table(obj,table):
     return obj
 
 
-def define_person_v2(input=None):
-    def decorator(defs):
-        def wrapper(obj):
-            if input is not None:
-                obj = from_table(obj,input)
-            defs(obj)
-
-        p = Person()
-        p.define = wrapper 
-        p.set_name(defs.__name__)
-        return p
-    return decorator
-
 def define_person(defs):
     c = Person()
     c.define = defs

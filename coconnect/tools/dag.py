@@ -1,9 +1,23 @@
 from graphviz import Digraph
 import json
 
-colorscheme = 'gnbu9'
 
-def make_dag(data,name='dag',render=False):
+def make_dag_from_objects(object_dict):
+    _format = 'pdf'
+    dot = Digraph(strict=True,format=_format)
+    dot.attr(size='5,5')
+
+    for destination_table,object_list in object_dict.items():
+        dot.node(destination_table,shape='box')
+        for obj in object_list:
+            dot.node(obj,style='filled', fillcolor='yellow',shape='box')
+            dot.edge(destination_table,obj,dir='forward')
+                        
+    dot.render('dag.gv', view=True)  
+    return
+
+    
+def make_dag(data,name='dag',colorscheme = 'gnbu9',render=False):
     _format = 'svg'
     if render == True:
         _format = 'pdf'

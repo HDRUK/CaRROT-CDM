@@ -9,14 +9,14 @@ from time import gmtime, strftime
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
-from coconnect.tools.file_helpers import InputData
+from coconnect.io import DataCollection
 
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
 from .objects import get_cdm_class, get_cdm_decorator
 from .decorators import load_file
 
-class NoInputFiles(Exception):
+class BadInputObject(Exception):
     pass
 
 class PersonExists(Exception):
@@ -42,7 +42,7 @@ class CommonDataModel:
         return cdm
     
 
-    def __init__(self, name=None, 
+    def __init__(self, name=None, omop_version='5.3.1',
                  output_folder=f"output_data{os.path.sep}",
                  output_database=None,
                  indexing_conf=None,
@@ -60,8 +60,8 @@ class CommonDataModel:
             output_folder (str): Path of where the output tsv/csv files should be written to.
                                  The default is to save to a folder in the current directory
                                  called 'output_data'.
-            inputs (dict or InputData): Input Data can be a dictionary mapping file names to pandas dataframes,
-                                        or can be an InputData object
+            inputs (dict or DataCollection): inputs can be a dictionary mapping file names to pandas dataframes,
+                                        or can be a DataCollection object
             use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
                                  The default is set to false.
         """
@@ -69,8 +69,9 @@ class CommonDataModel:
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
         self.logger = Logger(name)
-        self.logger.info(f"CommonDataModel created with version {cc_version}")
+        self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {cc_version}")
 
+        self.omop_version = omop_version
         self.output_folder = output_folder
         self.save_files = save_files
 
@@ -111,14 +112,18 @@ class CommonDataModel:
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
-            self.logger.info("Running with an InputData object")
-        elif isinstance(inputs,InputData):
-            self.logger.info("Running with an InputData object")
+            self.logger.info("Running with an DataCollection object")
+        elif isinstance(inputs,DataCollection):
+            self.logger.info("Running with an DataCollection object")
+        elif inputs is not None:
+            _type = type(inputs).__name__
+            raise BadInputObject(f"input object {inputs} is of type {_type}, which is not a valid input object")
 
         if inputs is not None:
             if hasattr(self,'inputs'):
                 self.logger.warning("overwriting inputs")
             self.inputs = inputs
+
             
         #register opereation tools
         self.tools = OperationTools()
@@ -183,6 +188,8 @@ class CommonDataModel:
         Class destructor:
               Stops the profiler from running before deleting self
         """
+        if not hasattr(self,'profiler'):
+            return
         if self.profiler:
             self.profiler.stop()
             df_profile = self.profiler.get_df()
@@ -263,6 +270,41 @@ class CommonDataModel:
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
+
+    def find_one(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna).sample(frac=1).iloc[0]
+        
+    def find(self,config,cols=None,dropna=False):
+        return self.filter(config,cols,dropna)
+
+    def filter(self,config,cols=None,dropna=False):
+        retval = None
+        for obj in config:
+            if isinstance(obj,str):
+                df = self[obj].get_df().set_index('person_id')
+                if retval is None:
+                    retval = df
+                else:
+                    retval = retval.merge(df,left_index=True,right_index=True)
+            elif isinstance(obj,dict):
+                for key,value in obj.items():
+                    df = self[key].filter(value).set_index('person_id')
+                    if retval is None:
+                        retval = df
+                    else:
+                        retval = retval.merge(df,left_index=True,right_index=True)
+            else:
+                raise NotImplementedError("need to pass a json object to filter()")
+
+        if dropna:
+            retval = retval.dropna(axis=1)
+        if cols is not None:
+            retval = retval[cols]
+        return retval
+        
+    def get_all_objects(self):
+        return [ obj for collection in self.__objects.values() for obj in collection.values()]
+
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 
@@ -303,6 +345,9 @@ class CommonDataModel:
                    e.g. [<person_0>, <person_1>] 
                    which would be objects for male and female mapping
         """
+        if destination_table == None:
+            return self.get_all_objects()
+        
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -411,30 +456,68 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self):
+    def process(self,object_list=None):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
-        
-        #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
-            if self.inputs.chunksize == None:
-                self.process_flat_data()
+        if object_list != None:
+            for obj in object_list:
+                self.process_individual(obj)
+        else:                
+            #determine the order to execute tables in
+            #only thing that matters is to execute the person table first
+            # - this is if we want to mask the person_ids and need to save a record of
+            #   the link between the unmasked and masked
+            self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            self.logger.info(f"Starting processing in order: {self.execution_order}")
+            self.count_objects()
+            
+            #switch to process the data in chunks or not
+            if isinstance(self.inputs,DataCollection):
+                if self.inputs.chunksize == None:
+                    self.process_flat_data()
+                else:
+                    self.process_chunked_data()
             else:
-                self.process_chunked_data()
-        else:
-            self.process_flat_data()
+                self.process_flat_data()
 
-    
+    def process_individual(self,obj):
+        i = 0 
+        while True:
+            destination_table = obj.name
+            df = obj.execute(self)
+            self[destination_table] = df
+            
+            mode = 'w'
+            if i>0:
+                mode='a'
+
+            i+=1
+            
+            if len(df) > 0:
+                self.save_to_file(mode=mode)
+
+            try:
+                self.inputs.next()
+            except StopIteration:
+                break
+
+    def get_execution_order(self):
+        return sorted(self.__objects.keys(), key=lambda x: x != 'person')
+            
+    def get(self):
+        self.execution_order = self.get_execution_order()
+        for destination_table in self.execution_order:
+            self.process_table(destination_table)
+
+        try:
+            self.inputs.next()
+        except StopIteration:
+            self.logger.info("Now finished all inputs")
+        
+                
     def process_chunked_data(self):
         """
         Process chunked data, processes as follows
@@ -449,9 +532,8 @@ class CommonDataModel:
 
         i=0
         while True:
-        
             for destination_table in self.execution_order:
-                self[destination_table] = self.process_table(destination_table)
+                self.process_table(destination_table)
                 if not self[destination_table] is None:
                     nrows = len(self[destination_table])
                     self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
@@ -463,7 +545,6 @@ class CommonDataModel:
             if self.save_files:
                 self.save_dataframes(mode=mode)
                 self.save_logs(extra=f'_slice_{i}')
-
             i+=1
             
             try:
@@ -480,7 +561,7 @@ class CommonDataModel:
         * Save files and logs
         """
         for destination_table in self.execution_order:
-            self[destination_table] = self.process_table(destination_table)
+            self.process_table(destination_table)
             self.logger.info(f'finalised {destination_table}')
 
         if self.save_files:
@@ -520,6 +601,7 @@ class CommonDataModel:
         for i,obj in enumerate(objects):
             obj.execute(self)
             df = obj.get_df(force_rebuild=False)
+                        
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
             if len(df) == 0:
@@ -531,12 +613,11 @@ class CommonDataModel:
 
         if len(dfs) == 0:
             return None
-            
         #merge together
-        self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
         if len(dfs) == 1:
             df_destination = dfs[0]
         else:
+            self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
             df_destination = pd.concat(dfs,ignore_index=True)
 
         #register the total length of the output dataframe
@@ -572,8 +653,11 @@ class CommonDataModel:
             self.logs['meta']['total_data_processed'][destination_table] = 0
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
-        #return the finalised full dataframe for this table
-        return df_destination
+        #finalised full dataframe for this table
+        obj = get_cdm_class(destination_table).from_df(df_destination)
+        obj.update(self)
+        self[destination_table] = obj
+
 
     def save_logs(self,f_out=None,extra=""):
         """
@@ -698,7 +782,12 @@ class CommonDataModel:
 
         file_extension = self.get_outfile_extension()
         
-        for name,df in self.__df_map.items():
+        for name,obj in self.__df_map.items():
+            if obj is None:
+                continue
+
+            df = obj.get_df()
+            
             if df is None:
                 continue
             fname = f'{f_out}/{name}.{file_extension}'
@@ -713,7 +802,7 @@ class CommonDataModel:
             for col in df.columns:
                 if col.endswith("_id"):
                     df[col] = df[col].astype(float).astype(pd.Int64Dtype())
-                    
+
             df.set_index(df.columns[0],inplace=True)
             self.logger.debug(df.dtypes)
             df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)

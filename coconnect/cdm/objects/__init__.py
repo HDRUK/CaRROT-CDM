@@ -1,31 +1,44 @@
-from .person import Person
-from .condition_occurrence import ConditionOccurrence
-from .visit_occurrence import VisitOccurrence
-from .measurement import Measurement
-from .observation import Observation
-from .drug_exposure import DrugExposure
+import coconnect 
+import importlib
+import inspect
 
-from .. import decorators 
+__default_cdm_version = '5.3.1'
+if 'cdm' in coconnect.params:
+    __cdm_version = coconnect.params['cdm']
+else:
+    __cdm_version = __default_cdm_version
+
+__cdm_version_split = '_'.join(__cdm_version.split('.'))
+
+try:
+    __cdm_tables = importlib.import_module(f'coconnect.cdm.objects.versions.v{__cdm_version_split}')
+except ModuleNotFoundError as e:
+    raise ModuleNotFoundError(f'Cannot find CDM version {__cdm_version}, this does not exist in this package!') from e
+
+__cdm_tables = {
+    m[0]:getattr(__cdm_tables,m[0])
+    for m in inspect.getmembers(
+            __cdm_tables,
+            inspect.isclass)
+}
+
+__cdm_object_map = {
+    obj.name : obj
+    for obj in __cdm_tables.values()
+}
 
 import sys
 this = sys.modules[__name__]
 
-__cdm_objects = [
-    getattr(this,name)
-    for name in dir(this)
-    if isinstance(getattr(this,name), type)
-]
+for name,_class in __cdm_tables.items():
+    setattr(this,name,_class)
 
+from .. import decorators
 
 __cdm_decorator_map = {
-    name.lstrip("define_"):getattr(decorators,name)
+    name.replace("define_",""):getattr(decorators,name)
     for name in dir(decorators)
     if 'define' in name
-}
-
-__cdm_object_map = {
-    x.name: x
-    for x in __cdm_objects
 }
 
 def get_cdm_decorator(key):
