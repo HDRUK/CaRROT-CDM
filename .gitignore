@@ -9,3 +9,7 @@ coconnect/cdm/classes/
 *.env
 scripts/*.json
 temp
+airflow*
+*.json
+.python-version
+workflows

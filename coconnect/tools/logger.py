@@ -28,7 +28,9 @@ class Logger(logging.Logger):
         
         debug_level = coconnect.params['debug_level']
 
-        if debug_level == 0:
+        if debug_level < 0:
+            debug_level = logging.CRITICAL
+        elif debug_level == 0:
             debug_level = logging.ERROR
         elif debug_level == 1:
             debug_level = logging.WARNING

@@ -1,4 +1,4 @@
-from .common import DestinationTable, DestinationField
+from ...common import DestinationTable, DestinationField
 
 class Person(DestinationTable):
     """
@@ -48,15 +48,14 @@ class Person(DestinationTable):
            pandas.Dataframe: output dataframe
         """
         df = super().get_df(**kwargs)
-
         if self.automatically_fill_missing_columns == True:
             if df['year_of_birth'].isnull().all():
                 df['year_of_birth'] = self.tools.get_year(df['birth_datetime'])
-                
+
             if df['month_of_birth'].isnull().all():
                 df['month_of_birth'] = self.tools.get_month(df['birth_datetime'])
-                
+
             if df['day_of_birth'].isnull().all():
                 df['day_of_birth'] = self.tools.get_day(df['birth_datetime'])
-        
+                
         return df

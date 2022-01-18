@@ -140,6 +140,14 @@ class DestinationTable(object):
     Common object that all CDM objects (tables) inherit from.
     """
 
+    @classmethod
+    def from_df(cls,df):
+        obj = cls()
+        obj.__df = df
+        for colname in df.columns:
+            obj[colname].series = df[colname]
+        return obj
+
     def __len__(self):
         return len(self.__df)
 
@@ -179,7 +187,7 @@ class DestinationTable(object):
         
         self.automatically_fill_missing_columns = True
         self.tools = OperationTools()
-        
+
     def get_field_names(self):
         """
         From the current object, loop over all member objects and find those that are instances
@@ -256,6 +264,12 @@ class DestinationTable(object):
         """
         return list(self.fields)
 
+    def update(self,that):
+        #extract all objects from the passed object
+        objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
+        #add objects to this class
+        self.__dict__.update(objs)
+        
     def execute(self,that):
         """
         execute the creation of the cdm object by passing
@@ -264,11 +278,7 @@ class DestinationTable(object):
            that: input object class where input objects can be loaded 
                  and the define/finalise functions can be overloaded
         """
-
-        #extract all objects from the passed object
-        objs = {k:v for k,v in that.__dict__.items() if k!='logger' }
-        #add objects to this class
-        self.__dict__.update(objs)
+        self.update(that)
 
         self.cdm = that
         
@@ -280,9 +290,34 @@ class DestinationTable(object):
         self.define(self)
 
         #build the dataframe for this object
-        _ = self.get_df()
-        
-    def get_df(self,force_rebuild=True):
+        df = self.get_df()
+        return df
+
+    def filter(self,filters):
+
+        import operator
+        ops = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '>=': operator.ge,
+            '<=': operator.le,
+            '==': operator.eq
+        }
+                
+        if not isinstance(filters,dict):
+            raise NotImplementedError("filter must be a 'dict' .")
+
+        df = self.get_df()
+        for col,value in filters.items():
+            if isinstance(value,dict):
+                for op_str,val in value.items():
+                    df = df[ops[op_str](df[col],val)]                        
+            else:
+                df = df[df[col] == value]
+            
+        return df
+    
+    def get_df(self,force_rebuild=False,dropna=False,**kwargs):
         """
         Retrieve a dataframe from the current object
 
@@ -291,7 +326,10 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
-            return self.__df 
+            if dropna:
+                return self.__df.dropna(axis=1)
+            else:
+                return self.__df 
 
         #get a dict of all series
         #each object is a pandas series
@@ -343,7 +381,10 @@ class DestinationTable(object):
         if self.do_formatting:
             df = self.format(df)
         df = self.finalise(df)
-                
+
+        if dropna:
+            df = df.dropna(axis=1)
+        
         #register the df
         self.__df = df
         return df

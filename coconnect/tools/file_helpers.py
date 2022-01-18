@@ -4,6 +4,7 @@ import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import Logger
+from coconnect.io import local
 
 class MissingInputFiles(Exception):
     pass
@@ -47,7 +48,7 @@ class InputData:
         if all([x.empty for x in self.__dataframe.values()]):
             self.logger.debug("All input files have now been processed.")
             raise StopIteration
-        
+
         self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
 
         
@@ -66,7 +67,7 @@ class InputData:
             #if we're handling non-chunked data
             #return an empty dataframe if we've already loaded this dataframe
             if key in self.__dataframe.keys():
-                return pd.DataFrame()
+                return pd.DataFrame(columns=self.__dataframe[key].columns)
             #otherwise return the dataframe as it's the first time we're getting it
             return obj
             
@@ -180,8 +181,8 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
-    retval = InputData()
-        
+    retval = local.LocalDataCollection(chunksize=chunksize)
+    
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):
@@ -207,7 +208,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = df
+        retval[key] = local.DataBrick(df,name=key)
 
     return retval
 
