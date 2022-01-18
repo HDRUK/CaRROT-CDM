@@ -3,13 +3,13 @@ import json
 
 colorscheme = 'gnbu9'
 
-def make_dag(data,name='dag',render=False):
+def make_dag(data,name='dag',render=False,orientation='RL'):
     _format = 'svg'
     if render == True:
         _format = 'pdf'
 
     dot = Digraph(strict=True,format=_format)
-    dot.attr(rankdir='RL')#, size='20,8')
+    dot.attr(rankdir=orientation)#, size='20,8')
             
     # #dot.attr(rankdir='RL', size='8,16',compound='true')
 
@@ -19,7 +19,7 @@ def make_dag(data,name='dag',render=False):
         #dest.attr(style='dotted',penwidth='4', label='CDM')
         #inp.attr(style='filled', fillcolor='lightgrey', penwidth='0', label='Input')
         
-        dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Destination')
+        dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Common Data Model')
         inp.attr(style='filled', fillcolor='2', colorscheme='greens9', penwidth='0', label='Source')
         
         for destination_table_name,destination_tables in data.items():

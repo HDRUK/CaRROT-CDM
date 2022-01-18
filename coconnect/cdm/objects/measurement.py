@@ -81,6 +81,8 @@ class Measurement(DestinationTable):
         if self.automatically_fill_missing_columns == True:
             if df['measurement_date'].isnull().all():
                 df['measurement_date'] = self.tools.get_date(df['measurement_datetime'])
+            if df['value_as_number'].isnull().all():
+                df['value_as_number'] = pd.to_numeric(df['measurement_source_value'],errors='coerce').astype('Float64')
             
             
         df = df[~nulls]

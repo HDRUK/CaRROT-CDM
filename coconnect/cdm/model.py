@@ -119,6 +119,8 @@ class CommonDataModel:
             if hasattr(self,'inputs'):
                 self.logger.warning("overwriting inputs")
             self.inputs = inputs
+        elif not hasattr(self,'inputs'):
+            self.inputs = None
             
         #register opereation tools
         self.tools = OperationTools()
@@ -426,7 +428,7 @@ class CommonDataModel:
         self.count_objects()
         
         #switch to process the data in chunks or not
-        if isinstance(self.inputs,InputData):
+        if self.inputs and isinstance(self.inputs,InputData):
             if self.inputs.chunksize == None:
                 self.process_flat_data()
             else:

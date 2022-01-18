@@ -111,14 +111,18 @@ def concepts(config):
 
                         if concept_id not in inverted:
                             inverted[concept_id] = {
-                                'concept_name':concept_name,
+                                'concept_name':concept_name.rsplit(' ',1)[0],
                                 'domain':cdm_table_name,
                                 'sources':[]
                             }
 
 
-                        if concept_id not in inverted:
-                            inverted[concept_id] = []
+                        #if concept_id not in inverted:
+                        #    inverted[concept_id] = []
+                        #else:
+                        #    print (concept_id)
+                        #    print (inverted[concept_id])
+                        #    exit(0)
                             
                         obj = {
                             'source_field':source_field,
@@ -144,8 +148,8 @@ def concepts(config):
         for _id,obj in inverted.items()
     ]
                             
-    #print (json.dumps(inverted,indent=6))
-    print (json.dumps(_list,indent=6))
+    print (json.dumps(inverted,indent=6))
+    #print (json.dumps(_list,indent=6))
             
 
 @click.command(help="get a json file")

@@ -227,7 +227,10 @@ synthetic.add_command(ccom,"from_ccom")
 def synthetic_cdm(config):
     with open(config, 'r') as stream:
         config = yaml.safe_load(stream)
-    for destination_table_name,destination_table in config.items():
+
+    dfs = {}
+    order = sorted(config.items(), key=lambda x: x[0] != 'person')
+    for destination_table_name,destination_table in order:
         n = destination_table['n']
         obj = coconnect.cdm.get_cdm_class(destination_table_name)()
         columns = destination_table['columns']
@@ -239,26 +242,35 @@ def synthetic_cdm(config):
                     _min = _range['min']
                 _max = _min + n
                 x = range(_min,_max)
+                x = pd.Series(x)
             elif 'random' in spec:
                 _map = spec['random']
                 _df = pd.Series(_map).to_frame()
-                x = _df.index.to_series().repeat(_df[0]*n).sample(frac=1).values
+                x = _df.index.to_series().repeat(_df[0]*n).sample(frac=1).reset_index(drop=True)
             elif 'map' in spec:
                 _map = spec['map']
                 col_to_map,_map = list(_map.items())[0]
-                x = obj[col_to_map].series.map(_map).values
+                x = obj[col_to_map].series.map(_map)
             elif 'gaus' in spec:
                 _range = spec['gaus']
                 mu = _range['mean']
                 sigma = (_range['max'] - _range['min']).total_seconds()/5
                 mu = time.mktime(mu.timetuple())
                 x = [datetime.date.fromtimestamp(x) for x in np.random.normal(mu,sigma,n)]
-            series = pd.Series(x)
-            obj[column].series = series
+                x = pd.Series(x)
+            elif 'person' in spec:
+                x = dfs['person']['person_id'].sample(n,replace=True).sort_values().reset_index(drop=True)
+            else:
+                print (spec)
+                exit(0)
+
+            x.name = column
+            print (x)
+            obj[column].series = x
 
         df = obj.get_df()
         print (df.dropna(axis=1))
-        break
+        dfs[destination_table_name] = df
     
 synthetic.add_command(synthetic_cdm,"cdm")
 

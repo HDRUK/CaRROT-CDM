@@ -270,6 +270,8 @@ class DestinationTable(object):
         #add objects to this class
         self.__dict__.update(objs)
 
+        self.cdm = that
+        
         #execute the define function
         #the default define() does nothing
         #this is only executed if the CDM has been build via decorators
