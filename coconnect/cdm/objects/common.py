@@ -288,9 +288,9 @@ class DestinationTable(object):
         #or define functions have been specified for this object
         # it will build the inputs from these functions
         self.define(self)
-
+        
         #build the dataframe for this object
-        df = self.get_df()
+        df = self.get_df(force_rebuild=True)
         return df
 
     def filter(self,filters):
@@ -326,6 +326,7 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
+            self.logger.debug('already got a dataframe, so returning the existing one')
             if dropna:
                 return self.__df.dropna(axis=1)
             else:
@@ -348,6 +349,7 @@ class DestinationTable(object):
             series = series.rename(field)
             #register the new series
             dfs[field] = series
+            self.logger.debug(f'Adding series to dataframe from field "{field}"')
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:

@@ -137,7 +137,7 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
+def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 
     if isinstance(_map,list):
         _map = {
@@ -197,7 +197,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
                          sep=sep,
                          keep_default_na=False,
                          na_values=na_values,
-                         dtype=str,
+                         dtype=dtype,
                          usecols=fields)
 
         df.attrs = {'original_file':load_path+fname}
@@ -212,9 +212,9 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
     return retval
 
-def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
+def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,dtype=None):
     sep="\t"
-    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
+    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,dtype=dtype,
                     lower_col_names=lower_col_names,load_path=load_path,rules=rules)
 
 

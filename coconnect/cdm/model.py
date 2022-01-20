@@ -457,6 +457,22 @@ class CommonDataModel:
         """
         return self.__objects
 
+    def process_slice(self):
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        i = 0 
+        while True:
+            if i>1:
+                exit(0)
+            for destination_table in self.execution_order:
+                self.process_table(destination_table)
+                if not self[destination_table] is None:
+                    nrows = len(self[destination_table])
+                    self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
+
+            i+=1
+            yield self
+            self.inputs.next()
+                
     def process(self,object_list=None):
         """
         Main functionality of the CommonDataModel class
@@ -476,7 +492,7 @@ class CommonDataModel:
             self.count_objects()
             
             #switch to process the data in chunks or not
-            if self.inputs isinstance(self.inputs,DataCollection):
+            if self.inputs and isinstance(self.inputs,DataCollection):
                 if self.inputs.chunksize == None:
                     self.process_flat_data()
                 else:
