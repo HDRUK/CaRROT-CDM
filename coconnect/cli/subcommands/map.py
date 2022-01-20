@@ -376,7 +376,7 @@ def run(ctx,rules,inputs,format_level,
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
     cdm.process()
-
+    cdm.end()
 
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",

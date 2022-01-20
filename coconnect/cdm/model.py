@@ -185,11 +185,13 @@ class CommonDataModel:
             }
         }
 
-    def __del__(self):
+    def end(self):
         """
         Class destructor:
               Stops the profiler from running before deleting self
         """
+
+        
         if not hasattr(self,'profiler'):
             return
         if self.profiler:
@@ -498,6 +500,7 @@ class CommonDataModel:
                 if self.inputs.chunksize == None:
                     self.process_flat_data()
                 else:
+                    self.do_mask_person_id = False
                     self.process_chunked_data()
             else:
                 self.process_flat_data()
@@ -575,7 +578,7 @@ class CommonDataModel:
 
         self.output_folder = output_folder
         for name,fname in self.logs['meta']['output_files'].items():
-            reader = pd.read_csv(fname,sep=self._outfile_separator,chunksize=500)
+            reader = pd.read_csv(fname,sep=self._outfile_separator,chunksize=self.inputs.chunksize)
             i = 0
             while True:
                 try:
@@ -669,8 +672,8 @@ class CommonDataModel:
         logs['ntotal'] = len(df_destination)
 
         #mask the person id
-        #if self.do_mask_person_id:
-        #    df_destination = self.mask_person_id(df_destination,destination_table)
+        if self.do_mask_person_id:
+            df_destination = self.mask_person_id(df_destination,destination_table)
 
         #get the primary columnn
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
@@ -680,7 +683,6 @@ class CommonDataModel:
         if primary_column != 'person_id' and is_integer:
             #create an index from 1-N
             start_index = self.get_start_index(destination_table)
-            self.logger.error(f"{destination_table} {start_index}")
             #if we're processing chunked data, and nrows have already been created (processed)
             #start the index from this number
             total_data_processed = self.logs['meta']['total_data_processed']
