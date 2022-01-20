@@ -66,6 +66,8 @@ class LocalDataCollection(DataCollection):
         for key,brick in self.items():
             self.logger.debug(f"Getting the next chunk of size '{self.chunksize}' for '{key}'")
             brick.get_chunk(self.chunksize)
+            n = len(brick.get_df())
+            self.logger.debug(f"--> Got {n} rows")
 
         #check if all __dataframe objects are empty
         #if they are, raise a StopIteration as processing has finished

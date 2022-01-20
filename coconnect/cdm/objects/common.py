@@ -216,9 +216,9 @@ class DestinationTable(object):
             if getattr(self,field).pk == True
         ]
 
-        if len(retval) == 0:
-            #warning, no pk has been set on any field
-            retval = self.fields[0]
+        #if len(retval) == 0:
+        #    #warning, no pk has been set on any field
+        #    retval = self.fields[0]
         
         return retval
         
@@ -288,7 +288,6 @@ class DestinationTable(object):
         #or define functions have been specified for this object
         # it will build the inputs from these functions
         self.define(self)
-        
         #build the dataframe for this object
         df = self.get_df(force_rebuild=True)
         return df
@@ -317,7 +316,7 @@ class DestinationTable(object):
             
         return df
     
-    def get_df(self,force_rebuild=False,dropna=False,**kwargs):
+    def get_df(self,force_rebuild=False,dropna=False,format=False,**kwargs):
         """
         Retrieve a dataframe from the current object
 
@@ -380,7 +379,8 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        if self.do_formatting:
+        #if self.do_formatting or
+        if format:
             df = self.format(df)
         df = self.finalise(df)
 
@@ -397,9 +397,9 @@ class DestinationTable(object):
             self.logger.debug('Not formatting data columns')
             return df
         elif self.format_level is FormatterLevel.ON:
-            self.logger.info("Automatically formatting data columns.")
+            self.logger.debug("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
-            self.logger.info("Performing checks on data formatting.")
+            self.logger.debug("Performing checks on data formatting.")
 
 
         for col in self.fields:
@@ -492,6 +492,8 @@ class DestinationTable(object):
             }
 
         #return the dataframe sorted by the primary key requested
-        df = df.sort_values(self.get_ordering())
+        #ordering = self.get_ordering()
+        #if len(ordering) > 0:
+        #    df = df.sort_values(self.get_ordering())
         return df
 
