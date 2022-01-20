@@ -97,8 +97,8 @@ def test(ctx):
               default=None,
               help="define the output database where to insert data into")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default='auto',
-              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking.")
+              default=-1,
+              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The option 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking (default behaviour).")
 @click.option("-np","--number-of-rows-to-process",
               default=None,
               type=int,
