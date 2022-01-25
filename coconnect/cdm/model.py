@@ -550,7 +550,7 @@ class CommonDataModel:
 
                 if self.save_files:
                     self.save_dataframe(destination_table,mode=mode)
-                    #self.save_logs(extra=f'_slice_{i}')
+                    self.save_logs(extra=f'_{destination_table}_slice_{i}')
                 i+=1
                 try:
                     self.inputs.next()
