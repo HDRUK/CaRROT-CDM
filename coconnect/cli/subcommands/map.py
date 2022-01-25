@@ -365,19 +365,27 @@ def run(ctx,rules,inputs,format_level,
             #set the name of the object
             obj.set_name(name)
             
-            #call the apply_rules function to setup how to modify the inputs
-            #based on the rules
-            obj.rules = rules
             #Build a lambda function that will get executed during run time
             #and will be able to apply these rules to the inputs that are loaded
             #(this is useful when chunk)
-            obj.define = lambda self : tools.apply_rules(self)
+            obj.define = lambda x,rules=rules : tools.apply_rules(x,rules,inputs=cdm.inputs)
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
+
     cdm.process()
+    # while True:
+    #     cdm.process_table('person')
+    #     try:
+    #         cdm.inputs.next()
+    #     except StopIteration:
+    #         break
+    #     print (cdm['person'].get_df().dropna(axis=1))
 
-
+    # cdm.inputs.reset()
+    # cdm.process_table('measurement')
+    # print (cdm['measurement'].get_df().dropna(axis=1))
+    
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",
               help="input json file containing all the mapping rules to be applied")

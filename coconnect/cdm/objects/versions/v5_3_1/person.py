@@ -5,7 +5,7 @@ class Person(DestinationTable):
     CDM Person object class
     """
     name = 'person'
-    def __init__(self):
+    def __init__(self,name=None):
         self.person_id                   = DestinationField(dtype="Integer"   , required=True , pk=True)
         self.gender_concept_id           = DestinationField(dtype="Integer"   , required=True )
         self.year_of_birth               = DestinationField(dtype="Integer"   , required=False )
@@ -24,8 +24,10 @@ class Person(DestinationTable):
         self.race_source_concept_id      = DestinationField(dtype="Integer"   , required=False )
         self.ethnicity_source_value      = DestinationField(dtype="Text50"    , required=False )
         self.ethnicity_source_concept_id = DestinationField(dtype="Integer"   , required=False )
-                
-        super().__init__(self.name)
+
+        if name is None:
+            name = hex(id(self))
+        super().__init__(name,self.name)
 
     def finalise(self,df):
         """

@@ -7,6 +7,16 @@ class DataBrick:
         self.__df_handler = df_handler
         self.__df = None
 
+    def get_handler(self):
+        return self.__df_handler
+
+    def reset(self):
+        if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
+            options = self.__df_handler.options
+            f = self.__df_handler.f
+            self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
+        self.__df = None
+    
     def get_chunk(self,chunksize):
         #if the df handler is a TextFileReader, get a dataframe chunk
         if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
@@ -60,6 +70,10 @@ class LocalDataCollection(DataCollection):
     def items(self):
         return self.__bricks.items()
 
+    def reset(self):
+        for key,brick in self.items():
+            brick.reset()
+    
     def next(self):
         #loop over all loaded files
         self.logger.debug("Getting next chunk of data")
@@ -77,6 +91,10 @@ class LocalDataCollection(DataCollection):
             self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
 
                     
+    def get_handler(self,key):
+        brick = self.__bricks[key]
+        return brick.get_handler()
+    
     def __getitem__(self,key):
         brick = self.__bricks[key]
         if any([brick.get_df() is None for brick in self.__bricks.values()]):

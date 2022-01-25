@@ -151,7 +151,7 @@ class DestinationTable(object):
     def __len__(self):
         return len(self.__df)
 
-    def __init__(self,_type,_version='v5_3_1'):
+    def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
         Initialise the CDM DestinationTable Object class
         Args:
@@ -160,16 +160,16 @@ class DestinationTable(object):
         Returns: 
            None
         """
-        self.name = _type
+        self.name = name
         self._type = _type
         self._meta = {}
         self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
-        self.format_level = FormatterLevel(1)
+        self.format_level = FormatterLevel(format_level)
         self.fields = self.get_field_names()
 
-        self.do_formatting = True
+        self.do_formatting = not format_level is None
 
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
@@ -184,6 +184,10 @@ class DestinationTable(object):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
+
+        self.automatically_fill_missing_columns = True
+        self.tools = OperationTools()
+
 
     def get_field_names(self):
         """
@@ -321,10 +325,13 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
+            self.logger.info("retrieving existing dataframe")
             if dropna:
                 return self.__df.dropna(axis=1)
             else:
-                return self.__df 
+                return self.__df
+
+        self.define(self)
 
         #get a dict of all series
         #each object is a pandas series

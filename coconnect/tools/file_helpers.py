@@ -141,7 +141,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
     if isinstance(_map,list):
         _map = {
-            x:x
+            os.path.basename(x):x
             for x in _map
         }
     
@@ -193,6 +193,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
         df = pd.read_csv(load_path+fname,
                          chunksize=chunksize,
+                         iterator=True,
                          nrows=nrows,
                          sep=sep,
                          keep_default_na=False,

@@ -7,7 +7,7 @@ class Observation(DestinationTable):
     """
     
     name = 'observation'
-    def __init__(self):
+    def __init__(self,name=None):
         self.observation_id                = DestinationField(dtype="Integer"   , required=True , pk=True)
         self.person_id                     = DestinationField(dtype="Integer"   , required=True )
         self.observation_concept_id        = DestinationField(dtype="Integer"   , required=True )
@@ -26,7 +26,10 @@ class Observation(DestinationTable):
         self.unit_source_value             = DestinationField(dtype="Text50"    , required=False )
         self.qualifier_source_value        = DestinationField(dtype="Text50"    , required=False )
 
-        super().__init__(self.name)
+        if name is None:
+            name = hex(id(self))
+        super().__init__(name,self.name)
+
 
 
     def finalise(self,df):

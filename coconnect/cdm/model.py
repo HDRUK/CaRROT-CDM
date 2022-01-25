@@ -456,32 +456,33 @@ class CommonDataModel:
         """
         return self.__objects
 
-    def process(self,object_list=None):
+    def ___process(self):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-        if object_list != None:
-            for obj in object_list:
-                self.process_individual(obj)
-        else:                
-            #determine the order to execute tables in
-            #only thing that matters is to execute the person table first
-            # - this is if we want to mask the person_ids and need to save a record of
-            #   the link between the unmasked and masked
-            self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-            self.logger.info(f"Starting processing in order: {self.execution_order}")
-            self.count_objects()
-            
+
+        #determine the order to execute tables in
+        #only thing that matters is to execute the person table first
+        # - this is if we want to mask the person_ids and need to save a record of
+        #   the link between the unmasked and masked
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
+        self.count_objects()
+        
+        #while True:
+        #for destination_table in self.execution_order:
+        #    self.process_table(destination_table)
+                        
             #switch to process the data in chunks or not
-            if isinstance(self.inputs,DataCollection):
-                if self.inputs.chunksize == None:
-                    self.process_flat_data()
-                else:
-                    self.process_chunked_data()
-            else:
-                self.process_flat_data()
+            #if isinstance(self.inputs,DataCollection):
+            #    if self.inputs.chunksize == None:
+            #        self.process_flat_data()
+            #    else:
+            #        self.process_chunked_data()
+            #else:
+            #    self.process_flat_data()
 
     def process_individual(self,obj):
         i = 0 
@@ -518,7 +519,7 @@ class CommonDataModel:
             self.logger.info("Now finished all inputs")
         
                 
-    def process_chunked_data(self):
+    def process(self):
         """
         Process chunked data, processes as follows
         * While the chunking of is not yet finished
@@ -530,27 +531,34 @@ class CommonDataModel:
 
         """
 
-        i=0
-        while True:
-            for destination_table in self.execution_order:
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
+        self.count_objects()
+
+
+        for destination_table in self.execution_order:
+            i=0
+            while True:
                 self.process_table(destination_table)
                 if not self[destination_table] is None:
                     nrows = len(self[destination_table])
                     self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
+                    
+                mode = 'w'
+                if i>0:
+                    mode='a'
 
-            mode = 'w'
-            if i>0:
-                mode='a'
+                if self.save_files:
+                    self.save_dataframe(destination_table,mode=mode)
+                    #self.save_logs(extra=f'_slice_{i}')
+                i+=1
+                try:
+                    self.inputs.next()
+                except StopIteration:
+                    break
 
-            if self.save_files:
-                self.save_dataframes(mode=mode)
-                self.save_logs(extra=f'_slice_{i}')
-            i+=1
-            
-            try:
-                self.inputs.next()
-            except StopIteration:
-                break
+                print (self[destination_table].get_df().dropna(axis=1))
+            self.inputs.reset()
 
     def process_flat_data(self):
         """
@@ -567,7 +575,13 @@ class CommonDataModel:
         if self.save_files:
             self.save_dataframes()
             self.save_logs()
-                
+
+    def get_tables(self):
+        return list(self.__objects.keys())
+
+    def get_execution_order(self):
+        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        return self.execution_order
             
     def process_table(self,destination_table):
         """
@@ -599,8 +613,7 @@ class CommonDataModel:
         self.logger.info(f"working on {destination_table}")
         logs = {'objects':{}}
         for i,obj in enumerate(objects):
-            obj.execute(self)
-            df = obj.get_df(force_rebuild=False)
+            df = obj.get_df(force_rebuild=True)
                         
             self.logger.info(f"finished {obj.name} "
                              f"... {i}/{len(objects)}, {len(df)} rows") 
@@ -655,7 +668,7 @@ class CommonDataModel:
         
         #finalised full dataframe for this table
         obj = get_cdm_class(destination_table).from_df(df_destination)
-        obj.update(self)
+        #obj.update(self)
         self[destination_table] = obj
 
 
@@ -704,11 +717,13 @@ class CommonDataModel:
             return 'csv'
         
 
-    def save_dataframes(self,mode='w'):
-        if self.psql_engine is not None:
-            self.save_to_psql(mode='a')
-        else:
-            self.save_to_file(mode=mode)
+    def save_dataframe(self,table,mode='w'):
+
+        #if self.psql_engine is not None:
+        #    self.save_to_psql(mode='a')
+        #else:
+        
+        self.save_to_file(table,mode=mode)
 
     def save_to_psql(self,mode='a'):
         #creat an inspector based on the psql engine
@@ -765,7 +780,7 @@ class CommonDataModel:
 
         self.logger.info("finished save to psql")
 
-    def save_to_file(self,f_out=None,mode='w'):
+    def save_to_file(self,name,f_out=None,mode='w'):
         """
         Save the dataframe processed by the CommonDataModel to files.
 
@@ -774,6 +789,15 @@ class CommonDataModel:
             mode (str): Mode for how to write the file. Append or write. Default is 'w' or write mode.
         
         """
+        df = self[name]
+        if df is None:
+            return
+        
+        df = df.get_df()
+
+        if df is None:
+            return
+        
         if f_out == None:
             f_out = self.output_folder
         header=True
@@ -781,37 +805,30 @@ class CommonDataModel:
             header = False
 
         file_extension = self.get_outfile_extension()
+
         
-        for name,obj in self.__df_map.items():
-            if obj is None:
-                continue
+        fname = f'{f_out}/{name}.{file_extension}'
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+        if mode == 'w':
+            self.logger.info(f'saving {name} to {fname}')
+        else:
+            self.logger.info(f'updating {name} in {fname}')
 
-            df = obj.get_df()
-            
-            if df is None:
-                continue
-            fname = f'{f_out}/{name}.{file_extension}'
-            if not os.path.exists(f'{f_out}'):
-                self.logger.info(f'making output folder {f_out}')
-                os.makedirs(f'{f_out}')
-            if mode == 'w':
-                self.logger.info(f'saving {name} to {fname}')
-            else:
-                self.logger.info(f'updating {name} in {fname}')
+        for col in df.columns:
+            if col.endswith("_id"):
+                df[col] = df[col].astype(float).astype(pd.Int64Dtype())
 
-            for col in df.columns:
-                if col.endswith("_id"):
-                    df[col] = df[col].astype(float).astype(pd.Int64Dtype())
+        df.set_index(df.columns[0],inplace=True)
+        self.logger.debug(df.dtypes)
+        df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
 
-            df.set_index(df.columns[0],inplace=True)
-            self.logger.debug(df.dtypes)
-            df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
+        if 'output_files' not in self.logs['meta']:
+            self.logs['meta']['output_files'] = {}
 
-            if 'output_files' not in self.logs['meta']:
-                self.logs['meta']['output_files'] = {}
-
-            self.logs['meta']['output_files'][name] = fname
-            self.logger.debug(df.dropna(axis=1,how='all'))
+        self.logs['meta']['output_files'][name] = fname
+        self.logger.debug(df.dropna(axis=1,how='all'))
 
         self.logger.info("finished save to file")
 
