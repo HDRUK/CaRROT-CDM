@@ -156,6 +156,7 @@ def format(inputs,number_of_rows_per_chunk,output_folder):
                                                       format_level=1)
     #cdm.save_files = False
     cdm.process()
+    cdm.end()
         
 @click.command()
 @click.option("--input",
@@ -226,6 +227,20 @@ def format_input_data(column,operation,input):
 @click.option("log_file","--log-file",
               default = 'auto',
               help="specify a path for a log file")
+@click.option("--max-rules",
+              default = None,
+              type=int,
+              help="maximum number of rules to process")
+@click.option("objects","--object",
+              default = None,
+              multiple=True,
+              type=str,
+              help="give a list of objects by name to process")
+@click.option("tables","--table",
+              default = None,
+              multiple=True,
+              type=str,
+              help="give a list of tables by name to process")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
@@ -234,7 +249,8 @@ def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
-        person_id_map,
+        person_id_map,max_rules,
+        objects,tables,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -257,6 +273,33 @@ def run(ctx,rules,inputs,format_level,
         config = rules
     else:
         config = tools.load_json(rules)
+
+    if tables:
+        tables = list(set(tables))
+        config = coconnect.tools.filter_rules_by_destination_tables(config,tables)
+
+    if objects:
+        objects = list(set(objects))
+        config = coconnect.tools.filter_rules_by_object_names(config,objects)
+        
+    if max_rules:
+        i = 0
+        n = max_rules
+        new = {}
+        for destination_table,rule_set in config['cdm'].items():
+            if destination_table == 'person':
+                new[destination_table] = rule_set
+            else:
+                for name,_rules in rule_set.items():
+                    if i>=n:
+                        break
+                    if destination_table not in new:
+                        new[destination_table] = {}
+                    new[destination_table][name] = _rules
+                    i+=1
+            
+        config['cdm'] = new
+
     name = config['metadata']['dataset']
 
     if indexing_conf is not None:
@@ -374,6 +417,7 @@ def run(ctx,rules,inputs,format_level,
             cdm.add(obj)
 
     cdm.process()
+    cdm.close()
     # while True:
     #     cdm.process_table('person')
     #     try:

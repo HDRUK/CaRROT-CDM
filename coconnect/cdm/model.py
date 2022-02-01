@@ -4,7 +4,9 @@ import numpy as np
 import json
 import copy
 import getpass
-from time import gmtime, strftime
+import threading
+import concurrent.futures
+from time import gmtime, strftime, sleep, time
 
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
@@ -22,7 +24,21 @@ class BadInputObject(Exception):
 class PersonExists(Exception):
     pass
 
-class CommonDataModel:
+
+class Lambda(Logger):
+    def __init__(self,func,**kwargs):
+        self.logger.info(f"Lambda for {func.__name__}")
+        self.func = func
+        self.kwargs = kwargs
+        self.result = None
+
+    def is_finished(self):
+        return not self.result is None
+        
+    def start(self):
+        self.result = self.func(**self.kwargs)
+ 
+class CommonDataModel(Logger):
     """Pythonic Version of the OHDSI CDM.
 
     This class controls and manages CDM Table objects that are added to it
@@ -32,13 +48,24 @@ class CommonDataModel:
     """
 
     @classmethod
-    def load(cls,**kwargs):
-        cdm = cls(**kwargs)
-        inputs = kwargs['inputs']
+    def load(cls,inputs,**kwargs):
+        default_kwargs = {'save_files':False,'do_mask_person_id':False,'format_level':0}
+        default_kwargs.update(kwargs)
+        cdm = cls(**default_kwargs)
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
-            obj = get_cdm_decorator(destination_table)(load_file(fname))
-            cdm.add(obj)
+            try:
+                obj = get_cdm_class(destination_table).from_df(inputs[fname],destination_table)
+            except KeyError:
+                #if destination_table == 'global_ids':
+                #    cdm.logger.warning(f"using {fname} for the the person_id mapper")
+                #    cdm.set_person_id_map(inputs[fname])
+                    
+                cdm.logger.error(f"cannot load {fname}, this is not a valid CDM Table")
+                continue
+                
+            df = obj.get_df(force_rebuild=False)
+            cdm[destination_table] = obj
         return cdm
     
 
@@ -68,7 +95,6 @@ class CommonDataModel:
         self.profiler = None
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
-        self.logger = Logger(name)
         self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {cc_version}")
 
         self.omop_version = omop_version
@@ -160,6 +186,8 @@ class CommonDataModel:
         # }
         self.__objects = {}
 
+        self.__analyses = []
+
         #check if objects have already been registered with this class
         #via the decorator methods
         registered_objects = [
@@ -183,7 +211,7 @@ class CommonDataModel:
             }
         }
 
-    def __del__(self):
+    def close(self):
         """
         Class destructor:
               Stops the profiler from running before deleting self
@@ -271,6 +299,48 @@ class CommonDataModel:
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
 
+    def add_analysis(self,func):
+        self.__analyses.append(func)#Lambda(func,model=self))
+
+    #def run_analysis(self,i):
+        #res = self.__analyses[i](self)
+        #self.logger.error(res)
+        #return res
+
+    def run_analyses(self,max_workers=4):
+
+        def msg(x):
+            self.logger.info(f"finished with {x}")
+            self.logger.info(x.result())
+
+        start = time()
+            
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            for f in self.__analyses:
+                _id = hex(id(f))
+                self.logger.info(f"Start thread for {f} ")
+                future = executor.submit(f, self)
+                future.add_done_callback(msg)
+                futures[future] = _id
+
+            while True:
+                status = {futures[f]:{'status':'running' if f.running() else 'done'} for f in futures}
+                self.logger.debug(json.dumps(status,indent=6))
+                if all([f.done() for f in futures]):
+                    break
+                sleep(1)
+                
+                
+        results = {}
+        for future in concurrent.futures.as_completed(futures):
+            _id = futures[future]
+            results[_id] = future.result()
+
+        end = time() - start
+        self.logger.info(f"Running analyses took {end} seconds")
+        return results
+
     def find_one(self,config,cols=None,dropna=False):
         return self.filter(config,cols,dropna).sample(frac=1).iloc[0]
         
@@ -329,6 +399,9 @@ class CommonDataModel:
             _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
             return _df.to_dict()
         else:
+            print (type(fname))
+            print (fname)
+            exit(0)
             self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids "
                               "file does not exist!!")
             return None
@@ -557,7 +630,7 @@ class CommonDataModel:
                 except StopIteration:
                     break
 
-                print (self[destination_table].get_df().dropna(axis=1))
+                #print (self[destination_table].get_df().dropna(axis=1))
             self.inputs.reset()
 
     def process_flat_data(self):
@@ -616,15 +689,16 @@ class CommonDataModel:
             df = obj.get_df(force_rebuild=True)
                         
             self.logger.info(f"finished {obj.name} "
-                             f"... {i}/{len(objects)}, {len(df)} rows") 
+                             f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
             if len(df) == 0:
-                self.logger.warning(f".. {i}/{len(objects)}  no outputs were found ")
+                self.logger.warning(f".. no outputs were found ")
                 continue
             
             dfs.append(df)
             logs['objects'][obj.name] = obj._meta
 
         if len(dfs) == 0:
+            self[destination_table] = None
             return None
         #merge together
         if len(dfs) == 1:
@@ -667,7 +741,13 @@ class CommonDataModel:
         self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
         
         #finalised full dataframe for this table
-        obj = get_cdm_class(destination_table).from_df(df_destination)
+        try:
+            _class = get_cdm_class(destination_table)
+        except KeyError:
+            _class = type(objects[0])
+
+       
+        obj = _class.from_df(df_destination,destination_table)
         #obj.update(self)
         self[destination_table] = obj
 
@@ -832,6 +912,10 @@ class CommonDataModel:
 
         self.logger.info("finished save to file")
 
+    def set_person_id_map(self,person_id_map):
+        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
+
+        
     def set_outfile_separator(self,sep):
         """
         Set which separator to use, e.g. ',' or '\t' 

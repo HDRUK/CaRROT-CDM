@@ -292,19 +292,22 @@ def report_to_xlsx(report,f_out):
 @click.command(help="generate scan report json from input data")
 @click.option("max_distinct_values","--max-distinct-values",
               default=10,
+              type=int,
               help='specify the maximum number of distinct values to include in the ScanReport.')
 @click.option("min_cell_count","--min-cell-count",
               default=5,
+              type=int,
               help='specify the minimum number of occurrences of a cell value before it can appear in the ScanReport.')
 @click.option("rows_per_table","--rows-per-table",
               default=None,
+              type=int,
               help='specify the maximum of rows to scan per input data file (table).')
 @click.option("randomise","--randomise",
               is_flag=True,
               help='randomise rows')
 @click.option("as_type","--as-type","--save-as",
               default=None,
-              type=click.Choice(['xlsx','json']),
+              type=click.Choice(['xlsx','json','latex']),
               help='save the report as a json or xlsx (whiteRabbit style).')
 @click.option("f_out","--output-file-name",
               default=None,
@@ -348,6 +351,7 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as
 
             #convert the values to a dictionary 
             frame = series.to_frame()
+                        
             values = frame.rename_axis('value').reset_index().to_dict(orient='records')
             #record the value (frequency counts) for this field
             fields.append({'field':col,'values':values})
@@ -367,6 +371,13 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as
     elif as_type == 'xlsx':
         f_out = f_out if f_out != None else 'ScanReport.xlsx'
         report_to_xlsx(data,f_out)
+    elif as_type == 'latex':
+        for d in data:
+            d = d['fields']
+            for d in d:
+                df = pd.DataFrame(d['values'])
+                if len(df)>0:
+                    print (df.to_latex(index=False))
     else:
         click.echo(json.dumps(data,indent=6))
             

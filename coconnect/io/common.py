@@ -1,6 +1,5 @@
 from coconnect.tools.logger import Logger
 
-class DataCollection:
+class DataCollection(Logger):
     def __init__(self):
-        self.logger = Logger(self.__class__.__name__)
         self.logger.info("DataCollection Object Created")

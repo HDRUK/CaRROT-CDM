@@ -31,7 +31,7 @@ class FormatterLevel(Enum):
     ON  = 1
     CHECK = 2
 
-class DataFormatter(collections.OrderedDict):
+class DataFormatter(collections.OrderedDict,Logger):
     """
     Class for formatting DestinationFields in the CommonDataModel
 
@@ -102,7 +102,6 @@ class DataFormatter(collections.OrderedDict):
     def __init__(self,errors='coerce'):
         super().__init__()
 
-        self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors=errors).astype('Int64')
         self['Float']   = lambda x : pd.to_numeric(x,errors=errors).astype('Float64')
         self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
@@ -135,14 +134,14 @@ class DestinationField(object):
         self.required = required
         self.pk = pk
 
-class DestinationTable(object):
+class DestinationTable(Logger):
     """
     Common object that all CDM objects (tables) inherit from.
     """
 
     @classmethod
-    def from_df(cls,df):
-        obj = cls()
+    def from_df(cls,df,name=None):
+        obj = cls(name)
         obj.__df = df
         for colname in df.columns:
             obj[colname].series = df[colname]
@@ -163,7 +162,6 @@ class DestinationTable(object):
         self.name = name
         self._type = _type
         self._meta = {}
-        self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
         self.format_level = FormatterLevel(format_level)
@@ -325,7 +323,7 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
-            self.logger.info("retrieving existing dataframe")
+            self.logger.debug("retrieving existing dataframe")
             if dropna:
                 return self.__df.dropna(axis=1)
             else:

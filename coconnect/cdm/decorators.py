@@ -8,11 +8,12 @@ from .objects import (
 )
 
 
-def load_file(fname):
+def load_file(_input):
     def func(self):
-        for colname in self.inputs[fname]:
-            self[colname].series = self.inputs[fname][colname]
-    func.__name__ = fname
+        for colname in _input:
+            self[colname].series = _input[colname]
+            #print (_input)
+    #func.__name__ = fname
     return func
 
 
