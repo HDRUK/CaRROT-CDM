@@ -78,7 +78,6 @@ def concepts(config):
         )
         try:
             all_rules.append(response.json()[0])
-            break
         except:
             pass
 
