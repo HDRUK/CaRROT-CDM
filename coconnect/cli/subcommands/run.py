@@ -9,7 +9,7 @@ import coconnect.tools as tools
 
 
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
-def map():
+def run():
     pass
 
 
@@ -245,7 +245,7 @@ def format_input_data(column,operation,input):
                 required=True,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,format_level,
+def map(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
@@ -618,9 +618,9 @@ py.add_command(register_class,"register")
 py.add_command(list_classes,"list")
 py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
-map.add_command(py,"py")
-map.add_command(run,"run")
-map.add_command(format,"format")
-map.add_command(transform,"transform")
-map.add_command(gui,"gui")
-map.add_command(test,"test")
+run.add_command(py,"py")
+run.add_command(map,"map")
+run.add_command(format,"format")
+run.add_command(transform,"transform")
+run.add_command(gui,"gui")
+run.add_command(test,"test")

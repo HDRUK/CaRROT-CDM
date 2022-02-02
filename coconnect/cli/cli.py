@@ -1,7 +1,7 @@
 from .subcommands.info import info
 from .subcommands.etl import etl
 from .subcommands.display import display
-from .subcommands.map import map
+from .subcommands.run import run
 from .subcommands.airflow import airflow
 from .subcommands.generate import generate
 
@@ -50,7 +50,7 @@ def coconnect(ctx,version,log_level,cprofile):
 
         
 coconnect.add_command(etl, "etl")
-coconnect.add_command(map, "map")
+coconnect.add_command(run, "run")
 coconnect.add_command(info, "info")
 coconnect.add_command(display, "display")
 coconnect.add_command(generate, "generate")
