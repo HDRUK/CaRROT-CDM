@@ -3,10 +3,9 @@ from subprocess import Popen, PIPE
 from .logger import Logger
 
 
-class BashHelpers:
+class BashHelpers(Logger):
 
     def __init__(self,dry_run=False):
-        self.__logger = Logger("run_bash_cmd")
         self.dry_run = dry_run
 
     def run_bash_cmd(self,cmd):

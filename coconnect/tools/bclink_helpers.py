@@ -15,7 +15,6 @@ class BCLinkHelpers(BashHelpers):
 
     def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
         super().__init__(dry_run=dry_run)
-        self.logger = Logger("bclink_helpers")
         self.report = []
         self.user = user
         self.gui_user = gui_user
