@@ -415,7 +415,6 @@ def run(ctx,rules,inputs,format_level,
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
-
     cdm.process()
     cdm.close()
     # while True:

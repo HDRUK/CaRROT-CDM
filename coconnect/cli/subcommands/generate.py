@@ -1,12 +1,16 @@
 import os
 import click
 import json
+import yaml
 import coconnect
 import pandas as pd
 import numpy as np
 import requests
 import secrets
 import random
+import datetime
+import time
+
 class MissingToken(Exception):
     pass
 
@@ -215,8 +219,62 @@ def xlsx(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
-synthetic.add_command(xlsx,"xlsx")
-synthetic.add_command(ccom,"ccom")
+synthetic.add_command(xlsx,"from_xlsx")
+synthetic.add_command(ccom,"from_ccom")
+
+@click.command(help="generate a synthetic CDM from a yaml file")
+@click.argument("config")
+def synthetic_cdm(config):
+    with open(config, 'r') as stream:
+        config = yaml.safe_load(stream)
+
+    dfs = {}
+    order = sorted(config.items(), key=lambda x: x[0] != 'person')
+    for destination_table_name,destination_table in order:
+        n = destination_table['n']
+        obj = coconnect.cdm.get_cdm_class(destination_table_name)()
+        columns = destination_table['columns']
+        for column,spec in columns.items():
+            if 'range' in spec:
+                _range = spec['range']
+                _min = 0
+                if 'min' in _range:
+                    _min = _range['min']
+                _max = _min + n
+                x = range(_min,_max)
+                x = pd.Series(x)
+            elif 'random' in spec:
+                _map = spec['random']
+                _df = pd.Series(_map).to_frame()
+                x = _df.index.to_series().repeat(_df[0]*n).sample(frac=1).reset_index(drop=True)
+            elif 'map' in spec:
+                _map = spec['map']
+                col_to_map,_map = list(_map.items())[0]
+                x = obj[col_to_map].series.map(_map)
+            elif 'gaus' in spec:
+                _range = spec['gaus']
+                mu = _range['mean']
+                sigma = (_range['max'] - _range['min']).total_seconds()/5
+                mu = time.mktime(mu.timetuple())
+                x = [datetime.date.fromtimestamp(x) for x in np.random.normal(mu,sigma,n)]
+                x = pd.Series(x)
+            elif 'person' in spec:
+                x = dfs['person']['person_id'].sample(n,replace=True).sort_values().reset_index(drop=True)
+            else:
+                print (spec)
+                exit(0)
+
+            x.name = column
+            print (x)
+            obj[column].series = x
+
+        df = obj.get_df()
+        print (df.dropna(axis=1))
+        dfs[destination_table_name] = df
+    
+synthetic.add_command(synthetic_cdm,"cdm")
+
+
 generate.add_command(synthetic,"synthetic")
 
 
@@ -312,9 +370,12 @@ def report_to_xlsx(report,f_out):
 @click.option("f_out","--output-file-name",
               default=None,
               help='specify the output file name (to be used with --save-as)')
+@click.option("name","--name",
+              required=True,
+              help='give a name to the report')
 @click.argument("inputs",
                 nargs=-1)
-def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
+def report(inputs,name,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
     skiprows = None
         
     data = []
@@ -357,6 +418,7 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as
             fields.append({'field':col,'values':values})
 
         meta = {
+            'dataset':name,
             'nscanned':len(df),
             'max_distinct_values':max_distinct_values,
             'min_cell_count':min_cell_count

@@ -4,6 +4,8 @@ import numpy as np
 import json
 import copy
 import getpass
+
+import shutil
 import threading
 import concurrent.futures
 from time import gmtime, strftime, sleep, time
@@ -149,7 +151,8 @@ class CommonDataModel(Logger):
             if hasattr(self,'inputs'):
                 self.logger.warning("overwriting inputs")
             self.inputs = inputs
-
+        elif not hasattr(self,'inputs'):
+            self.inputs = None
             
         #register opereation tools
         self.tools = OperationTools()
@@ -216,6 +219,8 @@ class CommonDataModel(Logger):
         Class destructor:
               Stops the profiler from running before deleting self
         """
+
+        
         if not hasattr(self,'profiler'):
             return
         if self.profiler:
@@ -484,7 +489,7 @@ class CommonDataModel(Logger):
 
             nbefore = len(df['person_id'])
             df['person_id'] = df['person_id'].map(self.person_id_masker)
-            self.logger.info(f"Just masked person_id using integers")
+            self.logger.debug(f"Just masked person_id using integers")
             if destination_table != 'person':
                 df.dropna(subset=['person_id'],inplace=True) 
                 nafter = len(df['person_id'])
@@ -529,13 +534,13 @@ class CommonDataModel(Logger):
         """
         return self.__objects
 
+
     def ___process(self):
         """
         Main functionality of the CommonDataModel class
         When executed, this function determines the order in which to process the CDM tables
         Then determines whether to process chunked or flat data
         """
-
         #determine the order to execute tables in
         #only thing that matters is to execute the person table first
         # - this is if we want to mask the person_ids and need to save a record of
@@ -603,7 +608,6 @@ class CommonDataModel(Logger):
         * Retrieve the next chunk of data
 
         """
-
         self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
@@ -623,15 +627,19 @@ class CommonDataModel(Logger):
 
                 if self.save_files:
                     self.save_dataframe(destination_table,mode=mode)
-                    self.save_logs(extra=f'_{destination_table}_slice_{i}')
+                    #self.save_logs(extra=f'_{destination_table}_slice_{i}')
                 i+=1
-                try:
-                    self.inputs.next()
-                except StopIteration:
+
+                if self.inputs:
+                    try:
+                        self.inputs.next()
+                    except StopIteration:
+                        break
+                else:
                     break
 
-                #print (self[destination_table].get_df().dropna(axis=1))
-            self.inputs.reset()
+            if self.inputs:
+                self.inputs.reset()
 
     def process_flat_data(self):
         """
@@ -687,13 +695,11 @@ class CommonDataModel(Logger):
         logs = {'objects':{}}
         for i,obj in enumerate(objects):
             df = obj.get_df(force_rebuild=True)
-                        
             self.logger.info(f"finished {obj.name} "
                              f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
             if len(df) == 0:
                 self.logger.warning(f".. no outputs were found ")
                 continue
-            
             dfs.append(df)
             logs['objects'][obj.name] = obj._meta
 
@@ -707,6 +713,7 @@ class CommonDataModel(Logger):
             self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
             df_destination = pd.concat(dfs,ignore_index=True)
 
+            
         #register the total length of the output dataframe
         logs['ntotal'] = len(df_destination)
 
@@ -718,7 +725,8 @@ class CommonDataModel(Logger):
         #this will be <table_name>_id: person_id, observation_id, measurement_id...
         primary_column = df_destination.columns[0]
         #if it's not the person_id
-        if primary_column != 'person_id':
+        is_integer = np.issubdtype(df_destination[primary_column].dtype,np.integer)
+        if primary_column != 'person_id' and is_integer:
             #create an index from 1-N
             start_index = self.get_start_index(destination_table)
             #if we're processing chunked data, and nrows have already been created (processed)
@@ -729,10 +737,11 @@ class CommonDataModel(Logger):
                 start_index += nrows_processed_so_far
                 
             df_destination[primary_column] = df_destination.reset_index().index + start_index
-        else:
+        elif is_integer:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
 
+            
         #book the metadata logs
         self.logs[destination_table] = logs
 
@@ -746,9 +755,8 @@ class CommonDataModel(Logger):
         except KeyError:
             _class = type(objects[0])
 
-       
         obj = _class.from_df(df_destination,destination_table)
-        #obj.update(self)
+
         self[destination_table] = obj
 
 
@@ -804,6 +812,7 @@ class CommonDataModel(Logger):
         #else:
         
         self.save_to_file(table,mode=mode)
+
 
     def save_to_psql(self,mode='a'):
         #creat an inspector based on the psql engine
@@ -885,7 +894,6 @@ class CommonDataModel(Logger):
             header = False
 
         file_extension = self.get_outfile_extension()
-
         
         fname = f'{f_out}/{name}.{file_extension}'
         if not os.path.exists(f'{f_out}'):

@@ -61,7 +61,8 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=[''],dtype=str):
+
+def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 
     if isinstance(_map,list):
         _map = {
@@ -140,6 +141,7 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
         retval[key] = local.DataBrick(df,name=key)
 
     return retval
+
 
 def load_tsv(_map,**kwargs):
     kwargs['sep']="\t"

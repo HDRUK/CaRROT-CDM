@@ -182,6 +182,9 @@ class DestinationTable(Logger):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
+        
+        self.automatically_fill_missing_columns = True
+        self.tools = OperationTools()
 
         self.automatically_fill_missing_columns = True
         self.tools = OperationTools()
@@ -215,9 +218,9 @@ class DestinationTable(Logger):
             if getattr(self,field).pk == True
         ]
 
-        if len(retval) == 0:
-            #warning, no pk has been set on any field
-            retval = self.fields[0]
+        #if len(retval) == 0:
+        #    #warning, no pk has been set on any field
+        #    retval = self.fields[0]
         
         return retval
         
@@ -279,15 +282,16 @@ class DestinationTable(Logger):
         """
         self.update(that)
 
+        self.cdm = that
+        
         #execute the define function
         #the default define() does nothing
         #this is only executed if the CDM has been build via decorators
         #or define functions have been specified for this object
         # it will build the inputs from these functions
         self.define(self)
-
         #build the dataframe for this object
-        df = self.get_df()
+        df = self.get_df(force_rebuild=True)
         return df
 
     def filter(self,filters):
@@ -314,7 +318,7 @@ class DestinationTable(Logger):
             
         return df
     
-    def get_df(self,force_rebuild=False,dropna=False,**kwargs):
+    def get_df(self,force_rebuild=False,dropna=False,format=False,**kwargs):
         """
         Retrieve a dataframe from the current object
 
@@ -323,7 +327,7 @@ class DestinationTable(Logger):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
-            self.logger.debug("retrieving existing dataframe")
+            self.logger.debug('already got a dataframe, so returning the existing one')
             if dropna:
                 return self.__df.dropna(axis=1)
             else:
@@ -348,6 +352,7 @@ class DestinationTable(Logger):
             series = series.rename(field)
             #register the new series
             dfs[field] = series
+            self.logger.debug(f'Adding series to dataframe from field "{field}"')
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:
@@ -378,7 +383,8 @@ class DestinationTable(Logger):
         #simply order the columns 
         df = df[self.fields]
 
-        if self.do_formatting:
+        #if self.do_formatting or
+        if format:
             df = self.format(df)
         df = self.finalise(df)
 
@@ -395,9 +401,9 @@ class DestinationTable(Logger):
             self.logger.debug('Not formatting data columns')
             return df
         elif self.format_level is FormatterLevel.ON:
-            self.logger.info("Automatically formatting data columns.")
+            self.logger.debug("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
-            self.logger.info("Performing checks on data formatting.")
+            self.logger.debug("Performing checks on data formatting.")
 
 
         for col in self.fields:
@@ -490,6 +496,8 @@ class DestinationTable(Logger):
             }
 
         #return the dataframe sorted by the primary key requested
-        df = df.sort_values(self.get_ordering())
+        #ordering = self.get_ordering()
+        #if len(ordering) > 0:
+        #    df = df.sort_values(self.get_ordering())
         return df
 

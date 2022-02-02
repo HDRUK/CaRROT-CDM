@@ -2,6 +2,7 @@ from graphviz import Digraph
 import json
 
 
+
 def make_dag_from_objects(object_dict):
     _format = 'pdf'
     dot = Digraph(strict=True,format=_format)
@@ -16,14 +17,13 @@ def make_dag_from_objects(object_dict):
     dot.render('dag.gv', view=True)  
     return
 
-    
-def make_dag(data,name='dag',colorscheme = 'gnbu9',render=False):
+def make_dag(data,name='dag',render=False,orientation='RL'):
     _format = 'svg'
     if render == True:
         _format = 'pdf'
 
     dot = Digraph(strict=True,format=_format)
-    dot.attr(rankdir='RL')#, size='20,8')
+    dot.attr(rankdir=orientation)#, size='20,8')
             
     # #dot.attr(rankdir='RL', size='8,16',compound='true')
 
@@ -33,7 +33,7 @@ def make_dag(data,name='dag',colorscheme = 'gnbu9',render=False):
         #dest.attr(style='dotted',penwidth='4', label='CDM')
         #inp.attr(style='filled', fillcolor='lightgrey', penwidth='0', label='Input')
         
-        dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Destination')
+        dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Common Data Model')
         inp.attr(style='filled', fillcolor='2', colorscheme='greens9', penwidth='0', label='Source')
         
         for destination_table_name,destination_tables in data.items():
