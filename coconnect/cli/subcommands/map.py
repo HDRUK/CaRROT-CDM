@@ -405,6 +405,7 @@ def run(ctx,rules,inputs,format_level,
             # get_cdm_class returns <Person>
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
+            obj.set_format_level(cdm.format_level)
             #set the name of the object
             obj.set_name(name)
             

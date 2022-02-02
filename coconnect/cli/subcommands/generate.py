@@ -446,6 +446,114 @@ def report(inputs,name,max_distinct_values,min_cell_count,rows_per_table,randomi
 generate.add_command(report,"report")
 
 
+@click.command(help="generate a mapping rules json based on a json scan report")
+#@click.option("max_distinct_values","--max-distinct-values",
+#              default=10,
+#              type=int,
+#              help='specify the maximum number of distinct values to include in the ScanReport.')
+@click.argument("report")
+def mapping_rules(report):
+
+    person_ids = ['ID','PersonID','person_id','Study','Study_ID','CHI','LINKNO']
+    date_events = ['date','date_','date_of','time','occurrence','age']
+    from difflib import SequenceMatcher
+    def get_similar_score(a, b):
+        return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+    def get_similar_scores(cols,matcher):
+        return {b:max([get_similar_score(a,b) for a in matcher]) for b in cols }
+    
+    domain_lookup = {'Condition':'condition_occurrence','Observation':'observation','Gender':'person'}
+    #date_lookup = coconnect.cdm.get_cdm_class(destination_
+    #print (dir(date_lookup))
+    #exit(0)
+    def create_hde_from_value(concept,value,table,field,person_id,date_event):
+        domain_id = concept['domain_id']
+        name = concept['concept_name']
+        concept_id = concept['concept_id']
+        destination_table = domain_lookup[concept['domain_id']]
+        obj = coconnect.cdm.get_cdm_class(destination_table)()
+        date_events = [k for k,v in obj.get_field_dtypes().items() if v == 'Timestamp']
+        date_destination = date_events[0]
+        obj = {
+            destination_table : {
+                name : {
+                    "person_id":{
+                        "source_table":table,
+                        "source_field":person_id,
+                    },
+                    date_destination:{
+                        "source_table":table,
+                        "source_field":date_event,
+                    },
+                    f"{domain_id.lower()}_source_value":{
+                        "source_table":table,
+                        "source_field":field,
+                    },
+                    f"{domain_id.lower()}_concept_id":{
+                        "source_table":table,
+                        "source_field":field,
+                        "term_mapping": {
+                            value:concept_id
+                        }
+                    }
+                }
+            }
+        }
+        return obj
+    
+    def find_person_id_and_date_event(fields):
+        person_id = [k for k,v in sorted(get_similar_scores(fields,person_ids).items(),key=lambda x: x[1],reverse=True)][0]
+        date_event = [k for k,v in sorted(get_similar_scores(fields,date_events).items(),key=lambda x: x[1],reverse=True)][0]
+        return person_id,date_event
+
+    def collapse(hdes):
+        retval = {}
+        for hde in hdes:
+            for destination_table,objs in hde.items():
+                if destination_table not in retval:
+                    retval[destination_table] = {}
+                    
+                for name,obj in objs.items():
+                    if name not in retval[destination_table]:
+                         retval[destination_table][name] : {}
+                    else:
+                        raise Exception(f"{name} already exists")
+
+                    retval[destination_table][name] = obj
+        return retval
+    
+    report = coconnect.tools.load_json(report)
+    hdes = []
+    for table in report:
+        fields = [x['field'] for x in table['fields']]
+        person_id,date_event = find_person_id_and_date_event(fields)
+        for field in table['fields']:
+            for value in field['values']:
+                concepts = value.get('concepts')
+                if not concepts:
+                    continue
+                for concept in concepts:
+                    hde = create_hde_from_value(concept,
+                                                value.get('value'),
+                                                table['table'],
+                                                field['field'],
+                                                person_id,
+                                                date_event)
+                    hdes.append(hde)
+    cdm = collapse(hdes)
+    name = report[0]['meta']['dataset']
+    rules = {
+        'metadata':{
+            "date_created": str(datetime.datetime.now()),
+            "dataset": name
+        },
+        'cdm':cdm
+    }
+    click.echo(json.dumps(rules,indent=6))
+        
+
+generate.add_command(mapping_rules,"mapping-rules")
+
 @click.command(help="Generate synthetic data from the json format of the scan report")
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)

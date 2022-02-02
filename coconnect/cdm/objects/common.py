@@ -204,6 +204,21 @@ class DestinationTable(Logger):
             for item in self.__dict__.keys()
             if isinstance(getattr(self,item),DestinationField)
         ]
+    
+    def get_field_dtypes(self):
+        """
+        From the current object, loop over all member objects and find those that are instances
+        of a DestinationField (column)
+        
+        Returns:
+           list : a list of destination fields (columns [series])
+
+        """
+        return {
+            item:getattr(self,item).dtype
+            for item in self.__dict__.keys()
+            if isinstance(getattr(self,item),DestinationField)
+        }
 
     def get_ordering(self):
         """
@@ -241,7 +256,10 @@ class DestinationTable(Logger):
         Register a field object with the table
         """
         return setattr(self, key, obj)
-    
+
+    def set_format_level(self,level):
+        self.format_level = level
+        
     def set_name(self,name):
         """
         Register/Set the name of the destination table
