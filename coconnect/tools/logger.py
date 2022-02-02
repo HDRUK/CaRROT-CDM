@@ -44,19 +44,19 @@ class _Logger(logging.Logger):
         ch = logging.StreamHandler()
         ch.setFormatter(formatter)
         self.addHandler(ch)
+
+        if save_to_file:
+            self.debug(f"Saving logs to file {save_to_file}")
+            file_formatter = logging.Formatter(format_str)
+            _dir = os.path.realpath(os.path.dirname(save_to_file))
         
-        # if save_to_file and False:
-        #     self.debug(f"Saving logs to file {save_to_file}")
-        #     file_formatter = logging.Formatter(format_str)
-        #     _dir = os.path.realpath(os.path.dirname(save_to_file))
+            if not os.path.exists(_dir):
+                os.makedirs(_dir)
         
-        #     if not os.path.exists(_dir):
-        #         os.makedirs(_dir)
-        
-        #         fh = logging.FileHandler(save_to_file,mode='a')
-        #         fh.setFormatter(file_formatter)
-        #         fh.setLevel(debug_level)
-        #         self.addHandler(fh)
+                fh = logging.FileHandler(save_to_file,mode='a')
+                fh.setFormatter(file_formatter)
+                fh.setLevel(debug_level)
+                self.addHandler(fh)
         
         
 class Logger():

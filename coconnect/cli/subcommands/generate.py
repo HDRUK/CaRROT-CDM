@@ -541,6 +541,7 @@ def mapping_rules(report):
                                                 date_event)
                     hdes.append(hde)
     cdm = collapse(hdes)
+
     name = report[0]['meta']['dataset']
     rules = {
         'metadata':{

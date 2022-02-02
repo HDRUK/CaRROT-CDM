@@ -186,9 +186,6 @@ class DestinationTable(Logger):
         self.automatically_fill_missing_columns = True
         self.tools = OperationTools()
 
-        self.automatically_fill_missing_columns = True
-        self.tools = OperationTools()
-
 
     def get_field_names(self):
         """

@@ -13,7 +13,6 @@ __cdm_version_split = '_'.join(__cdm_version.split('.'))
 try:
     __cdm_tables = importlib.import_module(f'coconnect.cdm.objects.versions.v{__cdm_version_split}')
 except ModuleNotFoundError as e:
-    print (f'coconnect.cdm.objects.versions.v{__cdm_version_split}')
     raise ModuleNotFoundError(f'Cannot find CDM version {__cdm_version}, this does not exist in this package!') from e
 
 __cdm_tables = {

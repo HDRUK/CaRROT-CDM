@@ -263,11 +263,16 @@ def run(ctx,rules,inputs,format_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    if log_file == 'auto' and coconnect.params['log_file'] is None:
+    #if log_file == 'auto' and coconnect.params['log_file'] is None:
+    print (log_file)
+    if log_file == 'auto':
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
+    elif log_file == 'none':
+        pass
+    else:
+        coconnect.params['log_file'] = log_file
         
-    
     #load the json loads
     if type(rules) == dict:
         config = rules
@@ -416,19 +421,9 @@ def run(ctx,rules,inputs,format_level,
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
+
     cdm.process()
     cdm.close()
-    # while True:
-    #     cdm.process_table('person')
-    #     try:
-    #         cdm.inputs.next()
-    #     except StopIteration:
-    #         break
-    #     print (cdm['person'].get_df().dropna(axis=1))
-
-    # cdm.inputs.reset()
-    # cdm.process_table('measurement')
-    # print (cdm['measurement'].get_df().dropna(axis=1))
     
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",

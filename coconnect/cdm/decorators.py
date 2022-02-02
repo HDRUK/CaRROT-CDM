@@ -12,8 +12,6 @@ def load_file(_input):
     def func(self):
         for colname in _input:
             self[colname].series = _input[colname]
-            #print (_input)
-    #func.__name__ = fname
     return func
 
 

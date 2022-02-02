@@ -59,11 +59,7 @@ class CommonDataModel(Logger):
             try:
                 obj = get_cdm_class(destination_table).from_df(inputs[fname],destination_table)
             except KeyError:
-                #if destination_table == 'global_ids':
-                #    cdm.logger.warning(f"using {fname} for the the person_id mapper")
-                #    cdm.set_person_id_map(inputs[fname])
-                    
-                cdm.logger.error(f"cannot load {fname}, this is not a valid CDM Table")
+                cdm.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
                 continue
                 
             df = obj.get_df(force_rebuild=False)
@@ -77,6 +73,7 @@ class CommonDataModel(Logger):
                  indexing_conf=None,
                  person_id_map=None,
                  save_files=True,
+                 save_log_files=False,
                  inputs=None,
                  use_profiler=False,
                  format_level=None,
@@ -102,6 +99,7 @@ class CommonDataModel(Logger):
         self.omop_version = omop_version
         self.output_folder = output_folder
         self.save_files = save_files
+        self.save_log_files = save_log_files
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
@@ -306,12 +304,7 @@ class CommonDataModel(Logger):
 
 
     def add_analysis(self,func):
-        self.__analyses.append(func)#Lambda(func,model=self))
-
-    #def run_analysis(self,i):
-        #res = self.__analyses[i](self)
-        #self.logger.error(res)
-        #return res
+        self.__analyses.append(func)
 
     def run_analyses(self,max_workers=4):
 
@@ -405,12 +398,9 @@ class CommonDataModel(Logger):
             _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
             return _df.to_dict()
         else:
-            print (type(fname))
-            print (fname)
-            exit(0)
-            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids "
-                              "file does not exist!!")
-            return None
+            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids ")
+            raise FileNotFoundError("{fname} file does not exist!!")
+
             
     def get_objects(self,destination_table):
         """
@@ -535,69 +525,10 @@ class CommonDataModel(Logger):
         """
         return self.__objects
 
-
-    def ___process(self):
-        """
-        Main functionality of the CommonDataModel class
-        When executed, this function determines the order in which to process the CDM tables
-        Then determines whether to process chunked or flat data
-        """
-        #determine the order to execute tables in
-        #only thing that matters is to execute the person table first
-        # - this is if we want to mask the person_ids and need to save a record of
-        #   the link between the unmasked and masked
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
-        self.logger.info(f"Starting processing in order: {self.execution_order}")
-        self.count_objects()
-        
-        #while True:
-        #for destination_table in self.execution_order:
-        #    self.process_table(destination_table)
-                        
-            #switch to process the data in chunks or not
-            #if isinstance(self.inputs,DataCollection):
-            #    if self.inputs.chunksize == None:
-            #        self.process_flat_data()
-            #    else:
-            #        self.process_chunked_data()
-            #else:
-            #    self.process_flat_data()
-
-    def process_individual(self,obj):
-        i = 0 
-        while True:
-            destination_table = obj.name
-            df = obj.execute(self)
-            self[destination_table] = df
-            
-            mode = 'w'
-            if i>0:
-                mode='a'
-
-            i+=1
-            
-            if len(df) > 0:
-                self.save_to_file(mode=mode)
-
-            try:
-                self.inputs.next()
-            except StopIteration:
-                break
-
     def get_execution_order(self):
         return sorted(self.__objects.keys(), key=lambda x: x != 'person')
             
-    def get(self):
-        self.execution_order = self.get_execution_order()
-        for destination_table in self.execution_order:
-            self.process_table(destination_table)
-
-        try:
-            self.inputs.next()
-        except StopIteration:
-            self.logger.info("Now finished all inputs")
-        
-                
+                    
     def process(self,object_list=None):
         """
         Process chunked data, processes as follows
@@ -609,15 +540,15 @@ class CommonDataModel(Logger):
         * Retrieve the next chunk of data
 
         """
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        self.execution_order = self.get_execution_order()
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
 
-
+        
         for destination_table in self.execution_order:
             i=0
-            while True:
-                self.process_table(destination_table)
+            while True:                
+                self.process_table(destination_table,object_list=object_list)
                 if not self[destination_table] is None:
                     nrows = len(self[destination_table])
                     self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
@@ -628,7 +559,8 @@ class CommonDataModel(Logger):
 
                 if self.save_files:
                     self.save_dataframe(destination_table,mode=mode)
-                    #self.save_logs(extra=f'_{destination_table}_slice_{i}')
+                    if self.save_log_files:
+                        self.save_logs(extra=f'_{destination_table}_slice_{i}')
                 i+=1
 
                 if self.inputs:
@@ -642,22 +574,6 @@ class CommonDataModel(Logger):
             if self.inputs:
                 self.inputs.reset()
 
-    def process_flat_data(self):
-        """
-        For processing of flat data (not chunked):
-        * Loop over each destination table (via execution order):
-        * Process the CDM table (see process_table) retrieving a dataframe
-        * Register the retrieve dataframe with the model
-        * Save files and logs
-        """
-        for destination_table in self.execution_order:
-            self.process_table(destination_table)
-            self.logger.info(f'finalised {destination_table}')
-
-        if self.save_files:
-            self.save_dataframes()
-            self.save_logs()
-
     def get_tables(self):
         return list(self.__objects.keys())
 
@@ -665,7 +581,7 @@ class CommonDataModel(Logger):
         self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         return self.execution_order
             
-    def process_table(self,destination_table):
+    def process_table(self,destination_table,object_list=None):
         """
         Process a CDM (destination) table. The method proceeds as follows:
         * Given a destination table name e.g. 'person' 
@@ -677,15 +593,19 @@ class CommonDataModel(Logger):
         
         Args:
             destination_table (str) : name of a destination table to process (e.g. 'person')
+            object_list (list) : [optional] list of objects to process
         Returns:
             pandas.Dataframe: a merged output dataframe in the CDM format for the destination table
         """
         objects = self.get_objects(destination_table)
+        if object_list:
+            objects = [obj for obj in object_list if obj in objects]
+        
         nobjects = len(objects)
         extra = ""
         if nobjects>1:
             extra="s"
-        self.logger.info(f"for {destination_table}: found {nobjects} object{extra}")
+        self.logger.debug(f"for {destination_table}: found {nobjects} object{extra}")
         
         if len(objects) == 0:
             return
@@ -713,7 +633,6 @@ class CommonDataModel(Logger):
         else:
             self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
             df_destination = pd.concat(dfs,ignore_index=True)
-
             
         #register the total length of the output dataframe
         logs['ntotal'] = len(df_destination)
@@ -808,14 +727,13 @@ class CommonDataModel(Logger):
 
     def save_dataframe(self,table,mode='w'):
 
-        #if self.psql_engine is not None:
-        #    self.save_to_psql(mode='a')
-        #else:
-        
-        self.save_to_file(table,mode=mode)
+        if self.psql_engine is not None:
+            self.save_to_psql(table,mode='a')
+        else:
+            self.save_to_file(table,mode=mode) 
 
 
-    def save_to_psql(self,mode='a'):
+    def save_to_psql(self,name,mode='a'):
         #creat an inspector based on the psql engine
         from sqlalchemy import inspect
         insp  = inspect(self.psql_engine)
@@ -832,41 +750,43 @@ class CommonDataModel(Logger):
         else:
             raise Exception(f"Unknown mode for dumping to psql, mode = '{mode}'")
 
-        #loop over all created dataframes in the CDM
-        for name,df in self.__df_map.items():
-            #skip dead dataframes
-            if df is None:
-                continue
+        df = self[name]
+        if df is None:
+            return
+        
+        df = df.get_df()
+        if df is None:
+            return
 
-            #check if the table exists already
-            table_exists = name in existing_tables
+        #check if the table exists already
+        table_exists = name in existing_tables
 
-            #index the dataframe
-            pk = df.columns[0]
-            df.set_index(pk,inplace=True)
-            self.logger.info(f'updating {name} in {self.psql_engine}')
-
-            #check if the table already exists in the psql database
-            if table_exists:
-                #get the last row
-                last_row_existing = pd.read_sql(f"select {pk} from {name} "
-                                                f"order by {pk} desc limit 1",
+        #index the dataframe
+        pk = df.columns[0]
+        df.set_index(pk,inplace=True)
+        self.logger.info(f'updating {name} in {self.psql_engine}')
+        
+        #check if the table already exists in the psql database
+        if table_exists:
+            #get the last row
+            last_row_existing = pd.read_sql(f"select {pk} from {name} "
+                                            f"order by {pk} desc limit 1",
                                                 self.psql_engine)
-                
-                #if there's already a row and the mode is set to append
-                if len(last_row_existing) > 0 and mode == 'a':
-                    #get the cell value of the (this will be the id, e.g. condition_occurrence_id)
-                    last_pk_existing = last_row_existing.iloc[0,0]
-                    #get the index integer of this current dataframe
-                    first_pk_new = df.index[0]
-                    #workout and increase the indexing so the indexes are new
-                    index_diff = last_pk_existing - first_pk_new
-                    if index_diff >= 0:
-                        self.logger.info("increasing index as already exists in psql")
-                        df.index += index_diff + 1
-
-            #dump to sql
-            df.to_sql(name, self.psql_engine,if_exists=if_exists) 
+            
+            #if there's already a row and the mode is set to append
+            if len(last_row_existing) > 0 and mode == 'a':
+                #get the cell value of the (this will be the id, e.g. condition_occurrence_id)
+                last_pk_existing = last_row_existing.iloc[0,0]
+                #get the index integer of this current dataframe
+                first_pk_new = df.index[0]
+                #workout and increase the indexing so the indexes are new
+                index_diff = last_pk_existing - first_pk_new
+                if index_diff >= 0:
+                    self.logger.info("increasing index as already exists in psql")
+                    df.index += index_diff + 1
+                    
+        #dump to sql
+        df.to_sql(name, self.psql_engine,if_exists=if_exists) 
 
         self.logger.info("finished save to psql")
 
