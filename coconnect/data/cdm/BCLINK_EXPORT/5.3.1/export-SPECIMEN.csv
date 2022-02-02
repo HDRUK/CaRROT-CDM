@@ -1,0 +1,16 @@
+VARIABLE	DESCRIPTION	TYPE	KEY	MINVAL	MAXVAL	CHOICESET	REQUIRED	LENGTH	VALUEFUNCTION	DEFAULT	VALUEFORMATREGEXP	BCDBITRATE
+SPECIMEN_ID	specimen_id	Integer	1				yes					
+PERSON_ID	person_id	Integer										
+SPECIMEN_CONCEPT_ID	specimen_concept_id	Integer										
+SPECIMEN_TYPE_CONCEPT_ID	specimen_type_concept_id	Integer										
+SPECIMEN_DATE	specimen_date	Date										
+SPECIMEN_DATETIME	specimen_datetime	Timestamp										
+QUANTITY	quantity	Float										
+UNIT_CONCEPT_ID	unit_concept_id	Integer										
+ANATOMIC_SITE_CONCEPT_ID	anatomic_site_concept_id	Integer										
+DISEASE_STATUS_CONCEPT_ID	disease_status_concept_id	Integer										
+SPECIMEN_SOURCE_ID	specimen_source_id	Text						50				
+SPECIMEN_SOURCE_VALUE	specimen_source_value	Text						50				
+UNIT_SOURCE_VALUE	unit_source_value	Text						50				
+ANATOMIC_SITE_SOURCE_VALUE	anatomic_site_source_value	Text						50				
+DISEASE_STATUS_SOURCE_VALUE	disease_status_source_value	Text						50
