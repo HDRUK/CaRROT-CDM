@@ -24,7 +24,7 @@ import pandas as pd
 
 import coconnect
 from coconnect.tools.bclink_helpers import BCLinkHelpers
-from coconnect.tools.logger import Logger
+from coconnect.tools.logger import _Logger as Logger
 
 from .map import run 
 from .pseudonymise import pseudonymise

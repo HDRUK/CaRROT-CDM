@@ -318,7 +318,7 @@ class DestinationTable(Logger):
             
         return df
     
-    def get_df(self,force_rebuild=False,dropna=False,format=False,**kwargs):
+    def get_df(self,force_rebuild=False,dropna=False,_format=None,**kwargs):
         """
         Retrieve a dataframe from the current object
 
@@ -384,7 +384,9 @@ class DestinationTable(Logger):
         df = df[self.fields]
 
         #if self.do_formatting or
-        if format:
+
+        _format = _format if _format else self.do_formatting
+        if _format:
             df = self.format(df)
         df = self.finalise(df)
 
