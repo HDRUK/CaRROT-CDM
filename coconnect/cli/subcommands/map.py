@@ -156,6 +156,7 @@ def format(inputs,number_of_rows_per_chunk,output_folder):
                                                       format_level=1)
     #cdm.save_files = False
     cdm.process()
+    cdm.end()
         
 @click.command()
 @click.option("--input",
@@ -208,8 +209,8 @@ def format_input_data(column,operation,input):
               default=None,
               help="define the output database where to insert data into")
 @click.option("-nc","--number-of-rows-per-chunk",
-              default='auto',
-              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The default 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking.")
+              default=-1,
+              help="Choose the number of rows (INTEGER) of input data to load (chunksize). The option 'auto' will work out the ideal chunksize. Inputing a value <=0 will turn off data chunking (default behaviour).")
 @click.option("-np","--number-of-rows-to-process",
               default=None,
               type=int,
@@ -226,6 +227,20 @@ def format_input_data(column,operation,input):
 @click.option("log_file","--log-file",
               default = 'auto',
               help="specify a path for a log file")
+@click.option("--max-rules",
+              default = None,
+              type=int,
+              help="maximum number of rules to process")
+@click.option("objects","--object",
+              default = None,
+              multiple=True,
+              type=str,
+              help="give a list of objects by name to process")
+@click.option("tables","--table",
+              default = None,
+              multiple=True,
+              type=str,
+              help="give a list of tables by name to process")
 @click.argument("inputs",
                 required=True,
                 nargs=-1)
@@ -234,7 +249,8 @@ def run(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
-        person_id_map,
+        person_id_map,max_rules,
+        objects,tables,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -247,16 +263,48 @@ def run(ctx,rules,inputs,format_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    if log_file == 'auto' and coconnect.params['log_file'] is None:
+    #if log_file == 'auto' and coconnect.params['log_file'] is None:
+    print (log_file)
+    if log_file == 'auto':
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
+    elif log_file == 'none':
+        pass
+    else:
+        coconnect.params['log_file'] = log_file
         
-    
     #load the json loads
     if type(rules) == dict:
         config = rules
     else:
         config = tools.load_json(rules)
+
+    if tables:
+        tables = list(set(tables))
+        config = coconnect.tools.filter_rules_by_destination_tables(config,tables)
+
+    if objects:
+        objects = list(set(objects))
+        config = coconnect.tools.filter_rules_by_object_names(config,objects)
+        
+    if max_rules:
+        i = 0
+        n = max_rules
+        new = {}
+        for destination_table,rule_set in config['cdm'].items():
+            if destination_table == 'person':
+                new[destination_table] = rule_set
+            else:
+                for name,_rules in rule_set.items():
+                    if i>=n:
+                        break
+                    if destination_table not in new:
+                        new[destination_table] = {}
+                    new[destination_table][name] = _rules
+                    i+=1
+            
+        config['cdm'] = new
+
     name = config['metadata']['dataset']
 
     if indexing_conf is not None:
@@ -362,22 +410,21 @@ def run(ctx,rules,inputs,format_level,
             # get_cdm_class returns <Person>
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
+            obj.set_format_level(cdm.format_level)
             #set the name of the object
             obj.set_name(name)
             
-            #call the apply_rules function to setup how to modify the inputs
-            #based on the rules
-            obj.rules = rules
             #Build a lambda function that will get executed during run time
             #and will be able to apply these rules to the inputs that are loaded
             #(this is useful when chunk)
-            obj.define = lambda self : tools.apply_rules(self)
+            obj.define = lambda x,rules=rules : tools.apply_rules(x,rules,inputs=cdm.inputs)
             
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
+
     cdm.process()
-
-
+    cdm.close()
+    
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",
               help="input json file containing all the mapping rules to be applied")
@@ -417,7 +464,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     object_list = list(objects)
     if len(object_list) == 0:
         object_list = None
-    
+
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
         
@@ -449,6 +496,9 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
+    if not inputs:
+        raise Exception('no inputs defined!')
+
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
@@ -468,6 +518,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     #should only be running one class anyway
     defined_class = defined_classes[0]
     cls = getattr(module,defined_class)
+
     #build a class object
     cdm = cls(inputs=inputs,
               output_folder=output_folder,

@@ -7,7 +7,7 @@ class Measurement(DestinationTable):
     """
     
     name = 'measurement'
-    def __init__(self):
+    def __init__(self,name=None):
         self.measurement_id                = DestinationField(dtype="Integer"   , required=True  , pk=True)
         self.person_id                     = DestinationField(dtype="Integer"   , required=True )
         self.measurement_concept_id        = DestinationField(dtype="Integer"   , required=True )
@@ -27,8 +27,9 @@ class Measurement(DestinationTable):
         self.unit_source_value             = DestinationField(dtype="Text50"    , required=False )
         self.value_source_value            = DestinationField(dtype="Text50"    , required=False )
 
-
-        super().__init__(self.name)
+        if name is None:
+            name = hex(id(self))
+        super().__init__(name,self.name)
 
 
     def finalise(self,df):
@@ -81,6 +82,8 @@ class Measurement(DestinationTable):
         if self.automatically_fill_missing_columns == True:
             if df['measurement_date'].isnull().all():
                 df['measurement_date'] = self.tools.get_date(df['measurement_datetime'])
+            if df['value_as_number'].isnull().all():
+                df['value_as_number'] = pd.to_numeric(df['measurement_source_value'],errors='coerce').astype('Float64')
             
             
         df = df[~nulls]

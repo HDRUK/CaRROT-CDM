@@ -7,7 +7,7 @@ class VisitOccurrence(DestinationTable):
     """
     
     name = 'visit_occurrence'
-    def __init__(self):
+    def __init__(self,name=None):
         self.visit_occurrence_id           = DestinationField(dtype="Integer"   , required=True, pk=True)
         self.person_id                     = DestinationField(dtype="Integer"   , required=True)
         self.visit_concept_id              = DestinationField(dtype="Integer"   , required=True)
@@ -26,7 +26,9 @@ class VisitOccurrence(DestinationTable):
         self.discharge_to_source_value     = DestinationField(dtype="Text50"    , required=False)
         self.preceding_visit_occurrence_id = DestinationField(dtype="Integer"   , required=False)
         
-        super().__init__(self.name)
+        if name is None:
+            name = hex(id(self))
+        super().__init__(name,self.name)
 
 
     def finalise(self,df):

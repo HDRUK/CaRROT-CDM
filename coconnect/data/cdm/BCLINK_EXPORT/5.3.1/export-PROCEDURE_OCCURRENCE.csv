@@ -1,0 +1,14 @@
+VARIABLE	DESCRIPTION	TYPE	KEY	MINVAL	MAXVAL	CHOICESET	REQUIRED	LENGTH	VALUEFUNCTION	DEFAULT	VALUEFORMATREGEXP	BCDBITRATE
+PROCEDURE_OCCURRENCE_ID	procedure_occurrence_id	Integer	1				yes					
+PERSON_ID	person_id	Integer										
+PROCEDURE_CONCEPT_ID	procedure_concept_id	Integer										
+PROCEDURE_DATE	procedure_date	Date										
+PROCEDURE_DATETIME	procedure_datetime	Timestamp										
+PROCEDURE_TYPE_CONCEPT_ID	procedure_type_concept_id	Integer										
+MODIFIER_CONCEPT_ID	modifier_concept_id	Integer										
+QUANTITY	quantity	Integer										
+PROVIDER_ID	provider_id	Integer										
+VISIT_OCCURRENCE_ID	visit_occurrence_id	Integer										
+PROCEDURE_SOURCE_VALUE	procedure_source_value	Text						50				
+PROCEDURE_SOURCE_CONCEPT_ID	procedure_source_concept_id	Integer										
+QUALIFIER_SOURCE_VALUE	qualifier_source_value	Text						50

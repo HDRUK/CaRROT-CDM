@@ -9,7 +9,7 @@ from .subcommands.get import get
 from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
 
-from coconnect.tools.logger import Logger
+from coconnect.tools.logger import _Logger as Logger
 import coconnect as cc
 
 import click

@@ -40,10 +40,12 @@ def load_from_file(this):
         this[colname].series = df[colname]
 
 
-def apply_rules(this):
+def apply_rules(this,rules,inputs=None):
     this.logger.info("Called apply_rules")
 
-    rules = this.rules
+    if inputs is None:
+        inputs = this.inputs
+    
     this._meta['source_files'] = {}
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']
@@ -55,7 +57,7 @@ def apply_rules(this):
         if 'term_mapping' in rule:
             term_mapping = rule['term_mapping']
 
-        source_table = get_source_table(this.inputs,source_table_name)
+        source_table = get_source_table(inputs,source_table_name)
         source_field = get_source_field(source_table,source_field_name)
         series = source_field.copy()
 

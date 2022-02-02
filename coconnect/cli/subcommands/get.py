@@ -50,7 +50,38 @@ def concept(config,concept_id):
     res = response.json()
     click.echo(json.dumps(response.json(),indent=6))
 
-
+@click.command(help="get all person_ids used")
+@click.pass_obj
+def person_ids(config):
+    url = config['CCOM_URL']
+    headers=config['headers']
+    response = requests.get(
+        f"{url}/api/scanreporttablesfilter/",
+        headers=headers
+    )
+    person_ids = ','.join([str(x['person_id']) for x in response.json() if x['person_id']])
+    response = requests.get(
+        f"{url}/api/scanreportfieldsfilter/?id__in={person_ids}&fields=name",
+        headers=headers
+    )
+    click.echo(list(set([x['name'].replace("\ufeff","") for x in response.json()])))
+    
+@click.command(help="get all date_events used")
+@click.pass_obj
+def date_events(config):
+    url = config['CCOM_URL']
+    headers=config['headers']
+    response = requests.get(
+        f"{url}/api/scanreporttablesfilter/",
+        headers=headers
+    )
+    date_events = ','.join([str(x['date_event']) for x in response.json() if x['date_event']])
+    response = requests.get(
+        f"{url}/api/scanreportfieldsfilter/?id__in={date_events}&fields=name",
+        headers=headers
+    )
+    click.echo(list(set([x['name'].replace("\ufeff","") for x in response.json()])))
+        
 
 @click.command(help="get a report of the concepts that have been mapped")
 @click.pass_obj
@@ -78,7 +109,6 @@ def concepts(config):
         )
         try:
             all_rules.append(response.json()[0])
-            break
         except:
             pass
 
@@ -111,14 +141,18 @@ def concepts(config):
 
                         if concept_id not in inverted:
                             inverted[concept_id] = {
-                                'concept_name':concept_name,
+                                'concept_name':concept_name.rsplit(' ',1)[0],
                                 'domain':cdm_table_name,
                                 'sources':[]
                             }
 
 
-                        if concept_id not in inverted:
-                            inverted[concept_id] = []
+                        #if concept_id not in inverted:
+                        #    inverted[concept_id] = []
+                        #else:
+                        #    print (concept_id)
+                        #    print (inverted[concept_id])
+                        #    exit(0)
                             
                         obj = {
                             'source_field':source_field,
@@ -144,8 +178,8 @@ def concepts(config):
         for _id,obj in inverted.items()
     ]
                             
-    #print (json.dumps(inverted,indent=6))
-    print (json.dumps(_list,indent=6))
+    print (json.dumps(inverted,indent=6))
+    #print (json.dumps(_list,indent=6))
             
 
 @click.command(help="get a json file")
@@ -173,8 +207,20 @@ def _json(report_id,token,url):
     ).json()[0]
 
     print (json.dumps(response,indent=6))
-
     
+@click.command(help="get a json file")
+@click.argument('rules')
+def object_list(rules):
+    config = coconnect.tools.load_json(rules)
+    object_list = {
+        dest: [k for k,v in rule_set.items()]
+        for dest,rule_set in config['cdm'].items()
+        }
+    click.echo(json.dumps(object_list,indent=6))
+    
+get.add_command(object_list,"object-list-from-json")
 get.add_command(_json,"json")
 get.add_command(concepts,"concepts")
 get.add_command(concept,"concept")
+get.add_command(person_ids,"person-ids")
+get.add_command(date_events,"date-events")

@@ -31,7 +31,7 @@ class FormatterLevel(Enum):
     ON  = 1
     CHECK = 2
 
-class DataFormatter(collections.OrderedDict):
+class DataFormatter(collections.OrderedDict,Logger):
     """
     Class for formatting DestinationFields in the CommonDataModel
 
@@ -102,7 +102,6 @@ class DataFormatter(collections.OrderedDict):
     def __init__(self,errors='coerce'):
         super().__init__()
 
-        self.logger = Logger("Column Formatter")
         self['Integer'] = lambda x : pd.to_numeric(x,errors=errors).astype('Int64')
         self['Float']   = lambda x : pd.to_numeric(x,errors=errors).astype('Float64')
         self['Text20']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:20])
@@ -135,14 +134,14 @@ class DestinationField(object):
         self.required = required
         self.pk = pk
 
-class DestinationTable(object):
+class DestinationTable(Logger):
     """
     Common object that all CDM objects (tables) inherit from.
     """
 
     @classmethod
-    def from_df(cls,df):
-        obj = cls()
+    def from_df(cls,df,name=None):
+        obj = cls(name)
         obj.__df = df
         for colname in df.columns:
             obj[colname].series = df[colname]
@@ -151,7 +150,7 @@ class DestinationTable(object):
     def __len__(self):
         return len(self.__df)
 
-    def __init__(self,_type,_version='v5_3_1'):
+    def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
         Initialise the CDM DestinationTable Object class
         Args:
@@ -160,16 +159,15 @@ class DestinationTable(object):
         Returns: 
            None
         """
-        self.name = _type
+        self.name = name
         self._type = _type
         self._meta = {}
-        self.logger = Logger(self.name)
 
         self.dtypes = DataFormatter()
-        self.format_level = FormatterLevel(1)
+        self.format_level = FormatterLevel(format_level)
         self.fields = self.get_field_names()
 
-        self.do_formatting = True
+        self.do_formatting = not format_level is None
 
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
@@ -184,6 +182,10 @@ class DestinationTable(object):
             for field in self.get_field_names()
             if getattr(self,field).required == True
         ]
+        
+        self.automatically_fill_missing_columns = True
+        self.tools = OperationTools()
+
 
     def get_field_names(self):
         """
@@ -199,6 +201,21 @@ class DestinationTable(object):
             for item in self.__dict__.keys()
             if isinstance(getattr(self,item),DestinationField)
         ]
+    
+    def get_field_dtypes(self):
+        """
+        From the current object, loop over all member objects and find those that are instances
+        of a DestinationField (column)
+        
+        Returns:
+           list : a list of destination fields (columns [series])
+
+        """
+        return {
+            item:getattr(self,item).dtype
+            for item in self.__dict__.keys()
+            if isinstance(getattr(self,item),DestinationField)
+        }
 
     def get_ordering(self):
         """
@@ -213,10 +230,6 @@ class DestinationTable(object):
             if getattr(self,field).pk == True
         ]
 
-        if len(retval) == 0:
-            #warning, no pk has been set on any field
-            retval = self.fields[0]
-        
         return retval
         
     def __getitem__(self, key):
@@ -236,7 +249,10 @@ class DestinationTable(object):
         Register a field object with the table
         """
         return setattr(self, key, obj)
-    
+
+    def set_format_level(self,level):
+        self.format_level = level
+        
     def set_name(self,name):
         """
         Register/Set the name of the destination table
@@ -267,27 +283,6 @@ class DestinationTable(object):
         #add objects to this class
         self.__dict__.update(objs)
         
-    def execute(self,that):
-        """
-        execute the creation of the cdm object by passing
-
-        Args:
-           that: input object class where input objects can be loaded 
-                 and the define/finalise functions can be overloaded
-        """
-        self.update(that)
-
-        #execute the define function
-        #the default define() does nothing
-        #this is only executed if the CDM has been build via decorators
-        #or define functions have been specified for this object
-        # it will build the inputs from these functions
-        self.define(self)
-
-        #build the dataframe for this object
-        df = self.get_df()
-        return df
-
     def filter(self,filters):
 
         import operator
@@ -312,7 +307,7 @@ class DestinationTable(object):
             
         return df
     
-    def get_df(self,force_rebuild=False,dropna=False,**kwargs):
+    def get_df(self,force_rebuild=False,dropna=False,_format=None,**kwargs):
         """
         Retrieve a dataframe from the current object
 
@@ -321,10 +316,13 @@ class DestinationTable(object):
         """
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
+            self.logger.debug('already got a dataframe, so returning the existing one')
             if dropna:
                 return self.__df.dropna(axis=1)
             else:
-                return self.__df 
+                return self.__df
+
+        self.define(self)
 
         #get a dict of all series
         #each object is a pandas series
@@ -343,6 +341,7 @@ class DestinationTable(object):
             series = series.rename(field)
             #register the new series
             dfs[field] = series
+            self.logger.debug(f'Adding series to dataframe from field "{field}"')
 
         #if there's none defined, dont do anything
         if len(dfs) == 0:
@@ -373,7 +372,10 @@ class DestinationTable(object):
         #simply order the columns 
         df = df[self.fields]
 
-        if self.do_formatting:
+        #if self.do_formatting or
+
+        _format = _format if _format else self.do_formatting
+        if _format:
             df = self.format(df)
         df = self.finalise(df)
 
@@ -390,9 +392,9 @@ class DestinationTable(object):
             self.logger.debug('Not formatting data columns')
             return df
         elif self.format_level is FormatterLevel.ON:
-            self.logger.info("Automatically formatting data columns.")
+            self.logger.debug("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
-            self.logger.info("Performing checks on data formatting.")
+            self.logger.debug("Performing checks on data formatting.")
 
 
         for col in self.fields:
@@ -485,6 +487,8 @@ class DestinationTable(object):
             }
 
         #return the dataframe sorted by the primary key requested
-        df = df.sort_values(self.get_ordering())
+        #ordering = self.get_ordering()
+        #if len(ordering) > 0:
+        #    df = df.sort_values(self.get_ordering())
         return df
 

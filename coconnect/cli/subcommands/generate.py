@@ -1,12 +1,16 @@
 import os
 import click
 import json
+import yaml
 import coconnect
 import pandas as pd
 import numpy as np
 import requests
 import secrets
 import random
+import datetime
+import time
+
 class MissingToken(Exception):
     pass
 
@@ -215,8 +219,62 @@ def xlsx(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
-synthetic.add_command(xlsx,"xlsx")
-synthetic.add_command(ccom,"ccom")
+synthetic.add_command(xlsx,"from_xlsx")
+synthetic.add_command(ccom,"from_ccom")
+
+@click.command(help="generate a synthetic CDM from a yaml file")
+@click.argument("config")
+def synthetic_cdm(config):
+    with open(config, 'r') as stream:
+        config = yaml.safe_load(stream)
+
+    dfs = {}
+    order = sorted(config.items(), key=lambda x: x[0] != 'person')
+    for destination_table_name,destination_table in order:
+        n = destination_table['n']
+        obj = coconnect.cdm.get_cdm_class(destination_table_name)()
+        columns = destination_table['columns']
+        for column,spec in columns.items():
+            if 'range' in spec:
+                _range = spec['range']
+                _min = 0
+                if 'min' in _range:
+                    _min = _range['min']
+                _max = _min + n
+                x = range(_min,_max)
+                x = pd.Series(x)
+            elif 'random' in spec:
+                _map = spec['random']
+                _df = pd.Series(_map).to_frame()
+                x = _df.index.to_series().repeat(_df[0]*n).sample(frac=1).reset_index(drop=True)
+            elif 'map' in spec:
+                _map = spec['map']
+                col_to_map,_map = list(_map.items())[0]
+                x = obj[col_to_map].series.map(_map)
+            elif 'gaus' in spec:
+                _range = spec['gaus']
+                mu = _range['mean']
+                sigma = (_range['max'] - _range['min']).total_seconds()/5
+                mu = time.mktime(mu.timetuple())
+                x = [datetime.date.fromtimestamp(x) for x in np.random.normal(mu,sigma,n)]
+                x = pd.Series(x)
+            elif 'person' in spec:
+                x = dfs['person']['person_id'].sample(n,replace=True).sort_values().reset_index(drop=True)
+            else:
+                print (spec)
+                exit(0)
+
+            x.name = column
+            print (x)
+            obj[column].series = x
+
+        df = obj.get_df()
+        print (df.dropna(axis=1))
+        dfs[destination_table_name] = df
+    
+synthetic.add_command(synthetic_cdm,"cdm")
+
+
 generate.add_command(synthetic,"synthetic")
 
 
@@ -292,26 +350,32 @@ def report_to_xlsx(report,f_out):
 @click.command(help="generate scan report json from input data")
 @click.option("max_distinct_values","--max-distinct-values",
               default=10,
+              type=int,
               help='specify the maximum number of distinct values to include in the ScanReport.')
 @click.option("min_cell_count","--min-cell-count",
               default=5,
+              type=int,
               help='specify the minimum number of occurrences of a cell value before it can appear in the ScanReport.')
 @click.option("rows_per_table","--rows-per-table",
               default=None,
+              type=int,
               help='specify the maximum of rows to scan per input data file (table).')
 @click.option("randomise","--randomise",
               is_flag=True,
               help='randomise rows')
 @click.option("as_type","--as-type","--save-as",
               default=None,
-              type=click.Choice(['xlsx','json']),
+              type=click.Choice(['xlsx','json','latex']),
               help='save the report as a json or xlsx (whiteRabbit style).')
 @click.option("f_out","--output-file-name",
               default=None,
               help='specify the output file name (to be used with --save-as)')
+@click.option("name","--name",
+              required=True,
+              help='give a name to the report')
 @click.argument("inputs",
                 nargs=-1)
-def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
+def report(inputs,name,max_distinct_values,min_cell_count,rows_per_table,randomise,as_type,f_out):
     skiprows = None
         
     data = []
@@ -348,11 +412,13 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as
 
             #convert the values to a dictionary 
             frame = series.to_frame()
+                        
             values = frame.rename_axis('value').reset_index().to_dict(orient='records')
             #record the value (frequency counts) for this field
             fields.append({'field':col,'values':values})
 
         meta = {
+            'dataset':name,
             'nscanned':len(df),
             'max_distinct_values':max_distinct_values,
             'min_cell_count':min_cell_count
@@ -367,11 +433,127 @@ def report(inputs,max_distinct_values,min_cell_count,rows_per_table,randomise,as
     elif as_type == 'xlsx':
         f_out = f_out if f_out != None else 'ScanReport.xlsx'
         report_to_xlsx(data,f_out)
+    elif as_type == 'latex':
+        for d in data:
+            d = d['fields']
+            for d in d:
+                df = pd.DataFrame(d['values'])
+                if len(df)>0:
+                    print (df.to_latex(index=False))
     else:
         click.echo(json.dumps(data,indent=6))
             
 generate.add_command(report,"report")
 
+
+@click.command(help="generate a mapping rules json based on a json scan report")
+#@click.option("max_distinct_values","--max-distinct-values",
+#              default=10,
+#              type=int,
+#              help='specify the maximum number of distinct values to include in the ScanReport.')
+@click.argument("report")
+def mapping_rules(report):
+
+    person_ids = ['ID','PersonID','person_id','Study','Study_ID','CHI','LINKNO']
+    date_events = ['date','date_','date_of','time','occurrence','age']
+    from difflib import SequenceMatcher
+    def get_similar_score(a, b):
+        return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+    def get_similar_scores(cols,matcher):
+        return {b:max([get_similar_score(a,b) for a in matcher]) for b in cols }
+    
+    domain_lookup = {'Condition':'condition_occurrence','Observation':'observation','Gender':'person'}
+    #date_lookup = coconnect.cdm.get_cdm_class(destination_
+    #print (dir(date_lookup))
+    #exit(0)
+    def create_hde_from_value(concept,value,table,field,person_id,date_event):
+        domain_id = concept['domain_id']
+        name = concept['concept_name']
+        concept_id = concept['concept_id']
+        destination_table = domain_lookup[concept['domain_id']]
+        obj = coconnect.cdm.get_cdm_class(destination_table)()
+        date_events = [k for k,v in obj.get_field_dtypes().items() if v == 'Timestamp']
+        date_destination = date_events[0]
+        obj = {
+            destination_table : {
+                name : {
+                    "person_id":{
+                        "source_table":table,
+                        "source_field":person_id,
+                    },
+                    date_destination:{
+                        "source_table":table,
+                        "source_field":date_event,
+                    },
+                    f"{domain_id.lower()}_source_value":{
+                        "source_table":table,
+                        "source_field":field,
+                    },
+                    f"{domain_id.lower()}_concept_id":{
+                        "source_table":table,
+                        "source_field":field,
+                        "term_mapping": {
+                            value:concept_id
+                        }
+                    }
+                }
+            }
+        }
+        return obj
+    
+    def find_person_id_and_date_event(fields):
+        person_id = [k for k,v in sorted(get_similar_scores(fields,person_ids).items(),key=lambda x: x[1],reverse=True)][0]
+        date_event = [k for k,v in sorted(get_similar_scores(fields,date_events).items(),key=lambda x: x[1],reverse=True)][0]
+        return person_id,date_event
+
+    def collapse(hdes):
+        retval = {}
+        for hde in hdes:
+            for destination_table,objs in hde.items():
+                if destination_table not in retval:
+                    retval[destination_table] = {}
+                    
+                for name,obj in objs.items():
+                    if name not in retval[destination_table]:
+                         retval[destination_table][name] : {}
+                    else:
+                        raise Exception(f"{name} already exists")
+
+                    retval[destination_table][name] = obj
+        return retval
+    
+    report = coconnect.tools.load_json(report)
+    hdes = []
+    for table in report:
+        fields = [x['field'] for x in table['fields']]
+        person_id,date_event = find_person_id_and_date_event(fields)
+        for field in table['fields']:
+            for value in field['values']:
+                concepts = value.get('concepts')
+                if not concepts:
+                    continue
+                for concept in concepts:
+                    hde = create_hde_from_value(concept,
+                                                value.get('value'),
+                                                table['table'],
+                                                field['field'],
+                                                person_id,
+                                                date_event)
+                    hdes.append(hde)
+    cdm = collapse(hdes)
+
+    name = report[0]['meta']['dataset']
+    rules = {
+        'metadata':{
+            "date_created": str(datetime.datetime.now()),
+            "dataset": name
+        },
+        'cdm':cdm
+    }
+    click.echo(json.dumps(rules,indent=6))
+        
+
+generate.add_command(mapping_rules,"mapping-rules")
 
 @click.command(help="Generate synthetic data from the json format of the scan report")
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)

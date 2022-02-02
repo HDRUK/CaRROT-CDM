@@ -3,7 +3,7 @@ import glob
 import copy
 import json
 import pandas as pd
-from coconnect.tools.logger import Logger
+from coconnect.tools.logger import _Logger as Logger
 from coconnect.io import local
 
 class MissingInputFiles(Exception):
@@ -13,82 +13,6 @@ class DifferingColumns(Exception):
 class DifferingRows(Exception):
     pass
 
-
-class InputData:
-    def __init__(self):
-        self.chunksize = None
-
-        self.__file_readers = {}
-        self.__dataframe = {}
-
-        self.logger = Logger(self.__class__.__name__)
-        self.logger.info("InputData Object Created")
-
-
-    def all(self):
-        return {
-            key:self[key]
-            for key in self.keys()
-        }
-
-    def __iter__(self):
-        return iter(self.__file_readers)
-    
-    def keys(self):
-        return self.__file_readers.keys()
-
-    def next(self):
-        #loop over all loaded files
-        for key in self.keys():
-            #get the next dataframe chunk for this file
-            self.__dataframe[key] = self.get_df_chunk(key)
-
-        #check if all __dataframe objects are empty
-        #if they are, reaise a StopIteration as processing has finished
-        if all([x.empty for x in self.__dataframe.values()]):
-            self.logger.debug("All input files have now been processed.")
-            raise StopIteration
-
-        self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
-
-        
-    def get_df_chunk(self,key):
-        #obtain the file by key
-        obj = self.__file_readers[key]
-        #if it is a TextFileReader, get a dataframe chunk
-        if isinstance(obj,pd.io.parsers.TextFileReader):
-            try:
-                #for this file reader, get the next chunk of data and update self.__dataframe
-                return obj.get_chunk(self.chunksize)
-            except StopIteration:
-                #otherwise, if at the end of the file reader, return an empty frame
-                return pd.DataFrame(columns=self.__dataframe[key].columns)
-        else:
-            #if we're handling non-chunked data
-            #return an empty dataframe if we've already loaded this dataframe
-            if key in self.__dataframe.keys():
-                return pd.DataFrame(columns=self.__dataframe[key].columns)
-            #otherwise return the dataframe as it's the first time we're getting it
-            return obj
-            
-
-    def __getitem__(self,key):
-        if key not in self.__dataframe.keys():
-            self.__dataframe[key] = self.get_df_chunk(key)
-        return self.__dataframe[key]
-        
-    def __setitem__(self,key,obj):
-        if not (isinstance(obj,pd.DataFrame) or isinstance(obj,pd.io.parsers.TextFileReader)):
-            raise NotImplementedError("When using InputData, the object must be of type "
-                                      f"{pd.DataFrame} or {pd.io.parsers.TextFileReader} ")
-        self.logger.info(f"Registering  {key} [{type(obj)}]")
-        self.__file_readers[key] = obj
-        if isinstance(obj,pd.io.parsers.TextFileReader):
-            chunksize = obj.chunksize
-            if self.chunksize == None:
-                self.chunksize = chunksize
-            elif self.chunksize != obj.chunksize:
-                raise NotImplementedError("Needs input data to be all chunked with the same number of rows")
                         
     
 def load_json_delta(f_in,original):
@@ -137,11 +61,12 @@ def load_json(f_in):
     return data
 
 
-def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
+
+def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 
     if isinstance(_map,list):
         _map = {
-            x:x
+            os.path.basename(x):x
             for x in _map
         }
     
@@ -181,8 +106,12 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
             if k in source_map
         }
 
+
+    if not nrows is None:
+        chunksize = nrows if chunksize is None else chunksize
+
     retval = local.LocalDataCollection(chunksize=chunksize)
-    
+
     for key,obj in _map.items():
         fields = None
         if isinstance(obj,str):
@@ -193,11 +122,12 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
         df = pd.read_csv(load_path+fname,
                          chunksize=chunksize,
+                         #iterator=True,
                          nrows=nrows,
                          sep=sep,
                          keep_default_na=False,
                          na_values=na_values,
-                         dtype=str,
+                         dtype=dtype,
                          usecols=fields)
 
         df.attrs = {'original_file':load_path+fname}
@@ -212,10 +142,10 @@ def load_csv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",r
 
     return retval
 
-def load_tsv(_map,chunksize=None,nrows=None,lower_col_names=False,load_path="",rules=None):
-    sep="\t"
-    return load_csv(_map,sep=sep,chunksize=chunksize,nrows=nrows,
-                    lower_col_names=lower_col_names,load_path=load_path,rules=rules)
+
+def load_tsv(_map,**kwargs):
+    kwargs['sep']="\t"
+    return load_csv(_map,**kwargs)
 
 
 def get_subfolders(input_folder):
@@ -228,7 +158,7 @@ def get_subfolders(input_folder):
 def get_files(path,type='csv'):
     return [x.path for x in os.scandir(path) if x.path.endswith(f'.{type}')]
 
-def get_file_map_from_dir(_dir):
+def get_file_map_from_dir(_dir,ext='.csv'):
     if not os.path.isdir(_dir):
         _dir = os.path.abspath(
             os.path.join(
@@ -236,7 +166,7 @@ def get_file_map_from_dir(_dir):
         )
 
     _map = {}
-    for fname in glob.glob(f"{_dir}{os.path.sep}*.csv"):
+    for fname in glob.glob(f"{_dir}{os.path.sep}*{ext}"):
         key = os.path.basename(fname)
         _map[key] = fname
     
@@ -271,8 +201,18 @@ def filter_rules_by_destination_tables(rules,tables):
             rules_copy['cdm'].pop(destination_table)
            
     return rules_copy
-    
 
+def filter_rules_by_object_names(rules,names):
+    rules_copy = copy.deepcopy(rules)
+    for destination_table,cdm_table in rules['cdm'].items():
+        for object_name,rules in cdm_table.items():
+            if not object_name in names:
+                rules_copy['cdm'][destination_table].pop(object_name)
+        if not rules_copy['cdm'][destination_table]:
+            rules_copy['cdm'].pop(destination_table)
+           
+    return rules_copy
+    
 def get_source_tables_from_rules(rules,table):
     sources = [ 
         x['source_table']
