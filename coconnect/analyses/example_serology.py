@@ -1,4 +1,5 @@
 import scipy.stats
+import time
 
 def create_analysis(_filter):
     def ana(model):
@@ -8,5 +9,6 @@ def create_analysis(_filter):
         attributes = ['intercept', 'intercept_stderr', 'pvalue', 'rvalue', 'slope', 'stderr']
         res = {a:getattr(res,a) for a in attributes}
         res.update({'n':len(df)})
+        #time.sleep(10)
         return res
     return ana

@@ -26,7 +26,7 @@ import coconnect
 from coconnect.tools.bclink_helpers import BCLinkHelpers
 from coconnect.tools.logger import _Logger as Logger
 
-from .map import run 
+from .run import map as cc_map
 from .pseudonymise import pseudonymise
 
 class PlatformNotSupported(Exception):
@@ -660,8 +660,6 @@ def _extract(ctx,data,rules,bclink_helpers):
                 continue
             fin = input_map[table]
 
-            print (fin)
-            
             fout = ctx.invoke(pseudonymise,
                               input=fin,
                               output_folder=output,
@@ -702,7 +700,7 @@ def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
     logger.info(f"existing_global_ids: {existing_global_ids}")
     
 
-    ctx.invoke(run,
+    ctx.invoke(cc_map,
                rules=rules,
                inputs=inputs,
                output_folder=output_folder,

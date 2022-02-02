@@ -307,7 +307,7 @@ class CommonDataModel(Logger):
         self.__analyses.append(func)
 
     def run_analyses(self,max_workers=4):
-
+        
         def msg(x):
             self.logger.info(f"finished with {x}")
             self.logger.info(x.result())
@@ -324,7 +324,7 @@ class CommonDataModel(Logger):
                 futures[future] = _id
 
             while True:
-                status = {futures[f]:{'status':'running' if f.running() else 'done'} for f in futures}
+                status = {futures[f]:{'status':'running' if f.running() else 'done' if f.done() else 'waiting'} for f in futures}
                 self.logger.debug(json.dumps(status,indent=6))
                 if all([f.done() for f in futures]):
                     break

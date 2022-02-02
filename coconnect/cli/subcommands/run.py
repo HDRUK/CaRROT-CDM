@@ -1,9 +1,13 @@
 import pandas as pd
 import inspect
 import os
+import sys
 import click
 import json
+import yaml
 import glob
+import copy
+import subprocess
 import coconnect
 import coconnect.tools as tools
 
@@ -182,6 +186,65 @@ def format_input_data(column,operation,input):
     n = 5 if len(df_input) > 5 else len(df_input)
     print (df_input[column].sample(n))
     df_input.to_csv(input)
+
+
+def _condor(commands):
+    def wrapper(args):
+        output = subprocess.check_output(['echo']+commands).decode()
+        return output
+    return wrapper
+
+
+
+@click.command()
+@click.option("--max-workers",default=None,type=int)
+@click.option("--batch",default=None,type=click.Choice(['condor']))
+@click.option("analysis_names","--analysis-name",default=None,multiple=True,type=str)
+@click.argument("config")
+@click.pass_context
+def analysis(ctx,config,analysis_names,max_workers,batch):
+    """
+    Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
+    """    
+    from importlib import import_module
+    fname = config
+    stream = open(config) 
+    config = yaml.safe_load(stream)
+    
+    inputs = config['cdm']
+    inputs = coconnect.tools.load_tsv(config['cdm'],
+                                      dtype=None)
+
+    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs)
+
+    analyses = config['analyses']
+
+    if analysis_names:
+        temp = copy.copy(analyses)
+        for name in temp:
+            if name not in analysis_names:
+                analyses.pop(name)
+
+    for name,_def in analyses.items():
+        analysis = _def['analysis']
+        cohort = _def['filter']
+        if batch:
+            if batch == 'condor':
+                commands = copy.copy(sys.argv)
+                commands.remove('--batch')
+                commands.remove('condor')
+                commands.extend(['--analysis-name',name])
+                
+                f = _condor(commands=commands)
+            else:
+                raise NotImplementedError(f"{batch} mode for --batch not a thing")
+        else:
+            func = import_module(analysis)
+            f = func.create_analysis(cohort)
+        cdm.add_analysis(f)
+    
+    results = cdm.run_analyses(max_workers=max_workers)
+
     
         
 @click.command()
@@ -620,6 +683,7 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"run")
 run.add_command(py,"py")
 run.add_command(map,"map")
+run.add_command(analysis,"analysis")
 run.add_command(format,"format")
 run.add_command(transform,"transform")
 run.add_command(gui,"gui")
