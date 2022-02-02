@@ -200,6 +200,7 @@ class CommonDataModel(Logger):
         ]
         #if they have, then include them in this model
         for obj in registered_objects:
+            obj.inputs = self.inputs
             self.add(obj)
         
         #bookkeep some logs
@@ -597,7 +598,7 @@ class CommonDataModel(Logger):
             self.logger.info("Now finished all inputs")
         
                 
-    def process(self):
+    def process(self,object_list=None):
         """
         Process chunked data, processes as follows
         * While the chunking of is not yet finished

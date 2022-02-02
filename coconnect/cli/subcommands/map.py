@@ -468,7 +468,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     object_list = list(objects)
     if len(object_list) == 0:
         object_list = None
-    
+
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
         
@@ -500,6 +500,9 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
+    if not inputs:
+        raise Exception('no inputs defined!')
+
     inputs = tools.load_csv(inputs,
                             rules=rules,
                             chunksize=number_of_rows_per_chunk,
@@ -519,6 +522,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     #should only be running one class anyway
     defined_class = defined_classes[0]
     cls = getattr(module,defined_class)
+
     #build a class object
     cdm = cls(inputs=inputs,
               output_folder=output_folder,
