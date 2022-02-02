@@ -230,10 +230,6 @@ class DestinationTable(Logger):
             if getattr(self,field).pk == True
         ]
 
-        #if len(retval) == 0:
-        #    #warning, no pk has been set on any field
-        #    retval = self.fields[0]
-        
         return retval
         
     def __getitem__(self, key):
@@ -287,28 +283,6 @@ class DestinationTable(Logger):
         #add objects to this class
         self.__dict__.update(objs)
         
-    def execute(self,that):
-        """
-        execute the creation of the cdm object by passing
-
-        Args:
-           that: input object class where input objects can be loaded 
-                 and the define/finalise functions can be overloaded
-        """
-        self.update(that)
-
-        self.cdm = that
-        
-        #execute the define function
-        #the default define() does nothing
-        #this is only executed if the CDM has been build via decorators
-        #or define functions have been specified for this object
-        # it will build the inputs from these functions
-        self.define(self)
-        #build the dataframe for this object
-        df = self.get_df(force_rebuild=True)
-        return df
-
     def filter(self,filters):
 
         import operator
