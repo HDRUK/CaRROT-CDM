@@ -18,7 +18,7 @@ from coconnect.io import DataCollection
 from coconnect import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
 from .objects import get_cdm_class, get_cdm_decorator
-from .decorators import load_file
+from .decorators import load_file, analysis
 
 class BadInputObject(Exception):
     pass
@@ -49,21 +49,13 @@ class CommonDataModel(Logger):
 
     """
 
+    
     @classmethod
     def load(cls,inputs,**kwargs):
         default_kwargs = {'save_files':False,'do_mask_person_id':False,'format_level':0}
         default_kwargs.update(kwargs)
         cdm = cls(**default_kwargs)
-        for fname in inputs.keys():
-            destination_table,_ = os.path.splitext(fname)
-            try:
-                obj = get_cdm_class(destination_table).from_df(inputs[fname],destination_table)
-            except KeyError:
-                cdm.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
-                continue
-                
-            df = obj.get_df(force_rebuild=False)
-            cdm[destination_table] = obj
+        cdm._load_inputs(inputs)
         return cdm
     
 
@@ -186,9 +178,6 @@ class CommonDataModel(Logger):
         #     ...
         # }
         self.__objects = {}
-
-        self.__analyses = []
-
         #check if objects have already been registered with this class
         #via the decorator methods
         registered_objects = [
@@ -200,7 +189,13 @@ class CommonDataModel(Logger):
         for obj in registered_objects:
             obj.inputs = self.inputs
             self.add(obj)
-        
+
+        self.__analyses = {
+            name:getattr(self,name)
+            for name in dir(self)
+            if isinstance(getattr(self,name),analysis)
+        }
+                    
         #bookkeep some logs
         self.logs = {
             'meta':{
@@ -213,6 +208,19 @@ class CommonDataModel(Logger):
             }
         }
 
+    def _load_inputs(self,inputs):
+        for fname in inputs.keys():
+            destination_table,_ = os.path.splitext(fname)
+            try:
+                obj = get_cdm_class(destination_table).from_df(inputs[fname],destination_table)
+            except KeyError:
+                self.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
+                continue
+                
+            df = obj.get_df(force_rebuild=False)
+            self[destination_table] = obj
+
+        
     def close(self):
         """
         Class destructor:
@@ -303,11 +311,21 @@ class CommonDataModel(Logger):
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
 
-    def add_analysis(self,func):
-        self.__analyses.append(func)
+    def add_analysis(self,func,_id=None):
+        if _id is None:
+            _id = hex(id(func))
+        self.__analyses[_id] = func
 
-    def run_analyses(self,max_workers=4):
+    def get_analyses(self):
+        return self.__analyses
+    def get_analysis(self,key):
+        return self.__analyses[key]
         
+    def run_analysis(self,f):
+        return f(self)
+        
+    def run_analyses(self,analyses=None,max_workers=4):
+            
         def msg(x):
             self.logger.info(f"finished with {x}")
             self.logger.info(x.result())
@@ -316,12 +334,11 @@ class CommonDataModel(Logger):
             
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
-            for f in self.__analyses:
-                _id = hex(id(f))
+            for name,f in self.__analyses.items():
                 self.logger.info(f"Start thread for {f} ")
                 future = executor.submit(f, self)
                 future.add_done_callback(msg)
-                futures[future] = _id
+                futures[future] = name
 
             while True:
                 status = {futures[f]:{'status':'running' if f.running() else 'done' if f.done() else 'waiting'} for f in futures}

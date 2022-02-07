@@ -21,5 +21,6 @@ from .decorators import (
     define_observation,
     define_drug_exposure,
     load_file,
-    from_table
+    from_table,
+    qsub
 )

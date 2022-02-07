@@ -427,8 +427,7 @@ def create_dag(dag_name,f_inputs,f_output_folder,f_rules,f_schedule={'weeks':4})
         
         obj = coconnect.cdm.get_cdm_class(destination_table)()
         obj.set_name(name)
-        obj.rules = rules
-        obj.define = lambda self : coconnect.tools.apply_rules(self)
+        obj.define = lambda x,rules=rules : coconnect.tools.apply_rules(x,rules,inputs=cdm.inputs)
         cdm.add(obj)
         cdm.process()
 

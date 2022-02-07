@@ -1,5 +1,7 @@
 import scipy.stats
 import time
+import numpy as np
+
 
 def create_analysis(_filter):
     def ana(model):
@@ -9,6 +11,10 @@ def create_analysis(_filter):
         attributes = ['intercept', 'intercept_stderr', 'pvalue', 'rvalue', 'slope', 'stderr']
         res = {a:getattr(res,a) for a in attributes}
         res.update({'n':len(df)})
+
+        antibodies = df['value_as_number']
+        hist = np.histogram(antibodies,bins=20, range=(0,300))
+        
         #time.sleep(10)
-        return res
+        return {'fit':res,'hist':hist}
     return ana

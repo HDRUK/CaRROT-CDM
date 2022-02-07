@@ -7,7 +7,7 @@ import inspect
 import time
 
 from . import extract
-from .dag import make_dag
+from .dag import make_dag,make_report_dag
 
 from . import bclink_helpers 
 

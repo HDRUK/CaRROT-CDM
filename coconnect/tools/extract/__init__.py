@@ -21,9 +21,10 @@ def make_class(data,
     
     objects = []
     for destination_table,_map in structural_mapping.items():
-        for i,obj in enumerate(_map):
+        for i,(_,obj) in enumerate(_map.items()):
             map_rules = []
             #find structural mapping
+
             for destination_field,source in sorted(obj.items()):
                 source_field = source['source_field']
                 source_table = source['source_table']

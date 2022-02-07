@@ -111,6 +111,13 @@ def dag(rules,orientation):
         data = data['cdm']
     tools.make_dag(data,orientation=orientation,render=True)
 
+@click.command(help="Display the report json as a DAG")
+@click.option('--orientation',default='RL',type=click.Choice(['RL','LR','TB','BT']))
+@click.argument("f")
+def report_dag(f,orientation):
+    data = tools.load_json(f)
+    tools.make_report_dag(data,orientation=orientation,render=True)
+
 
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
@@ -173,9 +180,27 @@ cdm.add_command(table,"table")
 display.add_command(cdm,"cdm")
 
 display.add_command(dataframe,"dataframe")
-display.add_command(dag,"dag")
-display.add_command(print_json,"json")
 display.add_command(plot,"plot")
-
 display.add_command(diff,"diff")
-display.add_command(flatten,"flatten")
+
+@click.group(help='Commands for displaying json rules in various ways.')
+def rules():
+    pass
+
+
+rules.add_command(dag,"dag")
+rules.add_command(print_json,"json")
+rules.add_command(flatten,"flatten")
+display.add_command(rules,"rules")
+
+
+@click.group(help='Commands for displaying json report in various ways.')
+def report():
+    pass
+
+
+report.add_command(print_json,"json")
+report.add_command(report_dag,"dag")
+
+
+display.add_command(report,"report")

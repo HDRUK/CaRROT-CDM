@@ -194,6 +194,31 @@ def _condor(commands):
         return output
     return wrapper
 
+from importlib import import_module
+
+@click.command()
+@click.option("analysis_name","--analysis",default=None,type=str)
+@click.argument("analysis_file")
+@click.pass_context
+def analysis(ctx,analysis_file,analysis_name):
+    """
+    Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
+    """
+    _dir = os.path.dirname(analysis_file)
+    fname = os.path.splitext(os.path.basename(analysis_file))[0]
+    sys.path.append(_dir)
+    module = import_module(fname)
+    clsmembers = inspect.getmembers(module, inspect.isclass)
+    name,cls = clsmembers[0]
+    obj = cls()
+    if analysis_name:
+        ana = obj.get_analysis(analysis_name)
+        res = obj.run_analysis(ana)
+        print (res)
+    else:
+        #print (obj.get_analyses())
+        #exit(0)
+        obj.run_analyses()
 
 
 @click.command()
@@ -202,7 +227,7 @@ def _condor(commands):
 @click.option("analysis_names","--analysis-name",default=None,multiple=True,type=str)
 @click.argument("config")
 @click.pass_context
-def analysis(ctx,config,analysis_names,max_workers,batch):
+def ___analysis(ctx,config,analysis_names,max_workers,batch):
     """
     Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
     """    
