@@ -188,9 +188,14 @@ def format_input_data(column,operation,input):
     df_input.to_csv(input)
 
 
-def _condor(commands):
+def _condor(name,commands,jobscript):
+    #hold_jid {name} - wait for previous job
     def wrapper(args):
-        output = subprocess.check_output(['echo']+commands).decode()
+        script = jobscript + '\n' + ' '.join(commands)
+        fname = f"{name}.sh"
+        with open(fname,"w") as f:
+            f.write(script)
+        output = subprocess.check_output(['qsub','-N',name,fname]).decode()
         return output
     return wrapper
 
@@ -219,6 +224,9 @@ def analysis(ctx,config,analysis_names,max_workers,batch):
 
     analyses = config['analyses']
 
+    jobscript = config['condor']['jobscript']
+    
+
     if analysis_names:
         temp = copy.copy(analyses)
         for name in temp:
@@ -235,7 +243,7 @@ def analysis(ctx,config,analysis_names,max_workers,batch):
                 commands.remove('condor')
                 commands.extend(['--analysis-name',name])
                 
-                f = _condor(commands=commands)
+                f = _condor(name=name,commands=commands,jobscript=jobscript)
             else:
                 raise NotImplementedError(f"{batch} mode for --batch not a thing")
         else:
