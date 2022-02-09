@@ -1,5 +1,6 @@
 import pandas as pd
 from coconnect.io.common import DataCollection
+import io
 
 class DataBrick:
     def __init__(self,df_handler,name=None):
@@ -20,10 +21,13 @@ class DataBrick:
             f = self.__df_handler.f
             del self.__df_handler
             options['engine'] = 'c'
+            if isinstance(f,io.StringIO):
+                f.seek(0)
             self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
-                        
+                
         self.__df = None
         self.__end = False
+        return True
     
     def get_chunk(self,chunksize):
         if self.__end == True:

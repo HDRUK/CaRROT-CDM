@@ -67,6 +67,7 @@ class CommonDataModel(Logger):
                  save_files=True,
                  save_log_files=False,
                  inputs=None,
+                 outfile_separator='\t',
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
@@ -95,7 +96,8 @@ class CommonDataModel(Logger):
 
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
-
+        self.execution_order = None
+        
         if format_level == None:
             format_level = 1
         try:
@@ -126,7 +128,7 @@ class CommonDataModel(Logger):
             self.profiler.start()
 
         #default separator for output files is a tab
-        self._outfile_separator = '\t'
+        self._outfile_separator = outfile_separator
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
@@ -307,6 +309,8 @@ class CommonDataModel(Logger):
         if obj.name in self.__objects[obj._type].keys():
             raise Exception(f"Object called {obj.name} already exists")
 
+        obj.cdm = self
+        
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
@@ -542,9 +546,6 @@ class CommonDataModel(Logger):
         """
         return self.__objects
 
-    def get_execution_order(self):
-        return sorted(self.__objects.keys(), key=lambda x: x != 'person')
-            
                     
     def process(self,object_list=None):
         """
@@ -595,8 +596,12 @@ class CommonDataModel(Logger):
         return list(self.__objects.keys())
 
     def get_execution_order(self):
-        self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
+        if not self.execution_order:
+            self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         return self.execution_order
+    
+    def set_execution_order(self,order):
+        self.execution_order = order
             
     def process_table(self,destination_table,object_list=None):
         """
@@ -677,6 +682,9 @@ class CommonDataModel(Logger):
         elif is_integer:
             #otherwise if it's the person_id, sort the values based on this
             df_destination = df_destination.sort_values(primary_column)
+        else:
+            df_destination.reset_index(inplace=True, drop=True)
+            df_destination.sort_values(primary_column,ignore_index=True,inplace=True)
 
             
         #book the metadata logs

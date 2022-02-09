@@ -100,6 +100,13 @@ def from_table(obj,table):
         obj[colname].series = df[colname]
     return obj
 
+def define_table(cls):
+    def decorator(defs):
+        obj = cls()
+        obj.define = defs
+        obj.set_name(defs.__name__)
+        return obj
+    return decorator
 
 def define_person(defs):
     c = Person()
