@@ -3,6 +3,7 @@ import numpy as np
 import datetime
 import time
 import io
+import os
 import coconnect
 
 from coconnect.cdm import CommonDataModel
@@ -21,7 +22,11 @@ class Symptoms(DestinationTable):
     name = 'Symptoms'
     def __init__(self,name=None,**kwargs):
         self.ID = DestinationField(dtype="Text50", required=True)
-        self.date_occurrence = DestinationField(dtype="Timestamp", required=False)                                                                                     
+        self.date_occurrence = DestinationField(dtype="Timestamp", required=False)
+
+        self.Positive_PCR = DestinationField(dtype="Text50", required=False )
+        self.Positive_Lateral_Flow = DestinationField(dtype="Text50", required=False )
+        
         self.Headache = DestinationField(dtype="Text50", required=False )
         self.Fatigue = DestinationField(dtype="Text50", required=False )
         self.Dizzy = DestinationField(dtype="Text50", required=False )
@@ -82,17 +87,24 @@ def create_gaus_time_series(mu,sigma,n):
 
 
 class ExampleCovid19DataSet(CommonDataModel):
-    def __init__(self,n):
-        """                                                                                                                                                    
-        initialise the inputs and setup indexing                                                                                                               
-        """  
+    def __init__(self,n,chunksize=None):
+        """
+        initialise the inputs and setup indexing
+        """
         
-        #initial the model, give an output location and specify we want to save the model into csv files 
-        super().__init__(output_folder=f'./synthetic_data/{n}/',format_level=0,outfile_separator=',')
+        #initial the model, give an output location and specify we want to save the model into csv files
+        output_folder = f'./synthetic_data/{n}/'
+        os.makedirs(output_folder,exist_ok=True)
 
         #create people indexes that we can use in the different tables
-        self.people = pd.DataFrame([f'pk{i}' for i in range(1,n+1)],columns=['pks'])
+        #people = pd.DataFrame((f'pk{ii}' for ii in range(1,n+1)),columns=['pks'])
+        people = pd.DataFrame((ii for ii in range(1,n+1)),columns=['pks'])
+        people.to_csv(f"{output_folder}/pks.csv")
+        self.logger.info("created people ")
+        self.inputs = coconnect.tools.load_csv([f'{output_folder}/pks.csv'],chunksize=chunksize)
 
+        super().__init__(output_folder=output_folder,format_level=0,outfile_separator=',',use_profiler=True)
+        
         #set the processing order, e.g we want to build demographics table first
         #so that the values recorded in other tables can be demographically dependent 
         self.set_execution_order([
@@ -104,14 +116,16 @@ class ExampleCovid19DataSet(CommonDataModel):
             'Hospital_Visit',
             'Blood_Test'
         ])
-        self.process()
-
+        #process simultaneously
+        self.process_simult()
+        self.close()
+        
     @define_table(Demographics)
     def demo(self):  
         """
         Straight foreward demographics
         """
-        self.ID.series = self.cdm.people['pks']
+        self.ID.series = self.inputs['pks.csv'].reset_index()['pks']#self.cdm.people['pks']
         self.n = len(self.ID.series)
         self.Age.series = pd.Series(np.random.normal(60,20,self.n)).astype(int)
         self.Age.series = self.Age.series.mask(self.Age.series < 0 , None)
@@ -119,22 +133,22 @@ class ExampleCovid19DataSet(CommonDataModel):
 
     @define_table(Symptoms)
     def symptoms(self):
-        npeople = self.cdm.demo.n
-        nsymptoms = npeople*5
 
-        ID = self.cdm.demo.ID.series
-        
-        self.ID.series = ID.sample(int(npeople*0.8))\
-            .sample(nsymptoms,replace=True)\
+        #30% of people have recorded symptoms
+        ID = self.cdm.demo.ID.series.sample(frac=0.3)
+
+        #10% of these people have have multiple symptoms recorded
+        self.ID.series = ID.sample(frac=1.1,replace=True)\
             .sort_values().reset_index(drop=True)  
 
+        nsymptoms = len(self.ID.series)
         self.date_occurrence.series = create_gaus_time_series(mu=datetime.datetime(2021,1,1),
                                                               sigma={'days':365},
                                                               n=nsymptoms)
         
         self.date_occurrence.series.loc[self.date_occurrence.series.sample(frac=0.005).index] = np.nan
         
-        syms_probs = {'Headache':0.8,'Fatigue':0.7,'Dizzy':0.4,'Cough':0.7,'Fever':0.2,'Muscle_Pain':0.1}
+        syms_probs = {'Positive_PCR':1,'Positive_Lateral_Flow':0.99,'Headache':0.8,'Fatigue':0.7,'Dizzy':0.4,'Cough':0.7,'Fever':0.2,'Muscle_Pain':0.1}
         for key,p in syms_probs.items():
             series = pd.Series(np.random.choice(['Yes','No'],size=nsymptoms,p=[p,1-p]))
             setattr(getattr(self,key),'series',series)
@@ -283,4 +297,5 @@ class ExampleCovid19DataSet(CommonDataModel):
 
 
 if __name__ == "__main__":
-    ExampleCovid19DataSet(n=5000)
+    ExampleCovid19DataSet(n=5000000,chunksize=500000)
+    #ExampleCovid19DataSet(n=1000,chunksize=100)

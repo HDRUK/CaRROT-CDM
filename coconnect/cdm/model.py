@@ -591,6 +591,41 @@ class CommonDataModel(Logger):
 
             if self.inputs:
                 self.inputs.reset()
+                
+    def process_simult(self,object_list=None):
+        """
+        process simulataneously
+        """
+        self.execution_order = self.get_execution_order()
+        self.logger.info(f"Starting processing in order: {self.execution_order}")
+        self.count_objects()
+
+        i=0
+        while True:
+            for destination_table in self.execution_order:
+                self.process_table(destination_table,object_list=object_list)
+                if not self[destination_table] is None:
+                    nrows = len(self[destination_table])
+                    self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
+                    
+                mode = 'w'
+                if i>0:
+                    mode='a'
+
+                if self.save_files:
+                    self.save_dataframe(destination_table,mode=mode)
+                    if self.save_log_files:
+                        self.save_logs(extra=f'_{destination_table}_slice_{i}')
+            if self.inputs:
+                try:
+                    self.inputs.next()
+                except StopIteration:
+                    break
+            else:
+                break
+            i+=1
+
+
 
     def get_tables(self):
         return list(self.__objects.keys())
