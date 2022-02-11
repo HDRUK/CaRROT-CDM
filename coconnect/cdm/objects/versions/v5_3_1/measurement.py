@@ -31,31 +31,6 @@ class Measurement(DestinationTable):
             name = hex(id(self))
         super().__init__(name,self.name)
 
-
-    def finalise(self,df):
-        """
-        Overloads the finalise method defined in the DestinationTable class.
-
-        For measurement, the _id of the measurement is often not set
-
-        Therefore if the series is null, then we just make an incremental index for the _id
-
-        Returns:
-          pandas.Dataframe : finalised pandas dataframe
-        """
-        #if the _id is all null, give them a temporary index
-        #so that all rows are not removed when performing the check on
-        #the required rows being filled 
-        if df['measurement_id'].isnull().any():
-            df['measurement_id'] = df.reset_index().index + 1
-            
-        df = super().finalise(df)
-        #since the above finalise() will drop some rows, reset the index again
-        #this just resets the _ids to be 1,2,3,4,5 instead of 1,2,5,6,8,10...
-        df['measurement_id'] = df.reset_index().index + 1
-
-        return df
-        
     def get_df(self,**kwargs):
         """
         Overload/append the creation of the dataframe, specifically for the measurement objects
@@ -68,23 +43,10 @@ class Measurement(DestinationTable):
         """
 
         df = super().get_df(**kwargs)
-
-        #make sure the concept_ids are numeric, otherwise set them to null
-        df['measurement_concept_id'] = pd.to_numeric(df['measurement_concept_id'],errors='coerce')
-
-        #require the measurement_concept_id to be filled
-        nulls = df['measurement_concept_id'].isnull()
-        if nulls.all() and len(df['measurement_concept_id']) > 0 :
-            self.logger.error("the measurement_concept_id for this instance is all null")
-            self.logger.error("most likely because there is no term mapping applied")
-            self.logger.error("automatic conversion to a numeric has failed")
-
         if self.automatically_fill_missing_columns == True:
             if df['measurement_date'].isnull().all():
                 df['measurement_date'] = self.tools.get_date(df['measurement_datetime'])
             if df['value_as_number'].isnull().all():
                 df['value_as_number'] = pd.to_numeric(df['measurement_source_value'],errors='coerce').astype('Float64')
-            
-            
-        df = df[~nulls]
+        
         return df

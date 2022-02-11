@@ -27,13 +27,16 @@ def make_dag(data,name='dag',render=False,orientation='RL'):
             
     # #dot.attr(rankdir='RL', size='8,16',compound='true')
     
-    with dot.subgraph(name='cluster_0') as dest, dot.subgraph(name='cluster_1') as inp:
+    with dot.subgraph(name='cluster_0') as dest, \
+         dot.subgraph(name='cluster_1') as inp,\
+         dot.subgraph(name='cluster_01') as c:
         
         #dest.attr(style='dotted',penwidth='4', label='CDM')
         #inp.attr(style='filled', fillcolor='lightgrey', penwidth='0', label='Input')
         
         dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Common Data Model')
         inp.attr(style='filled', fillcolor='2', colorscheme='greens9', penwidth='0', label='Source')
+        c.attr(style='filled', fillcolor='1', colorscheme='greens9', penwidth='0', label='Concepts')
         
         for destination_table_name,destination_tables in data.items():
             dest.node(destination_table_name,
@@ -63,7 +66,17 @@ def make_dag(data,name='dag',render=False,orientation='RL'):
 
                     if 'term_mapping' in source and source['term_mapping'] is not None:
                         term_mapping = source['term_mapping']
-                        dot.edge(table_name,source_field_name,dir='back',color='red',penwidth='2')
+                        if isinstance(term_mapping,dict):
+                            concepts = list(term_mapping.values())
+                        else:
+                            concepts = [term_mapping]
+
+                        for concept in concepts:
+                            ref_name = ref_name.rsplit(" ",1)[0]
+                            c.node(str(concept),label=ref_name,style='filled', colorscheme=colorscheme,
+                                   fillcolor='10',shape='box',fontcolor='white')
+                            dot.edge(table_name,str(concept),dir='back',color='red',penwidth='2')
+                            dot.edge(str(concept),source_field_name,dir='back',color='red',penwidth='2')
                     else:                                                    
                         dot.edge(table_name,source_field_name,dir='back',penwidth='2')
                     

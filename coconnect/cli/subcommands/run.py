@@ -360,7 +360,6 @@ def map(ctx,rules,inputs,format_level,
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
     #if log_file == 'auto' and coconnect.params['log_file'] is None:
-    print (log_file)
     if log_file == 'auto':
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
@@ -506,7 +505,6 @@ def map(ctx,rules,inputs,format_level,
             # get_cdm_class returns <Person>
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
-            obj.set_format_level(cdm.format_level)
             #set the name of the object
             obj.set_name(name)
             
@@ -518,7 +516,7 @@ def map(ctx,rules,inputs,format_level,
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
 
-    cdm.process()
+    cdm.process(conserve_memory=True)
     cdm.close()
     
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
