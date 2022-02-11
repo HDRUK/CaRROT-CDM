@@ -27,19 +27,6 @@ class PersonExists(Exception):
     pass
 
 
-class Lambda(Logger):
-    def __init__(self,func,**kwargs):
-        self.logger.info(f"Lambda for {func.__name__}")
-        self.func = func
-        self.kwargs = kwargs
-        self.result = None
-
-    def is_finished(self):
-        return not self.result is None
-        
-    def start(self):
-        self.result = self.func(**self.kwargs)
- 
 class CommonDataModel(Logger):
     """Pythonic Version of the OHDSI CDM.
 
@@ -60,14 +47,15 @@ class CommonDataModel(Logger):
     
 
     def __init__(self, name=None, omop_version='5.3.1',
-                 output_folder=f"output_data{os.path.sep}",
-                 output_database=None,
+                 #output_folder=f"output_data{os.path.sep}",
+                 #output_database=None,
+                 outputs = None,
+                 #outfile_separator='\t',
                  indexing_conf=None,
                  person_id_map=None,
                  save_files=True,
                  save_log_files=False,
                  inputs=None,
-                 outfile_separator='\t',
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
@@ -90,7 +78,8 @@ class CommonDataModel(Logger):
         self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {cc_version}")
 
         self.omop_version = omop_version
-        self.output_folder = output_folder
+
+        # remove....?
         self.save_files = save_files
         self.save_log_files = save_log_files
 
@@ -109,18 +98,18 @@ class CommonDataModel(Logger):
         self.format_level = FormatterLevel(format_level)
         self.profiler = None
 
-        self.output_database = output_database
-        self.psql_engine = None
-        if self.output_database is not None:
-            self.logger.info(f"Running with the output set to '{self.output_database}'")
-            try:
-                from sqlalchemy import create_engine
-                self.psql_engine = create_engine(self.output_database)
-            except Exception as err:
-                self.logger.critical(f"Failed to make a connection to {self.output_database}")
-                raise(err)
-        else:
-            self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
+        self.outputs = outputs
+        # self.output_folder = output_folder
+        # self.output_database = output_database
+        # self.psql_engine = None
+        # if self.output_database is not None:
+        #     self.logger.info(f"Running with the output set to '{self.output_database}'")
+        #     try:
+        #     except Exception as err:
+        #         self.logger.critical(f"Failed to make a connection to {self.output_database}")
+        #         raise(err)
+        # else:
+        #     self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
 
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")
@@ -128,7 +117,7 @@ class CommonDataModel(Logger):
             self.profiler.start()
 
         #default separator for output files is a tab
-        self._outfile_separator = outfile_separator
+        #self._outfile_separator = outfile_separator
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
@@ -205,7 +194,7 @@ class CommonDataModel(Logger):
                 'created_by': getpass.getuser(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
-                'output_folder':os.path.abspath(self.output_folder),
+                #'output_folder':os.path.abspath(self.output_folder),
                 'total_data_processed':{}
             }
         }
@@ -490,20 +479,12 @@ class CommonDataModel(Logger):
                     person_id_masker[x] = index
 
                 self.person_id_masker.update(person_id_masker)
-                
-                os.makedirs(self.output_folder,exist_ok=True)
-                dfp = pd.DataFrame.from_dict(person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
-                dfp.index.name = 'TARGET_SUBJECT'
-                dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
-                file_extension = self.get_outfile_extension()
-                fname = f"{self.output_folder}{os.path.sep}global_ids.{file_extension}"
-                header = True
-                mode = 'w'
-                if start_index > self.get_start_index(destination_table):
-                    header = False
-                    mode = 'a'
-                        
-                dfp.to_csv(fname,header=header,mode=mode,sep=self._outfile_separator)
+
+                if self.outputs:
+                    dfp = pd.DataFrame.from_dict(person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
+                    dfp.index.name = 'TARGET_SUBJECT'
+                    dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
+                    self.outputs.write("global_ids",dfp)
                         
             #apply the masking
             if self.person_id_masker is None:
@@ -615,30 +596,37 @@ class CommonDataModel(Logger):
             if self.inputs:
                 self.inputs.reset()
                 
-    def process_simult(self,object_list=None):
+    def process_simult(self,object_list=None,conserve_memory=False):
         """
         process simulataneously
         """
         self.execution_order = self.get_execution_order()
         self.logger.info(f"Starting processing in order: {self.execution_order}")
         self.count_objects()
-
         i=0
         while True:
             for destination_table in self.execution_order:
-                self.process_table(destination_table,object_list=object_list)
-                if not self[destination_table] is None:
-                    nrows = len(self[destination_table])
-                    self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows}')
-                    
-                mode = 'w'
-                if i>0:
-                    mode='a'
-
-                if self.save_files:
-                    self.save_dataframe(destination_table,mode=mode)
-                    if self.save_log_files:
-                        self.save_logs(extra=f'_{destination_table}_slice_{i}')
+                df_generator = self.process_table(destination_table,object_list=object_list)
+                ntables = 0
+                nrows = 0
+                dfs = []
+                for j,obj in enumerate(df_generator):
+                    df = obj.get_df()
+                    ntables +=1
+                    nrows += len(df)
+                    if self.save_files:
+                        mode = 'w' if i==0 else 'a'
+                        self.save_dataframe(destination_table,df,mode=mode)
+                        first = False
+                    if not conserve_memory:
+                        dfs.append(df)
+                    else:
+                        obj.clear()
+                        del df
+                        df = None
+                if not conserve_memory:
+                    self[destination_table] = pd.concat(dfs,ignore_index=True)
+                        
             if self.inputs:
                 try:
                     self.inputs.next()
@@ -707,7 +695,7 @@ class CommonDataModel(Logger):
             start_index += nrows_processed
             
             df = obj.get_df(force_rebuild=True,start_index=start_index)
-            self.logger.info(f"finished {obj.name} "
+            self.logger.info(f"finished {obj.name} ({hex(id(df))}) "
                              f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
             if len(df) == 0:
                 self.logger.warning(f".. no outputs were found ")
@@ -790,167 +778,34 @@ class CommonDataModel(Logger):
         # self[destination_table] = obj
 
 
-    def save_logs(self,f_out=None,extra=""):
-        """
-        CommonDataModel keeps logs of various information about what rows have been processed/created/deleted
-        these logs are saved to json files by this function.
+    # def save_logs(self,f_out=None,extra=""):
+    #     """
+    #     CommonDataModel keeps logs of various information about what rows have been processed/created/deleted
+    #     these logs are saved to json files by this function.
 
-        Args:
-            f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
-            extra (str): Extra string to append to the name of the log file, useful for sliced data.
-        """
-        if f_out == None:
-            f_out = self.output_folder
-        f_out = f'{f_out}/logs/'
-        if not os.path.exists(f'{f_out}'):
-            self.logger.info(f'making output folder {f_out}')
-            os.makedirs(f'{f_out}')
+    #     Args:
+    #         f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
+    #         extra (str): Extra string to append to the name of the log file, useful for sliced data.
+    #     """
+    #     if f_out == None:
+    #         f_out = self.output_folder
+    #     f_out = f'{f_out}/logs/'
+    #     if not os.path.exists(f'{f_out}'):
+    #         self.logger.info(f'making output folder {f_out}')
+    #         os.makedirs(f'{f_out}')
 
-        date = self.logs['meta']['created_at']
-        fname = f'{f_out}/{date}{extra}.json'
-        json.dump(self.logs,open(fname,'w'),indent=6)
-        self.logger.info(f'saved a log file to {fname}')
-
-
-    def get_outfile_extension(self):
-        """
-        Work out what the extension of the output file for the dataframes should be.
-
-        Given the '_outfile_separator' to be used in `df.to_csv`,
-        work out the file extension.
-
-        At current, only tab separated and comma separated values (files) are supported
-        
-        Returns:
-           str: outfile extension name
-        
-        """
-        if self._outfile_separator == ',':
-            return 'csv'
-        elif self._outfile_separator == '\t':
-            return 'tsv'
-        else:
-            self.logger.warning(f"Don't know what to do with the extension '{self._outfile_separator}' ")
-            self.logger.warning("Defaulting to csv")
-            return 'csv'
+    #     date = self.logs['meta']['created_at']
+    #     fname = f'{f_out}/{date}{extra}.json'
+    #     json.dump(self.logs,open(fname,'w'),indent=6)
+    #     self.logger.info(f'saved a log file to {fname}')
         
 
     def save_dataframe(self,table,df=None,mode='w'):
-
-        if self.psql_engine is not None:
-            self.save_to_psql(table,df,mode='a')
-        else:
-            self.save_to_file(table,df,mode=mode) 
-
-
-    def save_to_psql(self,name,df,mode='a'):
-        #creat an inspector based on the psql engine
-        from sqlalchemy import inspect
-        insp  = inspect(self.psql_engine)
-        #get the names of existing tables
-        existing_tables = insp.get_table_names()
-
-        #set the method of pandas based on the mode supplied
-        if mode == 'a':
-            if_exists = 'append'
-        elif mode == 'r':
-            if_exists = 'replace'
-        elif mode == 'w':
-            if_exists = 'fail'
-        else:
-            raise Exception(f"Unknown mode for dumping to psql, mode = '{mode}'")
-
-        if name == None:
-            df = self[name]
-            if df is None:
-                return
-            df = df.get_df()
-            if df is None:
-                return
-
-        #check if the table exists already
-        table_exists = name in existing_tables
-
-        #index the dataframe
-        pk = df.columns[0]
-        df.set_index(pk,inplace=True)
-        self.logger.info(f'updating {name} in {self.psql_engine}')
-        
-        #check if the table already exists in the psql database
-        if table_exists:
-            #get the last row
-            last_row_existing = pd.read_sql(f"select {pk} from {name} "
-                                            f"order by {pk} desc limit 1",
-                                                self.psql_engine)
-            
-            #if there's already a row and the mode is set to append
-            if len(last_row_existing) > 0 and mode == 'a':
-                #get the cell value of the (this will be the id, e.g. condition_occurrence_id)
-                last_pk_existing = last_row_existing.iloc[0,0]
-                #get the index integer of this current dataframe
-                first_pk_new = df.index[0]
-                #workout and increase the indexing so the indexes are new
-                index_diff = last_pk_existing - first_pk_new
-                if index_diff >= 0:
-                    self.logger.info("increasing index as already exists in psql")
-                    df.index += index_diff + 1
-                    
-        #dump to sql
-        df.to_sql(name, self.psql_engine,if_exists=if_exists) 
-
-        self.logger.info("finished save to psql")
-
-    def save_to_file(self,name,df=None,f_out=None,mode='w'):
-        """
-        Save the dataframe processed by the CommonDataModel to files.
-
-        Args:
-            f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
-            mode (str): Mode for how to write the file. Append or write. Default is 'w' or write mode.
-        
-        """
-        if df is None:
-            df = self[name]
-            if df is None:
-                return
-            df = df.get_df()
-            if df is None:
-                return
-        
-        if f_out == None:
-            f_out = self.output_folder
-
-        header=True
-        if mode == 'a':
-            header = False
-
-        file_extension = self.get_outfile_extension()
-        
-        fname = f'{f_out}/{name}.{file_extension}'
-        if not os.path.exists(f'{f_out}'):
-            self.logger.info(f'making output folder {f_out}')
-            os.makedirs(f'{f_out}')
-        if mode == 'w':
-            self.logger.info(f'saving {name} to {fname}')
-        else:
-            self.logger.info(f'updating {name} in {fname}')
-
-        for col in df.columns:
-            if col.endswith("_id"):
-                df[col] = df[col].astype(float).astype(pd.Int64Dtype())
-
-        df.set_index(df.columns[0],inplace=True)
-        self.logger.debug(df.dtypes)
-        df.to_csv(fname,mode=mode,header=header,index=True,sep=self._outfile_separator)
-
-        if 'output_files' not in self.logs['meta']:
-            self.logs['meta']['output_files'] = {}
-
-        self.logs['meta']['output_files'][name] = fname
-        self.logger.debug(df.dropna(axis=1,how='all'))
-
-        self.logger.info("finished save to file")
-
+        if self.outputs:
+            _id = hex(id(df))
+            self.logger.info(f"saving dataframe ({_id}) to {self.outputs}")
+            self.outputs.write(table,df,mode)
+    
     def set_person_id_map(self,person_id_map):
         self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
 

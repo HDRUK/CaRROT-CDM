@@ -11,7 +11,6 @@ import subprocess
 import coconnect
 import coconnect.tools as tools
 
-
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
 def run():
     pass
@@ -288,7 +287,7 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
               default=None,
               help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
-              default=None,
+              default='\t',
               type=click.Choice([';',':','\t',',',' ',]),
               help="choose a separator to use when dumping output csv files")
 @click.option("--use-profiler",
@@ -475,6 +474,12 @@ def map(ctx,rules,inputs,format_level,
                             chunksize=number_of_rows_per_chunk,
                             nrows=number_of_rows_to_process)
 
+    if output_database:
+        outputs = coconnect.tools.create_sql_store(connection_string=output_database)
+    else:
+        outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep=csv_separator)
+
+    
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
@@ -482,15 +487,16 @@ def map(ctx,rules,inputs,format_level,
                                         do_mask_person_id=not no_mask_person_id,
                                         indexing_conf=indexing_conf,
                                         person_id_map=person_id_map,
-                                        output_folder=output_folder,
-                                        output_database=output_database,
+                                        outputs = outputs,
+                                        #output_folder=output_folder,
+                                        #output_database=output_database,
                                         automatically_fill_missing_columns=not dont_automatically_fill_missing_columns,
                                         use_profiler=use_profiler)
     
     #allow the csv separator to be changed
     #the default is tab (\t) separation
-    if not csv_separator is None:
-        cdm.set_csv_separator(csv_separator)
+    #if not csv_separator is None:
+    #    cdm.set_csv_separator(csv_separator)
     
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..

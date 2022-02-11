@@ -393,8 +393,8 @@ class DestinationTable(Logger):
          
         #register the df
         self.__df = df
-        self.logger.info("created df")
-        return df
+        self.logger.info(f"created df ({hex(id(df))})")
+        return self.__df
 
     def format(self,df):
         

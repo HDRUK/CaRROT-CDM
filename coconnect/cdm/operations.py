@@ -16,7 +16,7 @@ class OperationTools:
         if norm is None:
             #set normalisation to middle of 2020
             norm = datetime.datetime(2020, 7, 1)
-        retval = df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(x)))
+        retval = df.fillna(0).apply(lambda x: norm - datetime.timedelta(days=365*int(float(x))))
         return self.get_datetime(retval)
 
     def get_source_field_name_as_value(self,series):
