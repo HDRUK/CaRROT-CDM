@@ -1,12 +1,13 @@
 import pandas as pd
 from coconnect.tools.logger import Logger
 from types import GeneratorType
+import io
 
 class DataCollection(Logger):
     def __init__(self,chunksize=None,**kwargs):
         self.logger.info("DataCollection Object Created")
         self.__bricks = {}
-        self.chunksize = None
+        self.chunksize = chunksize
         
         if self.chunksize is not None:
             self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
@@ -57,10 +58,7 @@ class DataCollection(Logger):
             self.logger.info("All input files for this object have now been used.")
             raise StopIteration
         
-        if self.chunksize is not None:
-            self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
-
-                    
+                           
     def get_handler(self,key):
         brick = self.__bricks[key]
         return brick.get_handler()
