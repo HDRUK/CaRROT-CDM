@@ -600,6 +600,9 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+        
+    outputs = coconnect.tools.create_csv_store(output_folder=output_folder)
+
 
     if not inputs:
         raise Exception('no inputs defined!')
@@ -626,7 +629,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
 
     #build a class object
     cdm = cls(inputs=inputs,
-              output_folder=output_folder,
+              outputs=outputs,
               use_profiler=use_profiler)
     #run it
     cdm.process(object_list)
