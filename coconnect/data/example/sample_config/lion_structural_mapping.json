@@ -9,9 +9,9 @@
             }
       },
       "cdm": {
-            "person": [
-                  {
-                        "birth_datetime": {
+            "person": {
+		  "person": {
+			"birth_datetime": {
                               "source_table": "demo.csv",
                               "source_field": "dob",
                               "term_mapping": null,
@@ -91,9 +91,9 @@
 			      ]
                         }
                   }
-	    ],
-	    "condition_occurrence": [
-                  {
+	    },
+	    "condition_occurrence":  {
+                  "headache": {
                         "condition_end_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
@@ -154,7 +154,7 @@
                               }
                         }
                   },
-		  {
+		  "sore throat": {
 			"condition_end_date": {
                               "source_table": "questions.csv",
                               "source_field": "date of visit",
@@ -214,9 +214,9 @@
                               }
                         }
                   }
-	    ],
-            "observation": [
-                  {
+	    },
+            "observation": {
+                  "smoker": {
                         "observation_concept_id": {
                               "source_table": "demo.csv",
                               "source_field": "smoker",
@@ -253,9 +253,9 @@
                               "term_mapping": null
                         }
                   }
-            ],
-	    "measurement": [
-                  {
+            },
+	    "measurement": {
+		  "antibodies": {
                         "measurement_concept_id": {
                               "source_table": "demo.csv",
                               "source_field": "antibody",
@@ -290,6 +290,6 @@
                               "term_mapping": null
                         }
 		  }
-	    ]
+	    }
       }      
 }
