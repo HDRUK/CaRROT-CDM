@@ -29,11 +29,11 @@ class Person(DestinationTable):
             name = hex(id(self))
         super().__init__(name,self.name)
 
-    def finalise(self,df):
+    def finalise(self,df,**kwargs):
         """
         Overload the finalise function here for any specifics for the person table
         """
-        df = super().finalise(df)
+        df = super().finalise(df,**kwargs)
         return df
 
 

@@ -14,6 +14,7 @@ from .objects import (
 )
 
 from .decorators import (
+    define_table,
     define_person,
     define_condition_occurrence,
     define_visit_occurrence,
@@ -21,5 +22,6 @@ from .decorators import (
     define_observation,
     define_drug_exposure,
     load_file,
-    from_table
+    from_table,
+    qsub
 )

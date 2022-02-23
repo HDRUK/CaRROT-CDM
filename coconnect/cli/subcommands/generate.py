@@ -357,7 +357,7 @@ def report_to_xlsx(report,f_out):
               type=int,
               help='specify the minimum number of occurrences of a cell value before it can appear in the ScanReport.')
 @click.option("rows_per_table","--rows-per-table",
-              default=None,
+              default=100000,
               type=int,
               help='specify the maximum of rows to scan per input data file (table).')
 @click.option("randomise","--randomise",

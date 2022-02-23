@@ -5,6 +5,7 @@ import json
 import coconnect.tools as tools
 import coconnect
 import pandas as pd
+import numpy as np
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
@@ -83,8 +84,9 @@ def dataframe(fname,drop_na,drop_col,markdown,head,sample,separator,latex):
 @click.argument('fnames',nargs=-1)
 @click.option('-y',required=True,multiple=True)
 @click.option('-x',required=True)
+@click.option('--nbins',default=None,help='bin and take the average',type=int)
 @click.option('--save-plot',default=None,help='choose the name of file to save the plot to')
-def plot(fnames,x,y,save_plot):
+def plot(fnames,x,y,save_plot,nbins):
     import matplotlib.pyplot as plt
     fig,ax = plt.subplots(len(y),figsize=(14,7))
 
@@ -96,7 +98,17 @@ def plot(fnames,x,y,save_plot):
     for i,_y in enumerate(y):
         ax[i].set_ylabel(_y)
         for fname in fnames:
-            dfs[fname].plot(x=x,y=_y,ax=ax[i],label=fname)
+            if not nbins:
+                dfs[fname].plot(x=x,y=_y,ax=ax[i],label=fname)
+            else:
+                dx = dfs[fname][x]
+                dy = dfs[fname][_y]
+                sums, edges = np.histogram(dx, bins=nbins, weights=dy)
+                print (sums)
+                counts, _ = np.histogram(dx, bins=nbins)
+                counts = sums / counts
+                ax[i].hist(edges[1:],weights=counts,histtype='step')
+                pass
     plt.show()
     if save_plot:
         fig.savefig(save_plot)
@@ -104,25 +116,39 @@ def plot(fnames,x,y,save_plot):
 
 @click.command(help="Display the OMOP mapping json as a DAG")
 @click.option('--orientation',default='RL',type=click.Choice(['RL','LR','TB','BT']))
+@click.option('--show-concepts',is_flag=True,help="also show the concepts")
 @click.argument("rules")
-def dag(rules,orientation):
+def dag(rules,orientation,show_concepts):
     data = tools.load_json(rules)
     if 'cdm' in data:
         data = data['cdm']
-    tools.make_dag(data,orientation=orientation,render=True)
+    tools.make_dag(data,orientation=orientation,render=True,show_concepts=show_concepts)
+
+@click.command(help="Display the report json as a DAG")
+@click.option('--orientation',default='RL',type=click.Choice(['RL','LR','TB','BT']))
+@click.argument("f")
+def report_dag(f,orientation):
+    data = tools.load_json(f)
+    tools.make_report_dag(data,orientation=orientation,render=True)
 
 
 @click.command(help="Show the OMOP mapping json")
 @click.argument("rules")
 @click.option('--list-tables',is_flag=True)
 @click.option('--list-fields',is_flag=True)
-def print_json(rules,list_fields,list_tables):
+@click.option('operations','--add-operation',default=None,type=str)
+def print_json(rules,list_fields,list_tables,operations):
     data = tools.load_json(rules)
     if list_fields or list_tables:
         data = tools.get_mapped_fields_from_rules(data)
         if list_tables:
             data = list(data.keys())
 
+    if operations:
+        operations = tools.load_json(operations)
+        for field_name,operation in operations.items():
+            print (field_name,operation)
+        
     print (json.dumps(data,indent=6))
 
 
@@ -173,9 +199,27 @@ cdm.add_command(table,"table")
 display.add_command(cdm,"cdm")
 
 display.add_command(dataframe,"dataframe")
-display.add_command(dag,"dag")
-display.add_command(print_json,"json")
 display.add_command(plot,"plot")
-
 display.add_command(diff,"diff")
-display.add_command(flatten,"flatten")
+
+@click.group(help='Commands for displaying json rules in various ways.')
+def rules():
+    pass
+
+
+rules.add_command(dag,"dag")
+rules.add_command(print_json,"json")
+rules.add_command(flatten,"flatten")
+display.add_command(rules,"rules")
+
+
+@click.group(help='Commands for displaying json report in various ways.')
+def report():
+    pass
+
+
+report.add_command(print_json,"json")
+report.add_command(report_dag,"dag")
+
+
+display.add_command(report,"report")

@@ -1,67 +1,70 @@
 import pandas as pd
-from coconnect.io.common import DataCollection
+from coconnect.io.common import DataCollection,DataBrick
+import io
+import os
 
-class DataBrick:
-    def __init__(self,df_handler,name=None):
-        self.name = name
-        self.__df_handler = df_handler
-        self.__df = None
-        self.__end = False
-
-    def get_handler(self):
-        return self.__df_handler
-
-    def is_finished(self):
-        return self.__end
-    
-    def reset(self):
-        if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
-            options = self.__df_handler.orig_options
-            f = self.__df_handler.f
-            del self.__df_handler
-            options['engine'] = 'c'
-            self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
-                        
-        self.__df = None
-        self.__end = False
-    
-    def get_chunk(self,chunksize):
-        if self.__end == True:
-            return
-        #if the df handler is a TextFileReader, get a dataframe chunk
-        if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
-            try:
-                #for this file reader, get the next chunk of data
-                self.__df = self.__df_handler.get_chunk(chunksize)
-            except StopIteration:#,ValueError):
-                #otherwise, if at the end of the file reader, return an empty frame
-                self.__df = pd.DataFrame(columns=self.__df.columns)
-                self.__end = True
-        else:
-            #if we're handling non-chunked data
-            if self.__df is not None:
-                #return an empty dataframe if we've already loaded this dataframe
-                self.__df = pd.DataFrame(columns=self.__df.columns)
-            else:
-                #otherwise return the dataframe as it's the first time we're getting it
-                self.__df = self.__df_handler
-            self.__end = True
-
-    def get_df(self):
-        return self.__df
         
 class LocalDataCollection(DataCollection):
-    def __init__(self,file_map=None,chunksize=None):
-        super().__init__()
-        self.chunksize = chunksize
-        
-        self.__bricks = {}
+    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',**kwargs):
+        super().__init__(chunksize=chunksize)
 
-        if self.chunksize is not None:
-            self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
-
+        self.__output_folder = output_folder
+        self.__separator = sep
+  
         if file_map is not None:
             self._load_input_files(file_map)
+
+    def get_outfile_extension(self):
+        """
+        Work out what the extension of the output file for the dataframes should be.
+
+        Given the '_outfile_separator' to be used in `df.to_csv`,
+        work out the file extension.
+
+        At current, only tab separated and comma separated values (files) are supported
+        
+        Returns:
+           str: outfile extension name
+        
+        """
+        if self.__separator == ',':
+            return 'csv'
+        elif self.__separator == '\t':
+            return 'tsv'
+        else:
+            self.logger.warning(f"Don't know what to do with the extension '{self.__separator}' ")
+            self.logger.warning("Defaulting to csv")
+            return 'csv'
+
+            
+    def write(self,name,df,mode='w'):
+        header=True
+        if mode == 'a':
+            header = False
+
+        f_out = self.__output_folder
+        file_extension = self.get_outfile_extension()
+        
+        fname = f'{f_out}/{name}.{file_extension}'
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+        if mode == 'w':
+            self.logger.info(f'saving {name} to {fname}')
+        else:
+            self.logger.info(f'updating {name} in {fname}')
+
+        for col in df.columns:
+            if col.endswith("_id"):
+                df[col] = df[col].astype(float).astype(pd.Int64Dtype())
+
+        df.set_index(df.columns[0],inplace=True)
+        self.logger.debug(df.dtypes)
+        df.to_csv(fname,mode=mode,header=header,index=True,sep=self.__separator)
+
+        self.logger.debug(df.dropna(axis=1,how='all'))
+        self.logger.info("finished save to file")
+
             
     def _load_input_files(self,file_map):
         for name,path in file_map.items():
@@ -69,67 +72,8 @@ class LocalDataCollection(DataCollection):
                              chunksize=self.chunksize,
                              dtype=str)
             self[name] = DataBrick(df)
-
-    def all(self):
-        return {
-            key:self[key]
-            for key in self.keys()
-        }
-        
-    def keys(self):
-        return self.__bricks.keys()
-
-    def items(self):
-        return self.__bricks.items()
-
-    def reset(self):
-        for key,brick in self.items():
-            brick.reset()
     
-    def next(self):
-        #loop over all loaded files
-        self.logger.debug("Getting next chunk of data")
-        for key,brick in self.items():
-            if brick.is_finished():
-                continue
-            self.logger.debug(f"Getting the next chunk of size '{self.chunksize}' for '{key}'")
-            brick.get_chunk(self.chunksize)
-            n = len(brick.get_df())
-            self.logger.debug(f"--> Got {n} rows")
-
-        #check if all __dataframe objects are empty
-        #if they are, raise a StopIteration as processing has finished
-        if all([x.is_finished() for x in self.__bricks.values()]):
-            self.logger.debug("All input files have now been processed.")
-            raise StopIteration
-        
-        if self.chunksize is not None:
-            self.logger.info(f"Moving onto the next chunk of data (of size {self.chunksize})")
-
-                    
-    def get_handler(self,key):
-        brick = self.__bricks[key]
-        return brick.get_handler()
-    
-    def __getitem__(self,key):
-        brick = self.__bricks[key]
-        if any([brick.get_df() is None for brick in self.__bricks.values()]):
-            self.logger.info(f"Retrieving initial dataframes for the first time")
-            _ = [
-                brick.get_chunk(self.chunksize)
-                for brick in self.__bricks.values()
-            ]
-    
-        df = brick.get_df()
-        self.logger.debug(f"Got brick {brick}")
-        return df
                 
-    def __setitem__(self,key,obj):
-        if not isinstance(obj,DataBrick):
-            raise NotImplementedError("When using InputData, the object must be of type "
-                                      f"{DataBrick}")
-        self.logger.info(f"Registering  {key} [{type(obj)}]")
-        self.__bricks[key] = obj
         
     
     

@@ -1,15 +1,18 @@
 import pandas as pd
 import inspect
 import os
+import sys
 import click
 import json
+import yaml
 import glob
+import copy
+import subprocess
 import coconnect
 import coconnect.tools as tools
 
-
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
-def map():
+def run():
     pass
 
 
@@ -182,6 +185,98 @@ def format_input_data(column,operation,input):
     n = 5 if len(df_input) > 5 else len(df_input)
     print (df_input[column].sample(n))
     df_input.to_csv(input)
+
+
+def _condor(name,commands,jobscript):
+    #hold_jid {name} - wait for previous job
+    def wrapper(args):
+        script = jobscript + '\n' + ' '.join(commands)
+        fname = f"{name}.sh"
+        with open(fname,"w") as f:
+            f.write(script)
+        output = subprocess.check_output(['qsub','-N',name,fname]).decode()
+        return output
+    return wrapper
+
+from importlib import import_module
+
+@click.command()
+@click.option("analysis_name","--analysis",default=None,type=str)
+@click.argument("analysis_file")
+@click.pass_context
+def analysis(ctx,analysis_file,analysis_name):
+    """
+    Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
+    """
+    _dir = os.path.dirname(analysis_file)
+    fname = os.path.splitext(os.path.basename(analysis_file))[0]
+    sys.path.append(_dir)
+    module = import_module(fname)
+    clsmembers = inspect.getmembers(module, inspect.isclass)
+    name,cls = clsmembers[0]
+    obj = cls()
+    if analysis_name:
+        ana = obj.get_analysis(analysis_name)
+        res = obj.run_analysis(ana)
+        print (res)
+    else:
+        #print (obj.get_analyses())
+        #exit(0)
+        obj.run_analyses()
+
+
+@click.command()
+@click.option("--max-workers",default=None,type=int)
+@click.option("--batch",default=None,type=click.Choice(['condor']))
+@click.option("analysis_names","--analysis-name",default=None,multiple=True,type=str)
+@click.argument("config")
+@click.pass_context
+def ___analysis(ctx,config,analysis_names,max_workers,batch):
+    """
+    Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
+    """    
+    from importlib import import_module
+    fname = config
+    stream = open(config) 
+    config = yaml.safe_load(stream)
+    
+    inputs = config['cdm']
+    inputs = coconnect.tools.load_tsv(config['cdm'],
+                                      dtype=None)
+
+    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs)
+
+    analyses = config['analyses']
+
+    jobscript = config['condor']['jobscript']
+    
+
+    if analysis_names:
+        temp = copy.copy(analyses)
+        for name in temp:
+            if name not in analysis_names:
+                analyses.pop(name)
+
+    for name,_def in analyses.items():
+        analysis = _def['analysis']
+        cohort = _def['filter']
+        if batch:
+            if batch == 'condor':
+                commands = copy.copy(sys.argv)
+                commands.remove('--batch')
+                commands.remove('condor')
+                commands.extend(['--analysis-name',name])
+                
+                f = _condor(name=name,commands=commands,jobscript=jobscript)
+            else:
+                raise NotImplementedError(f"{batch} mode for --batch not a thing")
+        else:
+            func = import_module(analysis)
+            f = func.create_analysis(cohort)
+        cdm.add_analysis(f)
+    
+    results = cdm.run_analyses(max_workers=max_workers)
+
     
         
 @click.command()
@@ -192,7 +287,7 @@ def format_input_data(column,operation,input):
               default=None,
               help="configuration file to specify how to start the indexing")
 @click.option("--csv-separator",
-              default=None,
+              default='\t',
               type=click.Choice([';',':','\t',',',' ',]),
               help="choose a separator to use when dumping output csv files")
 @click.option("--use-profiler",
@@ -218,6 +313,9 @@ def format_input_data(column,operation,input):
 @click.option("--person-id-map",
               default=None,
               help="pass the location of a file containing existing masked person_ids")
+@click.option("--db",
+              default=None,
+              help="instead, pass a connection string to a db")
 @click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
               help="turn off automatic conversion (creation) of person_id to (as) Integer")
@@ -242,15 +340,15 @@ def format_input_data(column,operation,input):
               type=str,
               help="give a list of tables by name to process")
 @click.argument("inputs",
-                required=True,
+                required=False,
                 nargs=-1)
 @click.pass_context
-def run(ctx,rules,inputs,format_level,
+def map(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
         person_id_map,max_rules,
-        objects,tables,
+        objects,tables,db,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -264,7 +362,6 @@ def run(ctx,rules,inputs,format_level,
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
     #if log_file == 'auto' and coconnect.params['log_file'] is None:
-    print (log_file)
     if log_file == 'auto':
         log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
         coconnect.params['log_file'] = log_file
@@ -373,13 +470,21 @@ def run(ctx,rules,inputs,format_level,
         os.path.basename(x):x
         for x in inputs
     }
-    
-        
-    inputs = tools.load_csv(inputs,
-                            rules=rules,
-                            chunksize=number_of_rows_per_chunk,
-                            nrows=number_of_rows_to_process)
 
+    if db:
+        inputs = tools.load_sql(connection_string=db,chunksize=number_of_rows_per_chunk,nrows=number_of_rows_to_process)
+    else:
+        inputs = tools.load_csv(inputs,
+                                rules=rules,
+                                chunksize=number_of_rows_per_chunk,
+                                nrows=number_of_rows_to_process)
+
+    if output_database:
+        outputs = coconnect.tools.create_sql_store(connection_string=output_database)
+    else:
+        outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep=csv_separator)
+
+    
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
@@ -387,15 +492,16 @@ def run(ctx,rules,inputs,format_level,
                                         do_mask_person_id=not no_mask_person_id,
                                         indexing_conf=indexing_conf,
                                         person_id_map=person_id_map,
-                                        output_folder=output_folder,
-                                        output_database=output_database,
+                                        outputs = outputs,
+                                        #output_folder=output_folder,
+                                        #output_database=output_database,
                                         automatically_fill_missing_columns=not dont_automatically_fill_missing_columns,
                                         use_profiler=use_profiler)
     
     #allow the csv separator to be changed
     #the default is tab (\t) separation
-    if not csv_separator is None:
-        cdm.set_csv_separator(csv_separator)
+    #if not csv_separator is None:
+    #    cdm.set_csv_separator(csv_separator)
     
     #loop over the cdm object types defined in the configuration
     #e.g person, measurement etc..
@@ -410,7 +516,6 @@ def run(ctx,rules,inputs,format_level,
             # get_cdm_class returns <Person>
             # obj : Person()
             obj = coconnect.cdm.get_cdm_class(destination_table)()
-            obj.set_format_level(cdm.format_level)
             #set the name of the object
             obj.set_name(name)
             
@@ -422,7 +527,7 @@ def run(ctx,rules,inputs,format_level,
             #register this object with the CDM model, so it can be processed
             cdm.add(obj)
 
-    cdm.process()
+    cdm.process(conserve_memory=True)
     cdm.close()
     
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
@@ -495,6 +600,9 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
+        
+    outputs = coconnect.tools.create_csv_store(output_folder=output_folder)
+
 
     if not inputs:
         raise Exception('no inputs defined!')
@@ -521,7 +629,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
 
     #build a class object
     cdm = cls(inputs=inputs,
-              output_folder=output_folder,
+              outputs=outputs,
               use_profiler=use_profiler)
     #run it
     cdm.process(object_list)
@@ -617,10 +725,11 @@ py.add_command(make_class,"make")
 py.add_command(register_class,"register")
 py.add_command(list_classes,"list")
 py.add_command(remove_class,"remove")
-py.add_command(run_pyconfig,"run")
-map.add_command(py,"py")
-map.add_command(run,"run")
-map.add_command(format,"format")
-map.add_command(transform,"transform")
-map.add_command(gui,"gui")
-map.add_command(test,"test")
+py.add_command(run_pyconfig,"map")
+run.add_command(py,"py")
+run.add_command(map,"map")
+run.add_command(analysis,"analysis")
+run.add_command(format,"format")
+run.add_command(transform,"transform")
+run.add_command(gui,"gui")
+run.add_command(test,"test")

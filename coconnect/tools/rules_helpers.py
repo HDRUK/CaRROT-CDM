@@ -30,7 +30,8 @@ def get_source_table(inputs,name):
             name = short_keys[name.lower()]
         else:
             raise TableNotFoundError(f"Cannot find {name} in inputs. Options are {inputs.keys()}")
-    inputs[name].name = name
+    table = inputs[name]
+    table.name = name
     return inputs[name]
 
 
@@ -45,7 +46,7 @@ def apply_rules(this,rules,inputs=None):
 
     if inputs is None:
         inputs = this.inputs
-    
+
     this._meta['source_files'] = {}
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']

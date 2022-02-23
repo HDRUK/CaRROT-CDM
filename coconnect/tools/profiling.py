@@ -6,7 +6,7 @@ import pandas as pd
 from coconnect.tools.logger import Logger
         
 
-class Profiler:
+class Profiler(Logger):
     def __init__(self,name=None,interval=0.1):
         
         if name == None:
@@ -14,7 +14,6 @@ class Profiler:
         else:
             name = f"{self.__class__.__name__}_{name}"
             
-        self.logger = Logger(self.__class__.__name__)
 
         #retrieve the process id for the current run
         self.pid = os.getpid()

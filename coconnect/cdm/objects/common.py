@@ -150,6 +150,12 @@ class DestinationTable(Logger):
     def __len__(self):
         return len(self.__df)
 
+    def clear(self):
+        self.__df = None
+        for field in self.fields:
+            series = getattr(self,field)
+            del series
+        
     def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
         Initialise the CDM DestinationTable Object class
@@ -166,8 +172,7 @@ class DestinationTable(Logger):
         self.dtypes = DataFormatter()
         self.format_level = FormatterLevel(format_level)
         self.fields = self.get_field_names()
-
-        self.do_formatting = not format_level is None
+        #self.do_formatting = not format_level is None
 
         if len(self.fields) == 0:
             raise Exception("something misconfigured - cannot find any DataTypes for {self.name}")
@@ -250,8 +255,8 @@ class DestinationTable(Logger):
         """
         return setattr(self, key, obj)
 
-    def set_format_level(self,level):
-        self.format_level = level
+    #def set_format_level(self,level):
+    #    self.format_level = level
         
     def set_name(self,name):
         """
@@ -306,14 +311,22 @@ class DestinationTable(Logger):
                 df = df[df[col] == value]
             
         return df
+
+    def set_df(self,df):
+        self.__df = df
     
-    def get_df(self,force_rebuild=False,dropna=False,_format=None,**kwargs):
+    def get_df(self,force_rebuild=False,dont_build=False,dropna=False,**kwargs):
         """
         Retrieve a dataframe from the current object
 
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
+        if dont_build:
+            if self.__df is None:
+                self.__df = pd.DataFrame(columns = self.fields)
+            return self.__df
+        
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
             self.logger.debug('already got a dataframe, so returning the existing one')
@@ -372,34 +385,31 @@ class DestinationTable(Logger):
         #simply order the columns 
         df = df[self.fields]
 
-        #if self.do_formatting or
-
-        _format = _format if _format else self.do_formatting
-        if _format:
-            df = self.format(df)
-        df = self.finalise(df)
-
+        df = self.finalise(df,**kwargs)
+        df = self.format(df)
+                    
         if dropna:
             df = df.dropna(axis=1)
-        
+         
         #register the df
         self.__df = df
-        return df
+        self.logger.info(f"created df ({hex(id(df))})")
+        return self.__df
 
     def format(self,df):
         
         if self.format_level is FormatterLevel.OFF:
-            self.logger.debug('Not formatting data columns')
+            self.logger.info('Not formatting data columns')
             return df
         elif self.format_level is FormatterLevel.ON:
-            self.logger.debug("Automatically formatting data columns.")
+            self.logger.info("Automatically formatting data columns.")
         elif self.format_level is FormatterLevel.CHECK:
-            self.logger.debug("Performing checks on data formatting.")
+            self.logger.info("Performing checks on data formatting.")
 
 
         for col in self.fields:
             #if is already all na/nan, dont bother trying to format
-            is_nan_already = df[col].isna().all()
+            is_nan_already = df[col].head(100).isna().all()
             if is_nan_already:
                 continue
 
@@ -413,6 +423,9 @@ class DestinationTable(Logger):
             formatter_function = self.dtypes[dtype]
             
             nbefore = len(df[col])
+            if nbefore == 0:
+                self.logger.warning(f"trying to format an empty column ({cols})")
+                
             nsample = 5 if nbefore > 5 else nbefore
             sample = df[col].sample(nsample)
 
@@ -426,6 +439,24 @@ class DestinationTable(Logger):
                         self.logger.error("This is coming from the source file (table & column) ...")
                         self.logger.error(self._meta['source_files'][col])
                     raise(e)
+
+                if col in self.required_fields:
+                    df = df[~df[col].isna()]
+                    #count the number of rows after
+                    nafter = len(df)
+                    if nafter == 0 :
+                        self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
+                        self.logger.info(f"Formatting resulted in all NaN values. Sample of this column before formatting:")
+                        self.logger.error(sample)
+                        if 'source_files' in self._meta:
+                            self.logger.error("This is coming from the source file (table & column) ...")
+                            self.logger.error(self._meta['source_files'][col])
+                        raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
+                    else:
+                        ndiff = nafter - nbefore
+                        if ndiff > 0:
+                            self.logger.warning(f"Formatting of values in {col} removed {ndiff} rows, leaving {nafter} rows.")
+                
             elif self.format_level is FormatterLevel.CHECK:
                 self.logger.debug(f"Checking formatting of {col} to {dtype}")
                 try:
@@ -436,22 +467,9 @@ class DestinationTable(Logger):
                         self.logger.error(self._meta['source_files'][col])
                     raise(e) 
 
-            if col in self.required_fields \
-               and not is_nan_already \
-               and df[col].isna().all():
-                self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
-                self.logger.info(f"Sample of this column before formatting:")
-                self.logger.error(sample)
-                if 'source_files' in self._meta:
-                    self.logger.error("This is coming from the source file (table & column) ...")
-                    self.logger.error(self._meta['source_files'][col])
-                    
-                
-                raise FormattingError(f"When formatting the required column {col}, using the formatter function {dtype}, all produced values are  NaN/null values.")
-
         return df
 
-    def finalise(self,df):
+    def finalise(self,df,start_index=1,**kwargs):
         """
         Finalise a dataframe by dropping null/nan rows if a required field is missing.
         also sort the dataframe by the primary key of the table.
@@ -462,14 +480,19 @@ class DestinationTable(Logger):
             pandas.Dataframe: cleaned output dataframe
         """
 
-        self._meta['required_fields'] = {}
-
-        #loop over the required fields
-        for field in self.required_fields:
+        #self._meta['required_fields'] = {}
+        
+        #loop over the non-index fields
+        for field in df.columns[1:]:
+            #if it's not required, skip
+            if field not in self.required_fields:
+                continue
+            
             #count the number of rows before
             nbefore = len(df)
             #remove rows which do not have this required field filled
             df = df[~df[field].isna()]
+            
             #count the number of rows after
             nafter = len(df)
             #get the number of rows removed
@@ -481,11 +504,17 @@ class DestinationTable(Logger):
                 log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
 
             #log some metadata
-            self._meta['required_fields'][field] = {
-                'before':nbefore,
-                'after':nafter
-            }
+            #self._meta['required_fields'][field] = {
+            #    'before':nbefore,
+            #    'after':nafter
+            #}
 
+        #now index properly
+        primary_column = df.columns[0]
+        if primary_column != 'person_id':
+            if df[primary_column].head(100).isnull().all():
+                df[primary_column] = df.reset_index().index + start_index
+            
         #return the dataframe sorted by the primary key requested
         #ordering = self.get_ordering()
         #if len(ordering) > 0:

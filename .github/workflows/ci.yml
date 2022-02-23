@@ -38,10 +38,10 @@ jobs:
         run: pip3 install setuptools
       - name: Install co-connect-tools
         run:  pip3 install -e .
-      - run: coconnect display json coconnect/data/example/sample_config/lion_structural_mapping.json
-      - run: coconnect map py make --name Lion --register  coconnect/data/example/sample_config/lion_structural_mapping.json
-      - run: coconnect map py list
-      - run: coconnect map py run --conf Lion.py coconnect/data/example/sample_input_data/*.csv
+      - run: coconnect display rules json coconnect/data/example/sample_config/lion_structural_mapping.json
+      - run: coconnect run py make --name Lion --register  coconnect/data/example/sample_config/lion_structural_mapping.json
+      - run: coconnect run py list
+      - run: coconnect run py map --conf Lion.py coconnect/data/example/sample_input_data/*.csv
       - uses: actions/upload-artifact@v2
         with:
           name: outputs
@@ -67,7 +67,7 @@ jobs:
         run:  pip3 install -e .
       - run: |
           COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          coconnect map run --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
+          coconnect run map --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
@@ -97,7 +97,7 @@ jobs:
       - name: Install co-connect-tools
         run:  pip3 install -e .
       - run: |
-          coconnect map run --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
+          coconnect run map --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
       - run: |
           $files = Get-ChildItem tests\*.tsv
           Foreach ($file in $files )
