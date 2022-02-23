@@ -116,12 +116,13 @@ def plot(fnames,x,y,save_plot,nbins):
 
 @click.command(help="Display the OMOP mapping json as a DAG")
 @click.option('--orientation',default='RL',type=click.Choice(['RL','LR','TB','BT']))
+@click.option('--show-concepts',is_flag=True,help="also show the concepts")
 @click.argument("rules")
-def dag(rules,orientation):
+def dag(rules,orientation,show_concepts):
     data = tools.load_json(rules)
     if 'cdm' in data:
         data = data['cdm']
-    tools.make_dag(data,orientation=orientation,render=True)
+    tools.make_dag(data,orientation=orientation,render=True,show_concepts=show_concepts)
 
 @click.command(help="Display the report json as a DAG")
 @click.option('--orientation',default='RL',type=click.Choice(['RL','LR','TB','BT']))

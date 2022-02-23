@@ -17,7 +17,7 @@ def make_dag_from_objects(object_dict):
     dot.render('dag.gv', view=True)  
     return
 
-def make_dag(data,name='dag',render=False,orientation='RL'):
+def make_dag(data,name='dag',render=False,orientation='RL',show_concepts=False):
     _format = 'svg'
     if render == True:
         _format = 'pdf'
@@ -36,7 +36,8 @@ def make_dag(data,name='dag',render=False,orientation='RL'):
         
         dest.attr(style='filled', fillcolor='2', colorscheme='blues9', penwidth='0', label='Common Data Model')
         inp.attr(style='filled', fillcolor='2', colorscheme='greens9', penwidth='0', label='Source')
-        c.attr(style='filled', fillcolor='1', colorscheme='greens9', penwidth='0', label='Concepts')
+        if show_concepts:
+            c.attr(style='filled', fillcolor='1', colorscheme='greens9', penwidth='0', label='Concepts')
         
         for destination_table_name,destination_tables in data.items():
             dest.node(destination_table_name,
@@ -64,7 +65,7 @@ def make_dag(data,name='dag',render=False,orientation='RL'):
                     if 'operations' in source:
                         operations = source['operations']
 
-                    if 'term_mapping' in source and source['term_mapping'] is not None:
+                    if 'term_mapping' in source and source['term_mapping'] is not None and show_concepts:
                         term_mapping = source['term_mapping']
                         if isinstance(term_mapping,dict):
                             concepts = list(term_mapping.values())
@@ -74,7 +75,7 @@ def make_dag(data,name='dag',render=False,orientation='RL'):
                         for concept in concepts:
                             ref_name = ref_name.rsplit(" ",1)[0]
                             c.node(str(concept),label=ref_name,style='filled', colorscheme=colorscheme,
-                                   fillcolor='10',shape='box',fontcolor='white')
+                                   fillcolor='black',shape='box',fontcolor='white')
                             dot.edge(table_name,str(concept),dir='back',color='red',penwidth='2')
                             dot.edge(str(concept),source_field_name,dir='back',color='red',penwidth='2')
                     else:                                                    
