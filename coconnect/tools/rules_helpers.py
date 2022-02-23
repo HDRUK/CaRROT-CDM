@@ -46,7 +46,7 @@ def apply_rules(this,rules,inputs=None):
 
     if inputs is None:
         inputs = this.inputs
-    
+
     this._meta['source_files'] = {}
     for destination_field,rule in rules.items():
         source_table_name = rule['source_table']

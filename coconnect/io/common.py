@@ -11,7 +11,9 @@ class DataCollection(Logger):
         if self.chunksize is not None:
             self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
 
-
+    def print(self):
+        print (self.all())
+        
     def all(self):
         return {
             key:self[key]
@@ -90,7 +92,6 @@ class DataCollection(Logger):
         self.logger.info(f"resetting used bricks")
         for key,brick in self.items():
             brick.reset()
-    
 
 class DataBrick:
     def __init__(self,df_handler,name=None):
@@ -127,6 +128,7 @@ class DataBrick:
             
         self.__df = None
         self.__end = False
+        self.__is_init = False
         return True
     
     def get_chunk(self,chunksize):

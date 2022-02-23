@@ -47,14 +47,10 @@ class CommonDataModel(Logger):
     
 
     def __init__(self, name=None, omop_version='5.3.1',
-                 #output_folder=f"output_data{os.path.sep}",
-                 #output_database=None,
                  outputs = None,
-                 #outfile_separator='\t',
                  indexing_conf=None,
                  person_id_map=None,
                  save_files=True,
-                 save_log_files=False,
                  inputs=None,
                  use_profiler=False,
                  format_level=None,
@@ -79,10 +75,6 @@ class CommonDataModel(Logger):
 
         self.omop_version = omop_version
 
-        # remove....?
-        self.save_files = save_files
-        self.save_log_files = save_log_files
-
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
         self.execution_order = None
@@ -99,25 +91,12 @@ class CommonDataModel(Logger):
         self.profiler = None
 
         self.outputs = outputs
-        # self.output_folder = output_folder
-        # self.output_database = output_database
-        # self.psql_engine = None
-        # if self.output_database is not None:
-        #     self.logger.info(f"Running with the output set to '{self.output_database}'")
-        #     try:
-        #     except Exception as err:
-        #         self.logger.critical(f"Failed to make a connection to {self.output_database}")
-        #         raise(err)
-        # else:
-        #     self.logger.info(f"Running with the output to be dumped to a folder '{self.output_folder}'")
+        self.save_files = save_files
 
         if use_profiler:
             self.logger.debug(f"Turning on cpu/memory profiling")
             self.profiler = Profiler(name=name)
             self.profiler.start()
-
-        #default separator for output files is a tab
-        #self._outfile_separator = outfile_separator
 
         #perform some checks on the input data
         if isinstance(inputs,dict):
@@ -194,7 +173,6 @@ class CommonDataModel(Logger):
                 'created_by': getpass.getuser(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
-                #'output_folder':os.path.abspath(self.output_folder),
                 'total_data_processed':{}
             }
         }
@@ -218,6 +196,8 @@ class CommonDataModel(Logger):
               Stops the profiler from running before deleting self
         """
 
+
+        self.logger.info(json.dumps(self.logs,indent=6))
         
         if not hasattr(self,'profiler'):
             return
@@ -708,107 +688,19 @@ class CommonDataModel(Logger):
                 df = self.mask_person_id(df,destination_table)
             
             nrows_processed += len(df)
+            self.logs['meta']['total_data_processed'][destination_table] = nrows_processed
+            
             obj.set_df(df)
             yield obj
-            #dfs.append(df)
-            #logs['objects'][obj.name] = obj._meta
-
-        
-
-        # self.logs['meta']['total_data_processed'][destination_table] += nrows_processed
-        
-        # #merge together
-        # if len(dfs) == 1:
-        #     df_destination = dfs[0]
-        # else:
-        #     self.logger.info(f'Merging {len(dfs)} objects for {destination_table}')
-        #     df_destination = pd.concat(dfs,ignore_index=True)
-        
-        # df_destination = pd.concat(dfs,ignore_index=True)
-        
-        
-        # if len(dfs) == 0:
-        #     self[destination_table] = None
-        #     return None
-        
-            
-        # #register the total length of the output dataframe
-        # logs['ntotal'] = len(df_destination)
-
-        # #mask the person id
-        # if self.do_mask_person_id:
-        #     df_destination = self.mask_person_id(df_destination,destination_table)
-
-        # #get the primary columnn
-        # #this will be <table_name>_id: person_id, observation_id, measurement_id...
-        # primary_column = df_destination.columns[0]
-        # #if it's not the person_id
-        # is_integer = np.issubdtype(df_destination[primary_column].dtype,np.integer)
-        # if primary_column != 'person_id' and is_integer:
-        #     #create an index from 1-N
-        #     start_index = self.get_start_index(destination_table)
-        #     #if we're processing chunked data, and nrows have already been created (processed)
-        #     #start the index from this number
-        #     total_data_processed = self.logs['meta']['total_data_processed']
-        #     if destination_table in total_data_processed:
-        #         nrows_processed_so_far = total_data_processed[destination_table]
-        #         start_index += nrows_processed_so_far
-                
-        #     df_destination[primary_column] = df_destination.reset_index().index + start_index
-        # elif is_integer:
-        #     #otherwise if it's the person_id, sort the values based on this
-        #     df_destination = df_destination.sort_values(primary_column)
-        # else:
-        #     df_destination.reset_index(inplace=True, drop=True)
-        #     df_destination.sort_values(primary_column,ignore_index=True,inplace=True)
-
-            
-        # #book the metadata logs
-        # self.logs[destination_table] = logs
-
-        # if destination_table not in self.logs['meta']['total_data_processed']:
-        #     self.logs['meta']['total_data_processed'][destination_table] = 0
-        # self.logs['meta']['total_data_processed'][destination_table] += len(df_destination)        
-        
-        # #finalised full dataframe for this table
-        # try:
-        #     _class = get_cdm_class(destination_table)
-        # except KeyError:
-        #     _class = type(objects[0])
-
-        # obj = _class.from_df(df_destination,destination_table)
-
-        # self[destination_table] = obj
-
-
-    # def save_logs(self,f_out=None,extra=""):
-    #     """
-    #     CommonDataModel keeps logs of various information about what rows have been processed/created/deleted
-    #     these logs are saved to json files by this function.
-
-    #     Args:
-    #         f_out (str): Name of the output folder to use. Defaults to None and is overwritten as self.output_folder.
-    #         extra (str): Extra string to append to the name of the log file, useful for sliced data.
-    #     """
-    #     if f_out == None:
-    #         f_out = self.output_folder
-    #     f_out = f'{f_out}/logs/'
-    #     if not os.path.exists(f'{f_out}'):
-    #         self.logger.info(f'making output folder {f_out}')
-    #         os.makedirs(f'{f_out}')
-
-    #     date = self.logs['meta']['created_at']
-    #     fname = f'{f_out}/{date}{extra}.json'
-    #     json.dump(self.logs,open(fname,'w'),indent=6)
-    #     self.logger.info(f'saved a log file to {fname}')
-        
 
     def save_dataframe(self,table,df=None,mode='w'):
         if self.outputs:
             _id = hex(id(df))
             self.logger.info(f"saving dataframe ({_id}) to {self.outputs}")
             self.outputs.write(table,df,mode)
-    
+        else:
+            self.logger.info(f"called save_dateframe but outputs are not defined. {self.save_files=}")
+            
     def set_person_id_map(self,person_id_map):
         self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
 
