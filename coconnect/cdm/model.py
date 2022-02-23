@@ -585,6 +585,7 @@ class CommonDataModel(Logger):
                 
                 #move onto the next iteration                
                 i+=1
+
                 if self.inputs:
                     try:
                         self.inputs.next()
@@ -593,7 +594,9 @@ class CommonDataModel(Logger):
                 else:
                     break
 
-            if self.inputs:
+            #if inputs are defined, and we havent just finished the last table,
+            #reset the inputs
+            if self.inputs and not destination_table == self.execution_order[-1]:
                 self.inputs.reset()
                 
     def process_simult(self,object_list=None,conserve_memory=False):

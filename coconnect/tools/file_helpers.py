@@ -67,6 +67,9 @@ def create_csv_store(**kwargs):
 def create_sql_store(**kwargs):
     return sql.SqlDataCollection(**kwargs)    
 
+def load_sql(**kwargs):
+    store = create_sql_store(**kwargs)
+    return store
 
 def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
 

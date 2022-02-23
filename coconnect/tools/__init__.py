@@ -16,6 +16,7 @@ from .file_helpers import (
     load_json_delta,
     load_csv,
     load_tsv,
+    load_sql,
     create_csv_store,
     create_sql_store,
     remove_missing_sources_from_rules,

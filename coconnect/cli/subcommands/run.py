@@ -313,6 +313,9 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
 @click.option("--person-id-map",
               default=None,
               help="pass the location of a file containing existing masked person_ids")
+@click.option("--db",
+              default=None,
+              help="instead, pass a connection string to a db")
 @click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
               help="turn off automatic conversion (creation) of person_id to (as) Integer")
@@ -337,7 +340,7 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
               type=str,
               help="give a list of tables by name to process")
 @click.argument("inputs",
-                required=True,
+                required=False,
                 nargs=-1)
 @click.pass_context
 def map(ctx,rules,inputs,format_level,
@@ -345,7 +348,7 @@ def map(ctx,rules,inputs,format_level,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
         person_id_map,max_rules,
-        objects,tables,
+        objects,tables,db,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -467,12 +470,14 @@ def map(ctx,rules,inputs,format_level,
         os.path.basename(x):x
         for x in inputs
     }
-    
-        
-    inputs = tools.load_csv(inputs,
-                            rules=rules,
-                            chunksize=number_of_rows_per_chunk,
-                            nrows=number_of_rows_to_process)
+
+    if db:
+        inputs = tools.load_sql(connection_string=db,chunksize=number_of_rows_per_chunk,nrows=number_of_rows_to_process)
+    else:
+        inputs = tools.load_csv(inputs,
+                                rules=rules,
+                                chunksize=number_of_rows_per_chunk,
+                                nrows=number_of_rows_to_process)
 
     if output_database:
         outputs = coconnect.tools.create_sql_store(connection_string=output_database)

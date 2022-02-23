@@ -1,24 +1,43 @@
 from sqlalchemy import create_engine
 from sqlalchemy_utils import database_exists, create_database
-from coconnect.io.common import DataCollection
+from coconnect.io.common import DataCollection,DataBrick
 from sqlalchemy import inspect
 import pandas as pd
 
 class SqlDataCollection(DataCollection):
-    def __init__(self,connection_string,**kwargs):
-        super().__init__()
+    def __init__(self,connection_string,chunksize=None,nrows=None,**kwargs):
+        super().__init__(chunksize=chunksize)
 
         engine = create_engine(connection_string)
         if not database_exists(engine.url):
             create_database(engine.url)
 
-        insp  = inspect(engine)
         #get the names of existing tables
-        self.existing_tables = insp.get_table_names()
         self.logger.info(engine)
-        self.logger.info(f"existing tables {self.existing_tables})")
         self.engine = engine
+        self.build()
+
+    def reset(self):
+        self.build()
+        self.__df = None
+        self.__end = False
+        return True
         
+    def build(self):
+        insp  = inspect(self.engine)
+        chunksize = self.chunksize
+        if chunksize == None:
+            chunksize = 1e6
+            
+        for table in insp.get_table_names():
+            df_handler = pd.read_sql(table,self.engine,chunksize=chunksize)
+            b = DataBrick(df_handler,name=table)
+
+            #if table in self.keys():
+            #    del self[table]
+                
+            self[table] = b
+            
     def write(self,name,df,mode='w'):
         #set the method of pandas based on the mode supplied
 

@@ -30,7 +30,8 @@ def get_source_table(inputs,name):
             name = short_keys[name.lower()]
         else:
             raise TableNotFoundError(f"Cannot find {name} in inputs. Options are {inputs.keys()}")
-    inputs[name].name = name
+    table = inputs[name]
+    table.name = name
     return inputs[name]
 
 
