@@ -699,7 +699,7 @@ class CommonDataModel(Logger):
             self.logger.info(f"saving dataframe ({_id}) to {self.outputs}")
             self.outputs.write(table,df,mode)
         else:
-            self.logger.info(f"called save_dateframe but outputs are not defined. {self.save_files=}")
+            self.logger.info(f"called save_dateframe but outputs are not defined. save_files: {self.save_files}")
             
     def set_person_id_map(self,person_id_map):
         self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
