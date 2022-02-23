@@ -15,3 +15,6 @@ python-daemon
 inquirer
 python-dotenv
 co-connect-pseudonymise
+sqlalchemy
+#psycopg2-binary==2.8.6
+sqlalchemy-utils
