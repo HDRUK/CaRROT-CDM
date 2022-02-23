@@ -461,10 +461,12 @@ class CommonDataModel(Logger):
                 self.person_id_masker.update(person_id_masker)
 
                 if self.outputs:
-                    dfp = pd.DataFrame.from_dict(person_id_masker,orient='index',columns=['SOURCE_SUBJECT'])
-                    dfp.index.name = 'TARGET_SUBJECT'
-                    dfp = dfp.reset_index().set_index('SOURCE_SUBJECT')
-                    self.outputs.write("global_ids",dfp)
+                    dfp = pd.DataFrame(((s,t)
+                                        for t,s in person_id_masker.items()),
+                                       columns=['SOURCE_SUBJECT','TARGET_SUBJECT'])
+
+                    mode = 'w' if new else 'a'
+                    self.outputs.write("global_ids",dfp,mode)
                         
             #apply the masking
             if self.person_id_masker is None:
