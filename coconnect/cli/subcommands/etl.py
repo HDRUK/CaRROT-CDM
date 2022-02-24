@@ -48,11 +48,11 @@ class BadRulesFile(Exception):
     pass
 
 @click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
-@click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
 @click.pass_context
 def etl(ctx,config_file):
     if ctx.invoked_subcommand == None :
-        config = _load_config(config_file)
+        #config = _load_config(config_file)
         ctx.invoke(bclink,config_file=config_file,force=True)
 
 def _load_config(config_file):
