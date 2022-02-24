@@ -47,22 +47,27 @@ class MissingRulesFile(Exception):
 class BadRulesFile(Exception):
     pass
 
-@click.group(help='Command group for running the full ETL of a dataset')
-def etl():
-    pass
-
+@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
+@click.pass_context
+def etl(ctx,config_file):
+    if ctx.invoked_subcommand == None :
+        #config = _load_config(config_file)
+        ctx.invoke(bclink,config_file=config_file,force=True)
 
 def _load_config(config_file):
     stream = open(config_file) 
     config = yaml.safe_load(stream)
     return config
 
+
 @click.group(help='Command group for ETL integration with bclink')
 @click.option('--force','-f',help='Force running of this, useful for development purposes',is_flag=True)
-@click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
 @click.option('--interactive','-i',help='run with interactive options - i.e. so user can confirm operations',is_flag=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file',required=True)
 @click.pass_context
 def bclink(ctx,force,config_file,interactive):
+    user = os.environ.get("USER")
 
     if not force:
         #check the platform (i.e. should be centos)
@@ -71,12 +76,12 @@ def bclink(ctx,force,config_file,interactive):
         #check the username
         #for bclink, we need to run as bcos_srv to get access to all the datasettool2 etc. tools
         #and be able to connect with the postgres server without the need for a password
-        user = os.environ.get("USER")
         if user != 'bcos_srv':
             raise UserNotSupported(f"{user} not supported! You must run this as user 'bcos_srv'")
-
-
+        
     config = _load_config(config_file)
+
+    m_steps = ['clean','extract','transform','load']
     #put in protection for missing keys
     if 'rules' not in config:
         raise MissingRulesFile(f"you must specify a json rules file in your '{config_file}'"
@@ -91,7 +96,11 @@ def bclink(ctx,force,config_file,interactive):
     bclink_settings = {}
     if 'bclink' in config:
         bclink_settings = config.pop('bclink')
-    
+    elif user != 'bcos_srv':
+        bclink_settings['dry_run'] = True
+        m_steps.remove('clean')
+        m_steps.remove('extract')
+
     if 'tables' not in bclink_settings:
         bclink_settings['tables'] = {x:x for x in destination_tables}
 
@@ -124,11 +133,15 @@ def bclink(ctx,force,config_file,interactive):
         ctx.obj['pseudonymise'] = config['pseudonymise']
 
     #define the default steps to execute
-    ctx.obj['steps']=['clean','extract','transform','load']
+    ctx.obj['steps'] = m_steps
 
     unknown_keys = list( set(config.keys()) - set(ctx.obj.keys()) )
     if len(unknown_keys) > 0 :
         raise UnknownConfigurationSetting(f'"{unknown_keys}" are not valid settings in the yaml file')
+
+    if ctx.invoked_subcommand == None:
+        ctx.invoke(execute)
+
 
 def _process_data(ctx):
     data = ctx.obj['data']
@@ -684,7 +697,7 @@ def _extract(ctx,data,rules,bclink_helpers):
         'existing_global_ids':f_global_ids
     }
 
-def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
+def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids,**kwargs):
     if not 'transform' in ctx.obj['steps']:
         return 
 
@@ -699,13 +712,13 @@ def _transform(ctx,rules,inputs,output_folder,indexer,existing_global_ids):
     logger.info(f"indexer: {indexer}")
     logger.info(f"existing_global_ids: {existing_global_ids}")
     
-
     ctx.invoke(cc_map,
                rules=rules,
                inputs=inputs,
                output_folder=output_folder,
                indexing_conf=indexer,
-               person_id_map=existing_global_ids
+               person_id_map=existing_global_ids,
+               **kwargs
     ) 
 
 def _load(ctx,output_folder,cdm_tables,global_ids,bclink_helpers):
@@ -797,8 +810,9 @@ def _execute(ctx,
    
     #----------------------------------
 
-    inputs = data['input']
-    output_folder = data['output']
+    inputs = data.pop('input')
+    output_folder = data.pop('output')
+    transform_kwargs = data
     
     #call transform
     #----------------------------------
@@ -807,7 +821,8 @@ def _execute(ctx,
                inputs,
                output_folder,
                indexer,
-               existing_global_ids
+               existing_global_ids,
+               **transform_kwargs
     )
     #----------------------------------       
     #remove this lookup file once done with it
