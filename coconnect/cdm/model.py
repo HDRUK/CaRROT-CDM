@@ -123,7 +123,7 @@ class CommonDataModel(Logger):
             self.logger.info(f"Turning on automatic cdm column filling")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
+        self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -381,18 +381,6 @@ class CommonDataModel(Logger):
                                 "has not be passed, so starting from 1")
             return 1
 
-    def get_existing_person_id_masker(self,fname):
-        if fname == None:
-            return fname
-        elif os.path.exists(fname):
-            #this needs to be scalable for large number of person ids
-            _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
-            return _df.to_dict()
-        else:
-            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids ")
-            raise FileNotFoundError("{fname} file does not exist!!")
-
-
     def clear_objects(self,destination_table=None):
         if destination_table:
             self.__objects[destination_table].clear()
@@ -550,7 +538,7 @@ class CommonDataModel(Logger):
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:
-                        mode = 'w' if first else 'a'
+                        mode = None if first else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
                     if not conserve_memory:
@@ -600,7 +588,7 @@ class CommonDataModel(Logger):
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:
-                        mode = 'w' if i==0 else 'a'
+                        mode = None if i==0 else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
                     if not conserve_memory:
@@ -695,7 +683,7 @@ class CommonDataModel(Logger):
             obj.set_df(df)
             yield obj
 
-    def save_dataframe(self,table,df=None,mode='w'):
+    def save_dataframe(self,table,df=None,mode=None):
         if self.outputs:
             _id = hex(id(df))
             self.logger.info(f"saving dataframe ({_id}) to {self.outputs}")

@@ -4,7 +4,7 @@ import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import _Logger as Logger
-from coconnect.io import local,sql
+from coconnect.io import local,sql,bclink
 
 class MissingInputFiles(Exception):
     pass
@@ -17,8 +17,20 @@ class DifferingRows(Exception):
     
 def load_json_delta(f_in,original):
     logger = Logger("load_json_delta")
-    logger.info(f"loading a json from '{f_in}' as a delta")
+    
     data = load_json(f_in)
+
+    if isinstance(original,str):
+        original = load_json(original)
+    
+    if original == None:
+        return data
+
+    if original == data:
+        return data
+
+    logger.info(f"loading a json from '{f_in}' as a delta")
+
     
     original_date = original['metadata']['date_created']
     data_date = data['metadata']['date_created']
@@ -44,7 +56,7 @@ def load_json_delta(f_in,original):
         if not _data['cdm'][destination_table]:
             _data['cdm'].pop(destination_table)
 
-    logger.info(json.dumps(_data,indent=6))
+    logger.debug(json.dumps(_data,indent=6))
     return _data
     
 
@@ -63,6 +75,12 @@ def load_json(f_in):
 
 def create_csv_store(**kwargs):
     return local.LocalDataCollection(**kwargs)    
+
+def create_csv_store(**kwargs):
+    return local.LocalDataCollection(**kwargs)
+
+def create_bclink_store(**kwargs):
+    return bclink.BCLinkDataCollection(**kwargs)
 
 def create_sql_store(**kwargs):
     return sql.SqlDataCollection(**kwargs)    
@@ -194,11 +212,11 @@ def remove_missing_sources_from_rules(rules,tables):
             source_table = sub_table[first]['source_table']
             if source_table not in tables:
                 rules_copy['cdm'][destination_table].pop(table_name)
-                logger.debug(f"removed {table_name} from rules")
+                logger.info(f"removed {table_name} from rules because it was not loaded")
                 
         if not rules_copy['cdm'][destination_table]:
             rules_copy['cdm'].pop(destination_table)
-            logger.debug(f"removed cdm table '{destination_table}' from rules")
+            logger.info(f"removed cdm table '{destination_table}' from rules")
         
     return rules_copy
 

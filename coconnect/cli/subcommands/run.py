@@ -300,6 +300,9 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
 @click.option("--output-folder",
               default=None,
               help="define the output folder where to dump csv files to")
+@click.option("--write-mode",
+              default='w',
+              help="force the write-mode on existing files")
 @click.option("output_database","--database",
               default=None,
               help="define the output database where to insert data into")
@@ -348,7 +351,7 @@ def map(ctx,rules,inputs,format_level,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
         person_id_map,max_rules,
-        objects,tables,db,
+        objects,tables,db,write_mode,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
         number_of_rows_to_process):
@@ -479,10 +482,12 @@ def map(ctx,rules,inputs,format_level,
                                 chunksize=number_of_rows_per_chunk,
                                 nrows=number_of_rows_to_process)
 
-    if output_database:
-        outputs = coconnect.tools.create_sql_store(connection_string=output_database)
+    if output_database == 'bclink':
+        outputs = coconnect.tools.create_bclink_store(output_folder=output_folder,sep=csv_separator,write_mode=write_mode)
+    elif output_database == None:
+        outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep=csv_separator,write_mode=write_mode)
     else:
-        outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep=csv_separator)
+        outputs = coconnect.tools.create_sql_store()
 
     
     #build an object to store the cdm

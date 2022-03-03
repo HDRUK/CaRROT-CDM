@@ -1,7 +1,7 @@
 import click
 import inquirer
 import signal
-
+import hashlib
 import os
 try:
     import daemon
@@ -41,24 +41,199 @@ class DuplicateDataDetected(Exception):
 class UnknownConfigurationSetting(Exception):
     pass
 
+class BadConfigurationFile(Exception):
+    pass
+
 class MissingRulesFile(Exception):
     pass
 
 class BadRulesFile(Exception):
     pass
 
-@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
-@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
-@click.pass_context
-def etl(ctx,config_file):
-    if ctx.invoked_subcommand == None :
-        #config = _load_config(config_file)
-        ctx.invoke(bclink,config_file=config_file,force=True)
-
 def _load_config(config_file):
     stream = open(config_file) 
     config = yaml.safe_load(stream)
     return config
+
+def _check_conf(config):
+    if 'transform' not in config:
+        raise BadConfigurationFile("You must specify a transform: block in your configration file")
+    
+    if 'data' not in config['transform']:
+        raise BadConfigurationFile("You must specify a transform: data:  block in your configration file")
+    #     raise MissingRulesFile(f"you must specify a json rules file in your '{config_file}'"
+    #                            f" via 'rules:<path of file>'")
+    
+    # try:
+    #     rules = coconnect.tools.load_json(config['transform']['rules'])
+    #     destination_tables = list(rules['cdm'].keys())
+    # except Exception as e:
+    #     raise BadRulesFile(e)
+
+    #data = config['transform']['data']
+
+
+def _outputs_exist(output,tables):
+    #print (tables)
+    #print (temp)
+    #print (any(temp))
+    return os.path.exists(output)
+
+def _find_data(d):
+    data = copy.deepcopy(d)
+    root_input_folder = data.pop('input')
+    root_output_folder = data.pop('output')
+    subfolders = coconnect.tools.get_subfolders(root_input_folder)
+    data = [
+        {**data,**{'input':f,'output':f'{root_output_folder}{os.path.sep}{k}{os.path.sep}'}}
+        for k,f in subfolders.items()
+    ]
+    return data
+
+def _make_id(d):
+    return hashlib.sha256(str(d).encode("utf-8")).hexdigest()
+
+def _load_transform_data(data,processed_data={}):
+
+    if isinstance(data,dict):
+        data = _find_data(data)
+    
+    #extract the rules from the data
+    data = {_make_id(d['input']):d for d in copy.deepcopy(data) }
+    
+    for _id,_data in data.items():
+        processed_rules = processed_data[_id]['rules'] if _id in processed_data else None
+        _data['rules'] = coconnect.tools.load_json_delta(_data['rules'],processed_rules)
+        
+    return data
+
+def _run_data(data,ctx):
+    logger = Logger("_run_data")
+    _data = copy.deepcopy(data)
+    rules = _data.pop('rules')
+    if rules is None:
+        logger.warning('no rules to run')
+        return
+    
+    destination_tables = list(rules['cdm'].keys())
+
+    input_folder = _data.pop('input')
+    inputs = coconnect.tools.get_files(input_folder,type='csv')
+    filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+    
+    output = _data.pop('output')
+    
+
+    person_id_map = _data.pop('person_id_map',None)
+
+    #assume the remained are kwargs for the transform
+    kwargs = _data
+
+
+    output_database = None
+    if isinstance(output,dict):
+        if 'bclink' in output:
+            output_folder = output['cache']
+            output_database = 'bclink'
+        else:
+            raise NotImplementedError(f"dont know how to configure {output}")   
+    else:
+        ## get output folder
+        output_folder = output
+        if _outputs_exist(output_folder,destination_tables):
+            logger.warning(f'{output_folder} exists!')
+            global_ids = f'{output_folder}/global_ids.tsv'
+            exists = os.path.exists(global_ids)
+            person_id_map = global_ids if exists else person_id_map
+            if exists:
+                logger.warning(f"Using existing {global_ids} as the person_id_map")
+                kwargs['write_mode'] = 'a'
+            else:
+                return False
+            #if clean and first and os.path.exists(output_folder) and os.path.isdir(output_folder):
+            #    logger.warning(f"removing {output_folder}")
+            #    shutil.rmtree(output_folder)
+            #else:
+            
+    #invoke mapping
+    try:
+        ctx.invoke(cc_map,
+                   rules=rules,
+                   inputs=inputs,
+                   output_folder=output_folder,
+                   output_database=output_database,
+                   #indexing_conf=indexer,
+                   person_id_map=person_id_map,
+                   **kwargs
+        )
+    except coconnect.cdm.model.PersonExists as e:
+        logger.error(e)
+        logger.error(f"failed to map {inputs} because there were people")
+        logger.error(f" already processed and present in existing data. Check {person_id_map}")
+    return True
+
+
+@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
+@click.pass_context
+def etl(ctx,config_file):
+    #if ctx.invoked_subcommand == None :
+    logger = Logger("etl")
+
+    last_modified_config = os.path.getmtime(config_file)
+
+    conf = _load_config(config_file)
+    _check_conf(conf)
+
+    data = _load_transform_data(conf['transform']['data'])
+    #run the data
+    _ = [_run_data(d,ctx) for d in data.values()]
+        
+    display_msg = True
+    while True:
+        #if a change has been detected in the config_file
+        #load it up again
+        if last_modified_config !=  os.path.getmtime(config_file):
+            conf = _load_config(config_file)
+            _check_conf(conf)
+            last_modified_config = os.path.getmtime(config_file)
+            # try:
+            #     last_modified_config = os.path.getmtime(config_file)
+            #     display_msg = True
+            # except Exception as e:
+            #     if not display_msg:
+            #         logger.critical(e)
+            #         logger.error(f"You've misconfigured your file '{config_file}'!! Please fix!")
+            #         display_msg = True
+            #         time.sleep(5)
+            #     continue
+
+        #reload to detect if there's something different going on
+        new_data = _load_transform_data(conf['transform']['data'],data)
+        #work out what needs to be re-processed 
+        data_to_process = {
+            k:v
+            for k,v in new_data.items()
+            if not (k in data and v==data[k])
+        }
+        
+        display_msg = True if data_to_process else display_msg
+        #run the data
+        _ = [_run_data(d,ctx) for d in data_to_process.values()]
+
+        #update the data to 
+        data = _load_transform_data(conf['transform']['data'])
+                                                      
+        if display_msg:
+            logger.info(f"Finished!... Listening for changes every 5 seconds to data in {config_file}")
+            display_msg = False
+    
+        time.sleep(5)
+
+    
+    exit(0)
+    ctx.invoke(bclink,config_file=config_file,force=True)
+
 
 
 @click.group(help='Command group for ETL integration with bclink')
@@ -183,6 +358,7 @@ def _process_list_data(ctx):
 
         current_rules_file = conf['rules']
         new_rules_file = rules_file != current_rules_file
+
         if new_rules_file:
             #if there's a new rules file
             logger.info(f"Detected a new rules file.. old was '{rules_file}' and new is '{current_rules_file}'")
@@ -200,6 +376,9 @@ def _process_list_data(ctx):
                 re_execute = True 
             
         current_data = conf['data']
+        print (data)
+        print (current_data)
+        exit(0)
         if not data == current_data:
             logger.debug(f"old {data}")
             logger.debug(f"new {current_data}")
@@ -210,6 +389,8 @@ def _process_list_data(ctx):
             new_data = data
 
         logger.debug(f"re-execute {re_execute}")
+        print (re_execute)
+        exit(0)
         if re_execute:
             current_data = copy.deepcopy(new_data)
             #loop over any new data
@@ -687,8 +868,15 @@ def _extract(ctx,data,rules,bclink_helpers):
     
 
     _dir = data['output']
+ 
     f_global_ids = f"{_dir}/existing_global_ids.tsv"
     f_global_ids = bclink_helpers.get_global_ids(f_global_ids)
+    if f_global_ids == None:
+        f_global_ids = f"{_dir}/global_ids.tsv"
+        if not os.path.exists(f_global_ids):
+            f_global_ids = None
+        else:
+            logger.warning(f"falling back to {f_global_ids} for global_ids")
     
     indexer = bclink_helpers.get_indicies()
     return {

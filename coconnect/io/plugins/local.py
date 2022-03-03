@@ -5,15 +5,37 @@ import os
 
         
 class LocalDataCollection(DataCollection):
-    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',**kwargs):
+    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',write_mode='w',**kwargs):
         super().__init__(chunksize=chunksize)
 
         self.__output_folder = output_folder
         self.__separator = sep
-  
+        self.__write_mode = write_mode
+
         if file_map is not None:
             self._load_input_files(file_map)
 
+    def get_output_folder(self):
+        return self.__output_folder 
+            
+    def get_global_ids(self):
+        if not self.__output_folder:
+            return
+        
+        global_id_fname = self.__output_folder+os.path.sep+"global_ids."+self.get_outfile_extension()
+        if os.path.exists(global_id_fname):
+            return global_id_fname
+        else:
+            return
+
+    def load_global_ids(self):
+        if self.__write_mode == 'w':
+            return
+
+        if global_id_fname := self.get_global_ids():
+            _df = pd.read_csv(global_id_fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
+            return _df.to_dict()
+            
     def get_outfile_extension(self):
         """
         Work out what the extension of the output file for the dataframes should be.
@@ -38,6 +60,10 @@ class LocalDataCollection(DataCollection):
 
             
     def write(self,name,df,mode='w'):
+
+        if mode == None:
+            mode = self.__write_mode
+
         header=True
         if mode == 'a':
             header = False
@@ -64,7 +90,7 @@ class LocalDataCollection(DataCollection):
 
         self.logger.debug(df.dropna(axis=1,how='all'))
         self.logger.info("finished save to file")
-
+        return fname
             
     def _load_input_files(self,file_map):
         for name,path in file_map.items():
