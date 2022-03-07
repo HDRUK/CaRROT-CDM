@@ -454,7 +454,8 @@ class CommonDataModel(Logger):
                                        columns=['SOURCE_SUBJECT','TARGET_SUBJECT'])
 
                     mode = 'w' if new else 'a'
-                    self.outputs.write("global_ids",dfp,mode)
+                    self.outputs.write(f"person_ids",dfp,mode)
+                    print ('done')
                         
             #apply the masking
             if self.person_id_masker is None:

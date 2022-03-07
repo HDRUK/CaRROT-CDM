@@ -482,8 +482,13 @@ def map(ctx,rules,inputs,format_level,
                                 chunksize=number_of_rows_per_chunk,
                                 nrows=number_of_rows_to_process)
 
-    if output_database == 'bclink':
-        outputs = coconnect.tools.create_bclink_store(output_folder=output_folder,sep=csv_separator,write_mode=write_mode)
+    if isinstance(output_database,dict):
+        if 'bclink' in output_database:
+            outputs = coconnect.tools.create_bclink_store(bclink_settings=output_database['bclink'],
+                                                          output_folder=output_database['cache'],
+                                                          sep=csv_separator,write_mode=write_mode)
+        else:
+            raise NotImplementedError(f"dont know how to configure outputs... {output_database}")   
     elif output_database == None:
         outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep=csv_separator,write_mode=write_mode)
     else:

@@ -3,6 +3,8 @@ import inquirer
 import signal
 import hashlib
 import os
+import glob
+
 try:
     import daemon
     from daemon.pidfile import TimeoutPIDLockFile
@@ -131,25 +133,15 @@ def _run_data(data,ctx):
 
 
     output_database = None
+    output_folder = None
     if isinstance(output,dict):
-        if 'bclink' in output:
-            output_folder = output['cache']
-            output_database = 'bclink'
-        else:
-            raise NotImplementedError(f"dont know how to configure {output}")   
+        output_database = output
     else:
         ## get output folder
         output_folder = output
         if _outputs_exist(output_folder,destination_tables):
             logger.warning(f'{output_folder} exists!')
-            global_ids = f'{output_folder}/global_ids.tsv'
-            exists = os.path.exists(global_ids)
-            person_id_map = global_ids if exists else person_id_map
-            if exists:
-                logger.warning(f"Using existing {global_ids} as the person_id_map")
-                kwargs['write_mode'] = 'a'
-            else:
-                return False
+            kwargs['write_mode'] = 'a'
             #if clean and first and os.path.exists(output_folder) and os.path.isdir(output_folder):
             #    logger.warning(f"removing {output_folder}")
             #    shutil.rmtree(output_folder)
@@ -158,7 +150,7 @@ def _run_data(data,ctx):
     #invoke mapping
     try:
         ctx.invoke(cc_map,
-                   rules=rules,
+                   rules=filtered_rules,
                    inputs=inputs,
                    output_folder=output_folder,
                    output_database=output_database,
@@ -177,15 +169,20 @@ def _run_data(data,ctx):
 @click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
 @click.pass_context
 def etl(ctx,config_file):
-    #if ctx.invoked_subcommand == None :
+        
     logger = Logger("etl")
 
     last_modified_config = os.path.getmtime(config_file)
 
     conf = _load_config(config_file)
     _check_conf(conf)
-
     data = _load_transform_data(conf['transform']['data'])
+
+    if not ctx.invoked_subcommand == None :
+        ctx.obj = {'conf':conf,'data':data}
+        return
+
+    
     #run the data
     _ = [_run_data(d,ctx) for d in data.values()]
         
@@ -691,8 +688,32 @@ def delete_data(ctx):
     
             click.echo(f"Deleting {f}")
             os.remove(f)
-    
 
+@click.command(help='find duplicates')
+@click.pass_obj
+def find_duplicates(obj):
+    data = obj['data']
+
+    out_folders = list(set([v['output'] for k,v in data.items()]))
+    all_files = [glob.glob(f+'*.*') for f in out_folders]
+    all_files = [item for sublist in all_files for item in sublist]
+    grouped_files = {}
+    for f in all_files:
+        name = f.split(os.path.sep)[-1].split('.')[0]
+        if name not in grouped_files:
+            grouped_files[name] = []
+        grouped_files[name].append(f)
+
+    for name,files in grouped_files.items():
+        df = pd.concat(pd.read_csv(f,sep='\t',index_col=0).dropna(axis=1)
+                       for f in files)
+        df_hash = pd.util.hash_pandas_object(df,index=False)
+        is_duplicated = df_hash.duplicated(keep=False)
+        print (df_hash[is_duplicated])
+        print (df[is_duplicated])
+        
+        exit(0)
+    
 @click.command(help='check and drop for duplicates')
 @click.pass_obj
 def drop_duplicates(ctx):
@@ -1150,6 +1171,7 @@ bclink.add_command(transform,'transform')
 bclink.add_command(load,'load')
 etl.add_command(manual,'bclink-manual')
 etl.add_command(bclink,'bclink')
+etl.add_command(find_duplicates,'find-duplicates')
 
 
 

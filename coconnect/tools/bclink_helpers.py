@@ -6,14 +6,20 @@ import os
 import coconnect
 from coconnect.tools.logger import Logger
 from .bash_helpers import BashHelpers
+from coconnect.cdm.objects import get_cdm_tables
 
+def get_default_tables():
+    return list(get_cdm_tables().keys())
+
+def get_default_global_id_name():
+    return 'global_ids'
 
 class BCLinkHelpersException(Exception):
     pass
 
 class BCLinkHelpers(BashHelpers,Logger):
 
-    def __init__(self,user='bclink',global_ids=None,gui_user='data',database='bclink',dry_run=False,tables=None):
+    def __init__(self,user='bclink',global_ids=get_default_global_id_name(),gui_user='data',database='bclink',dry_run=False,tables=get_default_tables()):
         super().__init__(dry_run=dry_run)
 
         self.report = []
@@ -284,31 +290,33 @@ class BCLinkHelpers(BashHelpers,Logger):
             info = info.head(head)
         return info
    
-    def get_global_ids(self,f_out):
+    def get_global_ids(self):
 
         if not self.global_ids:
             return None
-
+        
         # todo: chunking needs to be developed here!
-        _dir = os.path.dirname(f_out)
-        if not os.path.exists(_dir):
-            self.logger.info(f'making output folder {_dir} to insert existing masked ids')
-            os.makedirs(_dir)
+        #_dir = os.path.dirname(f_out)
+        #if not os.path.exists(_dir):
+        #    self.logger.info(f'making output folder {_dir} to insert existing masked ids')
+        #    os.makedirs(_dir)
    
         query=f"SELECT * FROM {self.global_ids} "
         cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
         
         stdout,stderr = self.run_bash_cmd(cmd)
-        if stdout == None:
-            return None
-        if len(stdout.splitlines()) == 0:
-            return None
-            
-        df_ids = pd.read_csv(io.StringIO(stdout),
-                             sep='\t').set_index("SOURCE_SUBJECT")
+        #if stdout == None:
+        #    return None
+        #if len(stdout.splitlines()) == 0:
+        #    return None
+
+        return stdout#io.StringIO(stdout)
         
-        df_ids.to_csv(f_out,sep='\t')
-        return f_out
+        #df_ids = pd.read_csv(io.StringIO(stdout),
+        #                     sep='\t').set_index("SOURCE_SUBJECT")
+       # 
+       # df_ids.to_csv(f_out,sep='\t')
+       # return f_out
 
     def check_global_ids(self,output_directory,chunksize=10):
 
@@ -356,10 +364,11 @@ class BCLinkHelpers(BashHelpers,Logger):
         
    
     def load_global_ids(self,output_directory):
+
         if self.global_ids == None:
             return
 
-        data_file = f'{output_directory}/global_ids.tsv'
+        data_file = f'{output_directory}{os.path.sep}global_ids.tsv'
         if not os.path.exists(data_file):
             #raise FileExistsError(
             self.logger.error(f"Cannot find global_ids.tsv in output directory: {output_directory}")

@@ -1,8 +1,9 @@
 import pandas as pd
 from coconnect.io.common import DataCollection,DataBrick
+import glob
 import io
 import os
-
+import pandas as pd
         
 class LocalDataCollection(DataCollection):
     def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',write_mode='w',**kwargs):
@@ -11,6 +12,7 @@ class LocalDataCollection(DataCollection):
         self.__output_folder = output_folder
         self.__separator = sep
         self.__write_mode = write_mode
+        self.__write_separate = True
 
         if file_map is not None:
             self._load_input_files(file_map)
@@ -21,20 +23,29 @@ class LocalDataCollection(DataCollection):
     def get_global_ids(self):
         if not self.__output_folder:
             return
+
+        files = glob.glob(self.__output_folder+os.path.sep+"person_ids.*"+self.get_outfile_extension())
+        return files
         
-        global_id_fname = self.__output_folder+os.path.sep+"global_ids."+self.get_outfile_extension()
-        if os.path.exists(global_id_fname):
-            return global_id_fname
-        else:
-            return
+        #if self.__write_separate:
+        #    p
+        #global_id_fname = self.__output_folder+os.path.sep+"person_ids."+self.get_outfile_extension()
+        #return global_id_fname
+    #if os.path.exists(global_id_fname):
+    #        return global_id_fname
+    #    else:
+    #        return
 
     def load_global_ids(self):
         if self.__write_mode == 'w':
             return
 
-        if global_id_fname := self.get_global_ids():
-            _df = pd.read_csv(global_id_fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
-            return _df.to_dict()
+        if files := self.get_global_ids():
+            self.logger.warning(f"Loading existing person ids from...")
+            self.logger.warning(f"{files}")
+            return pd.concat([pd.read_csv(fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
+                              for fname in files
+                              ]).to_dict()
             
     def get_outfile_extension(self):
         """
@@ -63,10 +74,15 @@ class LocalDataCollection(DataCollection):
 
         if mode == None:
             mode = self.__write_mode
+            
+        if self.__write_separate:
+            name = name + "."+hex(id(df))
+            mode = 'w'
 
         header=True
         if mode == 'a':
             header = False
+
 
         f_out = self.__output_folder
         file_extension = self.get_outfile_extension()
