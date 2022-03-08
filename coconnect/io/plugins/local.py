@@ -3,6 +3,7 @@ from coconnect.io.common import DataCollection,DataBrick
 import glob
 import io
 import os
+import json
 import pandas as pd
 from time import gmtime, strftime
         
@@ -28,15 +29,6 @@ class LocalDataCollection(DataCollection):
         files = glob.glob(self.__output_folder+os.path.sep+"person_ids.*"+self.get_outfile_extension())
         return files
         
-        #if self.__write_separate:
-        #    p
-        #global_id_fname = self.__output_folder+os.path.sep+"person_ids."+self.get_outfile_extension()
-        #return global_id_fname
-    #if os.path.exists(global_id_fname):
-    #        return global_id_fname
-    #    else:
-    #        return
-
     def load_global_ids(self):
         if self.__write_mode == 'w':
             return
@@ -73,12 +65,58 @@ class LocalDataCollection(DataCollection):
             self.logger.warning("Defaulting to csv")
             return 'csv'
 
-            
+    def load_indexing(self,name='.meta'):
+        if meta := self.load_meta():
+            indexing = {}
+            for _,v in meta.items():
+                v = v['meta']['total_data_processed']
+                for k,n in v.items():
+                    if k not in indexing:
+                        indexing[k] = 0
+                    indexing[k] += n
+            return indexing
+        
+    def load_meta(self,name='.meta'):
+        f_out = self.__output_folder
+        fname = f"{f_out}{os.path.sep}{name}.json"
+        if not os.path.exists(fname):
+            return
+        with open(fname,'r') as f:
+            data = json.load(f)
+            return data
+        
+    def write_meta(self,data,name='.meta'):
+        if not isinstance(data,dict):
+            raise NotImplementedError(f"{type(data)} must be of type dict")
+
+        data = {hex(id(data)):data}
+        
+        mode = self.__write_mode
+        f_out = self.__output_folder
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+
+        fname = f"{f_out}{os.path.sep}{name}.json"
+        if os.path.exists(fname) and mode == 'a':
+            with open(fname,'r') as f:
+                existing_data = json.load(f)
+                data = {**existing_data,**data}
+        #rewrite it
+        with open(f"{f_out}{os.path.sep}{name}.json","w") as f:
+            json.dump(data,f,indent=6)
+            return
+                    
     def write(self,name,df,mode='w'):
 
+        f_out = self.__output_folder
+        if not os.path.exists(f'{f_out}'):
+            self.logger.info(f'making output folder {f_out}')
+            os.makedirs(f'{f_out}')
+        
         if mode == None:
             mode = self.__write_mode
-                        
+            
         if self.__write_separate:
             time = strftime("%Y-%m-%dT%H%M%S", gmtime())
             if 'name' in df.attrs:
@@ -86,19 +124,17 @@ class LocalDataCollection(DataCollection):
             name = name + "."+ hex(id(df)) + "." + time
             mode = 'w'
 
+
+            
+        file_extension = self.get_outfile_extension()
+        fname = f'{f_out}{os.path.sep}{name}.{file_extension}'
+        #force mode to write if the file doesnt exist yet
+        if not os.path.exists(fname):
+            mode = 'w'
+            
         header=True
         if mode == 'a':
             header = False
-
-
-        f_out = self.__output_folder
-        file_extension = self.get_outfile_extension()
-        
-        fname = f'{f_out}/{name}.{file_extension}'
-
-        if not os.path.exists(f'{f_out}'):
-            self.logger.info(f'making output folder {f_out}')
-            os.makedirs(f'{f_out}')
         if mode == 'w':
             self.logger.info(f'saving {name} to {fname}')
         else:

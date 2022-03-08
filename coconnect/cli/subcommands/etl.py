@@ -154,6 +154,7 @@ def _run_data(data,ctx):
                    inputs=inputs,
                    output_folder=output_folder,
                    output_database=output_database,
+                   split_outputs=True,
                    #indexing_conf=indexer,
                    person_id_map=person_id_map,
                    **kwargs

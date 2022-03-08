@@ -48,8 +48,6 @@ class CommonDataModel(Logger):
 
     def __init__(self, name=None, omop_version='5.3.1',
                  outputs = None,
-                 indexing_conf=None,
-                 person_id_map=None,
                  save_files=True,
                  inputs=None,
                  use_profiler=False,
@@ -78,7 +76,6 @@ class CommonDataModel(Logger):
 
         self.drop_duplicates = drop_duplicates
         self.do_mask_person_id = do_mask_person_id
-        self.indexing_conf = indexing_conf
         self.execution_order = None
         
         if format_level == None:
@@ -127,8 +124,10 @@ class CommonDataModel(Logger):
         #define a person_id masker, if the person_id are to be masked
         if self.outputs:
             self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
+            self.indexing_conf = self.outputs.load_indexing()
         else:
             self.person_id_masker = None
+            self.indexing_conf = None
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -203,6 +202,8 @@ class CommonDataModel(Logger):
 
 
         self.logger.info(json.dumps(self.logs,indent=6))
+        if self.outputs:
+            self.outputs.write_meta(self.logs)
         
         if not hasattr(self,'profiler'):
             return
@@ -388,6 +389,7 @@ class CommonDataModel(Logger):
             return 1
 
         if destination_table in self.indexing_conf:
+            print (self.indexing_conf[destination_table])
             return int(self.indexing_conf[destination_table])
         else:
             self.logger.warning(self.indexing_conf)

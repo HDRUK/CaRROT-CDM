@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import pandas as pd
 import numpy as np
 import collections
@@ -409,7 +410,7 @@ class DestinationTable(Logger):
     def set_df_name(self):
         if self.__df is None:
             return
-        name = self.name.replace(" ","_")
+        name = re.sub("[^0-9a-zA-Z]+","_",self.name)
         self.__df.attrs['name'] = name
     
     def format(self,df):

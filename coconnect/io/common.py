@@ -31,6 +31,12 @@ class DataCollection(Logger):
         self.logger.info(f"Registering  {key} [{obj}]")
         self.__bricks[key] = obj
 
+    def load_global_ids(self):
+        return
+
+    def load_indexing(self):
+        return
+            
     def next(self):
         #loop over all loaded files
         self.logger.info("Getting next chunk of data")
