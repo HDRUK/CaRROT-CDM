@@ -4,15 +4,16 @@ import glob
 import io
 import os
 import pandas as pd
+from time import gmtime, strftime
         
 class LocalDataCollection(DataCollection):
-    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',write_mode='w',**kwargs):
+    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',write_mode='w',write_separate=False,**kwargs):
         super().__init__(chunksize=chunksize)
 
         self.__output_folder = output_folder
         self.__separator = sep
         self.__write_mode = write_mode
-        self.__write_separate = True
+        self.__write_separate = write_separate
 
         if file_map is not None:
             self._load_input_files(file_map)
@@ -46,7 +47,10 @@ class LocalDataCollection(DataCollection):
             return pd.concat([pd.read_csv(fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
                               for fname in files
                               ]).to_dict()
-            
+
+    def get_separator(self):
+        return self.__separator
+    
     def get_outfile_extension(self):
         """
         Work out what the extension of the output file for the dataframes should be.
@@ -74,9 +78,12 @@ class LocalDataCollection(DataCollection):
 
         if mode == None:
             mode = self.__write_mode
-            
+                        
         if self.__write_separate:
-            name = name + "."+hex(id(df))
+            time = strftime("%Y-%m-%dT%H%M%S", gmtime())
+            if 'name' in df.attrs:
+                name = name + '.' + df.attrs['name']
+            name = name + "."+ hex(id(df)) + "." + time
             mode = 'w'
 
         header=True
@@ -88,6 +95,7 @@ class LocalDataCollection(DataCollection):
         file_extension = self.get_outfile_extension()
         
         fname = f'{f_out}/{name}.{file_extension}'
+
         if not os.path.exists(f'{f_out}'):
             self.logger.info(f'making output folder {f_out}')
             os.makedirs(f'{f_out}')

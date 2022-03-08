@@ -160,7 +160,42 @@ def format(inputs,number_of_rows_per_chunk,output_folder):
     #cdm.save_files = False
     cdm.process()
     cdm.end()
+
+@click.command()
+@click.option("--output-folder","-o",required=True,type=str,help='specify an output folder of where to put the merged tables')
+@click.argument("inputs",nargs=-1,required=True)
+def merge(inputs,output_folder):
+    """
+    Build a CDM model from subfiles
+    """
+    types = list(set([
+        os.path.splitext(fname)[1]
+        for fname in inputs
+    ]))
+    if len(types) > 1:
+        raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
+    types = types[0]
+    
+    inputs = {
+        os.path.basename(x):x
+        for x in inputs
+    }
+    if types == '.csv':
+        inputs = tools.load_csv(inputs)#,chunksize=number_of_rows_per_chunk)
+    else:
+        inputs = tools.load_tsv(inputs)#,chunksize=number_of_rows_per_chunk)
+
+    outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep='\t',write_mode='w',write_separate=False)
         
+    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+                                                      do_mask_person_id=False,
+                                                      drop_duplicates=True,
+                                                      format_level=0,
+                                                      outputs=outputs)
+    cdm.process()
+
+
+    
 @click.command()
 @click.option("--input",
               required=True,
@@ -319,6 +354,9 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
 @click.option("--db",
               default=None,
               help="instead, pass a connection string to a db")
+@click.option("--merge-output",
+              is_flag=True,
+              help="merge the output into one file")
 @click.option("no_mask_person_id","--parse-original-person-id",
               is_flag=True,
               help="turn off automatic conversion (creation) of person_id to (as) Integer")
@@ -326,7 +364,7 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
               is_flag=True,
               help="Turn off automatically filling missing CDM columns")
 @click.option("log_file","--log-file",
-              default = 'auto',
+              default = 'none',
               help="specify a path for a log file")
 @click.option("--max-rules",
               default = None,
@@ -350,7 +388,7 @@ def map(ctx,rules,inputs,format_level,
         output_folder,output_database,
         csv_separator,use_profiler,log_file,
         no_mask_person_id,indexing_conf,
-        person_id_map,max_rules,
+        person_id_map,max_rules,merge_output,
         objects,tables,db,write_mode,
         dont_automatically_fill_missing_columns,
         number_of_rows_per_chunk,
@@ -494,7 +532,6 @@ def map(ctx,rules,inputs,format_level,
     else:
         outputs = coconnect.tools.create_sql_store()
 
-    
     #build an object to store the cdm
     cdm = coconnect.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
@@ -507,7 +544,6 @@ def map(ctx,rules,inputs,format_level,
                                         #output_database=output_database,
                                         automatically_fill_missing_columns=not dont_automatically_fill_missing_columns,
                                         use_profiler=use_profiler)
-    
     #allow the csv separator to be changed
     #the default is tab (\t) separation
     #if not csv_separator is None:
@@ -539,6 +575,11 @@ def map(ctx,rules,inputs,format_level,
 
     cdm.process(conserve_memory=True)
     cdm.close()
+
+    if merge_output:
+        ctx.invoke(merge,
+                   inputs=glob.glob(f"{output_folder}{os.path.sep}*"),
+                   output_folder=output_folder)
     
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",
@@ -740,6 +781,7 @@ run.add_command(py,"py")
 run.add_command(map,"map")
 run.add_command(analysis,"analysis")
 run.add_command(format,"format")
+run.add_command(merge,"merge")
 run.add_command(transform,"transform")
 run.add_command(gui,"gui")
 run.add_command(test,"test")

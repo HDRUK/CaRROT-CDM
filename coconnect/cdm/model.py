@@ -55,6 +55,7 @@ class CommonDataModel(Logger):
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
+                 drop_duplicates=True,
                  automatically_fill_missing_columns=True):
         """
         CommonDataModel class initialisation 
@@ -75,6 +76,7 @@ class CommonDataModel(Logger):
 
         self.omop_version = omop_version
 
+        self.drop_duplicates = drop_duplicates
         self.do_mask_person_id = do_mask_person_id
         self.indexing_conf = indexing_conf
         self.execution_order = None
@@ -123,7 +125,10 @@ class CommonDataModel(Logger):
             self.logger.info(f"Turning on automatic cdm column filling")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
+        if self.outputs:
+            self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
+        else:
+            self.person_id_masker = None
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -176,7 +181,7 @@ class CommonDataModel(Logger):
                 'total_data_processed':{}
             }
         }
-
+        
     def _load_inputs(self,inputs):
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
@@ -230,8 +235,14 @@ class CommonDataModel(Logger):
             #obtain the name of the destination table
             #e.g fname='person.tsv' we want 'person'
             destination_table,_ = os.path.splitext(fname)
-            #
-            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            name = destination_table
+            if '.' in destination_table:
+                destination_table = destination_table.split('.')[0]
+            try:
+                obj = get_cdm_class(destination_table).from_df(inputs[fname],name=name)
+            except KeyError:
+                cdm.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
+                continue
             cdm.add(obj)
         return cdm
 
@@ -265,6 +276,10 @@ class CommonDataModel(Logger):
         """
         self.logger.debug(f"creating {obj} for {key}")
         self.__df_map[key] = obj
+
+    def print(self):
+        for name in self.keys():
+            print (self[name].dropna(axis=1))
         
     def add(self,obj):
         """
@@ -533,24 +548,42 @@ class CommonDataModel(Logger):
                 ntables = 0
                 nrows = 0
                 dfs = []
+                #print (self.drop_duplicates)
                 for j,obj in enumerate(df_generator):
 
                     df = obj.get_df()
                     ntables +=1
                     nrows += len(df)
-                    if self.save_files:
+                    if conserve_memory and self.save_files:
                         mode = None if first else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
-                    if not conserve_memory:
-                        dfs.append(df)
-                    else:
                         obj.clear()
                         del df
                         df = None
+                    else:
+                        dfs.append(df)
 
                 if not conserve_memory:
-                    self[destination_table] = pd.concat(dfs,ignore_index=True)
+                    df = pd.concat(dfs,ignore_index=True)#.sort_values(df.columns[0])
+                    if self.save_files:
+                        if self.drop_duplicates and destination_table != 'person':
+                            nbefore = len(df)
+                            df_hash = pd.util.hash_pandas_object(df.drop(df.columns[0],axis=1),index=False)
+                            df_temp = df[df_hash.duplicated(keep=False)].head(10).dropna(axis=1)
+                            df = df[~df_hash.duplicated()]
+                            nafter = len(df)
+                            ndiff = nbefore - nafter
+                            if ndiff>0:
+                                self.logger.error(f"Removed {ndiff} row(s) due to duplicates found when merging {destination_table}")
+                                self.logger.warning("Example duplicates...")
+                                self.logger.warning(df_temp.set_index(df_temp.columns[0]))
+                        
+                        mode = None if first else 'a'
+                        self.save_dataframe(destination_table,df,mode=mode)
+                        first = False
+                    self[destination_table] = df
+
 
                 self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows} rows from {ntables} tables')
                 
@@ -667,8 +700,10 @@ class CommonDataModel(Logger):
 
             start_index = self.get_start_index(destination_table)
             start_index += nrows_processed
-            
-            df = obj.get_df(force_rebuild=True,start_index=start_index)
+
+            #force_rebuild=True,
+            df = obj.get_df(start_index=start_index)
+
             self.logger.info(f"finished {obj.name} ({hex(id(df))}) "
                              f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
             if len(df) == 0:

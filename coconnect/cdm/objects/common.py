@@ -143,8 +143,8 @@ class DestinationTable(Logger):
     def from_df(cls,df,name=None):
         obj = cls(name)
         obj.__df = df
-        for colname in df.columns:
-            obj[colname].series = df[colname]
+        #for colname in df.columns:
+        #    obj[colname].series = df[colname]
         return obj
 
     def __len__(self):
@@ -325,6 +325,7 @@ class DestinationTable(Logger):
         if dont_build:
             if self.__df is None:
                 self.__df = pd.DataFrame(columns = self.fields)
+                self.set_df_name()
             return self.__df
         
         #if the dataframe has already been built.. just return it
@@ -359,7 +360,9 @@ class DestinationTable(Logger):
         #if there's none defined, dont do anything
         if len(dfs) == 0:
             self.logger.warning("no objects defined")
-            return pd.DataFrame(columns = self.fields)
+            self.__df = pd.DataFrame(columns = self.fields)
+            self.set_df_name()
+            return self.__df
 
         #check the lengths of the dataframes
         lengths = list(set([len(df) for df in dfs.values()]))
@@ -393,9 +396,22 @@ class DestinationTable(Logger):
          
         #register the df
         self.__df = df
-        self.logger.info(f"created df ({hex(id(df))})")
+        self.set_df_name()
+
+        self.logger.info(f"created df ({hex(id(df))})[{self.get_df_name()}]")
         return self.__df
 
+
+    def get_df_name(self):
+        if not self.__df is None:
+            return self.__df.attrs['name']
+    
+    def set_df_name(self):
+        if self.__df is None:
+            return
+        name = self.name.replace(" ","_")
+        self.__df.attrs['name'] = name
+    
     def format(self,df):
         
         if self.format_level is FormatterLevel.OFF:

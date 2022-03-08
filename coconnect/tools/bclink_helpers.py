@@ -8,18 +8,22 @@ from coconnect.tools.logger import Logger
 from .bash_helpers import BashHelpers
 from coconnect.cdm.objects import get_cdm_tables
 
-def get_default_tables():
-    return list(get_cdm_tables().keys())
 
 def get_default_global_id_name():
     return 'global_ids'
+
+def get_default_tables():
+    _dict = {k:k for k in get_cdm_tables().keys()}
+    _dict['person_ids'] = get_default_global_id_name()
+    return _dict
+
 
 class BCLinkHelpersException(Exception):
     pass
 
 class BCLinkHelpers(BashHelpers,Logger):
 
-    def __init__(self,user='bclink',global_ids=get_default_global_id_name(),gui_user='data',database='bclink',dry_run=False,tables=get_default_tables()):
+    def __init__(self,user='bclink',gui_user='data',database='bclink',dry_run=False,tables=get_default_tables()):
         super().__init__(dry_run=dry_run)
 
         self.report = []
@@ -27,13 +31,10 @@ class BCLinkHelpers(BashHelpers,Logger):
         self.gui_user = gui_user
         self.database = database
         self.table_map = tables
-        self.global_ids = global_ids
         
         if self.table_map == None:
             raise BCLinkHelpersException("Table map between the dataset id and the OMOP tables must be defined")
 
-        #if self.global_ids == None:
-        #    raise BCLinkHelpersException("A dataset id for the GlobalID mapping must be defined!")
 
     def create_table(self,table):
         print ("creating table")
@@ -292,16 +293,14 @@ class BCLinkHelpers(BashHelpers,Logger):
    
     def get_global_ids(self):
 
-        if not self.global_ids:
-            return None
-        
+        global_ids = get_default_global_id_name()
         # todo: chunking needs to be developed here!
         #_dir = os.path.dirname(f_out)
         #if not os.path.exists(_dir):
         #    self.logger.info(f'making output folder {_dir} to insert existing masked ids')
         #    os.makedirs(_dir)
    
-        query=f"SELECT * FROM {self.global_ids} "
+        query=f"SELECT * FROM {global_ids} "
         cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]
         
         stdout,stderr = self.run_bash_cmd(cmd)
@@ -399,7 +398,25 @@ class BCLinkHelpers(BashHelpers,Logger):
                 else:
                     self.logger.debug(f"Didn't find the log for {table_name} id={job_id} yet, job still running. Trying again in 5 seconds..")
                     time.sleep(5)
+
+    def load_table(self,f_out,destination_table):
+
+        try:
+            tablename = self.table_map[destination_table]
+        except KeyError:
+            self.logger.error(f"table {destination_table} unknown in {self.table_map.keys()}")
+            return
         
+        if not os.path.exists(f_out):
+            self.logger.error(f"Cannot find {f_out} to load to bclink.")
+            return
+                
+        cmd = ['dataset_tool', '--load',f'--table={tablename}',f'--user={self.gui_user}',
+               f'--data_file={f_out}','--support','--bcqueue',self.database]
+        
+        stdout,stderr = self.run_bash_cmd(cmd)
+        
+                    
 
     def load_tables(self,output_directory,tables_to_process=None):
         for table,tablename in self.table_map.items():

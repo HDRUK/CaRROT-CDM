@@ -146,7 +146,7 @@ def _run_data(data,ctx):
             #    logger.warning(f"removing {output_folder}")
             #    shutil.rmtree(output_folder)
             #else:
-            
+
     #invoke mapping
     try:
         ctx.invoke(cc_map,
@@ -705,12 +705,24 @@ def find_duplicates(obj):
         grouped_files[name].append(f)
 
     for name,files in grouped_files.items():
-        df = pd.concat(pd.read_csv(f,sep='\t',index_col=0).dropna(axis=1)
-                       for f in files)
-        df_hash = pd.util.hash_pandas_object(df,index=False)
-        is_duplicated = df_hash.duplicated(keep=False)
-        print (df_hash[is_duplicated])
-        print (df[is_duplicated])
+        df = []
+        for f in files:
+            _df = pd.read_csv(f,sep='\t',index_col=0).dropna(axis=1)
+            _df['file'] = f
+            df.append(_df)
+        df = pd.concat(df)
+        df_hash = pd.util.hash_pandas_object(df.drop('file', axis=1),index=False).to_frame()
+        df_hash.columns = ['hash']
+        is_duplicated = df_hash['hash'].duplicated(keep=False)
+        df_dup = df[is_duplicated].join(df_hash)
+        if len(df_dup) == 0:
+            continue
+        else:
+            print (len(df_dup),'duplicates found')
+
+        df_dup.set_index('hash',inplace=True)
+        df = df_dup[df_dup.index==df_dup.index[0]]
+        
         
         exit(0)
     
