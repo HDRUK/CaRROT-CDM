@@ -384,16 +384,19 @@ class CommonDataModel(Logger):
     def get_indexing(self):
         if not self.outputs:
             return
+
+        meta = self.outputs.load_meta()
+        if not meta:
+            return
         
-        if meta := self.outputs.load_meta():
-            indexing = {}
-            for _,v in meta.items():
-                v = v['meta']['total_data_processed']
-                for k,n in v.items():
-                    if k not in indexing:
-                        indexing[k] = 0
-                    indexing[k] += n
-            return indexing
+        indexing = {}
+        for _,v in meta.items():
+            v = v['meta']['total_data_processed']
+            for k,n in v.items():
+                if k not in indexing:
+                    indexing[k] = 0
+                indexing[k] += n
+        return indexing
 
     
     def get_start_index(self,destination_table):

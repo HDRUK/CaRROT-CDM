@@ -33,12 +33,15 @@ class LocalDataCollection(DataCollection):
         if self.__write_mode == 'w':
             return
 
-        if files := self.get_global_ids():
-            self.logger.warning(f"Loading existing person ids from...")
-            self.logger.warning(f"{files}")
-            return pd.concat([pd.read_csv(fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
-                              for fname in files
-                              ]).to_dict()
+        files = self.get_global_ids()
+        if not files:
+            return
+        
+        self.logger.warning(f"Loading existing person ids from...")
+        self.logger.warning(f"{files}")
+        return pd.concat([pd.read_csv(fname,sep=self.__separator).set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
+                          for fname in files
+        ]).to_dict()
 
     def get_separator(self):
         return self.__separator
