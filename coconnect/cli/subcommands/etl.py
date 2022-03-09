@@ -146,7 +146,6 @@ def _run_data(data,clean,ctx):
             if clean and os.path.exists(output_folder) and os.path.isdir(output_folder):
                 logger.warning(f"removing {output_folder}")
                 shutil.rmtree(output_folder)
-            #else:
 
     #invoke mapping
     try:
@@ -196,17 +195,7 @@ def etl(ctx,config_file):
             conf = _load_config(config_file)
             _check_conf(conf)
             last_modified_config = os.path.getmtime(config_file)
-            # try:
-            #     last_modified_config = os.path.getmtime(config_file)
-            #     display_msg = True
-            # except Exception as e:
-            #     if not display_msg:
-            #         logger.critical(e)
-            #         logger.error(f"You've misconfigured your file '{config_file}'!! Please fix!")
-            #         display_msg = True
-            #         time.sleep(5)
-            #     continue
-
+        
         #reload to detect if there's something different going on
         new_data = _load_transform_data(conf['transform']['data'],data)
         #work out what needs to be re-processed 
@@ -231,8 +220,7 @@ def etl(ctx,config_file):
             display_msg = False
     
         time.sleep(5)
-    #exit(0)
-    #ctx.invoke(bclink,config_file=config_file,force=True)
+   
 
 
 
@@ -576,10 +564,32 @@ def print_tables(ctx,drop_na,markdown,head,tables):
 
                 
 
+@click.command(help='clean (delete all rows) of a give bclink table')
+@click.argument('table')
+@click.pass_context
+def clean_table(ctx,table):
+    ctx.invoke(clean_tables,tables=[table])
+
 @click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
-@click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
+@click.option('--tables',help="specify which tables to remove",default=None)
 @click.pass_obj
-def clean_tables(ctx,skip_local_folder,data=None):
+def clean_tables(ctx,tables):
+    logger = Logger("clean-tables")
+    for item in ctx['data'].values():
+        output = item['output']
+        logger.info(f"cleaning {output}")
+        if 'bclink' in output:
+            settings = output['bclink']
+            settings['clean'] = True
+            if tables:
+                settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+            helpers = BCLinkHelpers(**settings)
+        elif isinstance(output,str):
+            if os.path.exists(output) and os.path.isdir(output):
+                logger.info(f"removing {output}")
+                shutil.rmtree(output)
+   
+    exit(0)
     bclink_helpers = ctx['bclink_helpers']
     interactive = ctx['interactive']
    
@@ -1174,19 +1184,21 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
-bclink.add_command(print_tables,'print_tables')
-bclink.add_command(clean_tables,'clean_tables')
-bclink.add_command(delete_data,'delete_data')
-bclink.add_command(drop_duplicates,'drop_duplicates')
-bclink.add_command(check_tables,'check_tables')
-bclink.add_command(create_tables,'create_tables')
-bclink.add_command(execute,'execute')
-bclink.add_command(extract,'extract')
-bclink.add_command(transform,'transform')
-bclink.add_command(load,'load')
-etl.add_command(manual,'bclink-manual')
-etl.add_command(bclink,'bclink')
+#bclink.add_command(print_tables,'print_tables')
+#bclink.add_command(clean_tables,'clean_tables')
+#bclink.add_command(delete_data,'delete_data')
+#bclink.add_command(drop_duplicates,'drop_duplicates')
+#bclink.add_command(check_tables,'check_tables')
+#bclink.add_command(create_tables,'create_tables')
+#bclink.add_command(execute,'execute')
+#bclink.add_command(extract,'extract')
+#bclink.add_command(transform,'transform')
+#bclink.add_command(load,'load')
+#etl.add_command(manual,'bclink-manual')
+#etl.add_command(bclink,'bclink')
 etl.add_command(find_duplicates,'find-duplicates')
+etl.add_command(clean_table,'clean-table')
+etl.add_command(clean_tables,'clean-tables')
 
 
 

@@ -537,7 +537,9 @@ def map(ctx,rules,inputs,format_level,
         if 'bclink' in output_database:
             outputs = coconnect.tools.create_bclink_store(bclink_settings=output_database['bclink'],
                                                           output_folder=output_database['cache'],
-                                                          sep=csv_separator,write_mode=write_mode)
+                                                          sep=csv_separator,
+                                                          write_separate=split_outputs,
+                                                          write_mode=write_mode)
         else:
             raise NotImplementedError(f"dont know how to configure outputs... {output_database}")   
     elif output_database == None:
