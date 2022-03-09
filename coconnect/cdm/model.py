@@ -124,7 +124,7 @@ class CommonDataModel(Logger):
         #define a person_id masker, if the person_id are to be masked
         if self.outputs:
             self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
-            self.indexing_conf = self.outputs.load_indexing()
+            self.indexing_conf = self.get_indexing()
         else:
             self.person_id_masker = None
             self.indexing_conf = None
@@ -381,6 +381,21 @@ class CommonDataModel(Logger):
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
+    def get_indexing(self):
+        if not self.outputs:
+            return
+        
+        if meta := self.outputs.load_meta():
+            indexing = {}
+            for _,v in meta.items():
+                v = v['meta']['total_data_processed']
+                for k,n in v.items():
+                    if k not in indexing:
+                        indexing[k] = 0
+                    indexing[k] += n
+            return indexing
+
+    
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 

@@ -89,7 +89,13 @@ def load_sql(**kwargs):
     store = create_sql_store(**kwargs)
     return store
 
-def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
+def load_csv(_map,chunksize=None,
+             dtype=str,nrows=None,
+             lower_col_names=False,
+             load_path="",
+             rules=None,
+             sep=',',
+             na_values=['']):
 
     if isinstance(_map,list):
         _map = {
@@ -108,10 +114,11 @@ def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load
         logger.debug("rules .json file supplied")
         if not isinstance(rules,dict):
             rules = load_json(rules)
-        source_map = get_mapped_fields_from_rules(rules)
 
-        inputs_from_json = list(source_map.keys())
         inputs_from_cli = list(_map.keys())
+            
+        source_map = get_mapped_fields_from_rules(rules)
+        inputs_from_json = list(source_map.keys())
 
         if len(inputs_from_cli) == 0:
             raise MissingInputFiles (f"You haven't loaded any input files!")
@@ -212,11 +219,11 @@ def remove_missing_sources_from_rules(rules,tables):
             source_table = sub_table[first]['source_table']
             if source_table not in tables:
                 rules_copy['cdm'][destination_table].pop(table_name)
-                logger.info(f"removed {table_name} from rules because it was not loaded")
+                logger.warning(f"removed {table_name} from rules because it was not loaded")
                 
         if not rules_copy['cdm'][destination_table]:
             rules_copy['cdm'].pop(destination_table)
-            logger.info(f"removed cdm table '{destination_table}' from rules")
+            logger.warning(f"removed cdm table '{destination_table}' from rules")
         
     return rules_copy
 

@@ -65,16 +65,6 @@ class LocalDataCollection(DataCollection):
             self.logger.warning("Defaulting to csv")
             return 'csv'
 
-    def load_indexing(self,name='.meta'):
-        if meta := self.load_meta():
-            indexing = {}
-            for _,v in meta.items():
-                v = v['meta']['total_data_processed']
-                for k,n in v.items():
-                    if k not in indexing:
-                        indexing[k] = 0
-                    indexing[k] += n
-            return indexing
         
     def load_meta(self,name='.meta'):
         f_out = self.__output_folder

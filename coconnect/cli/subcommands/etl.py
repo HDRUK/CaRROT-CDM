@@ -109,7 +109,7 @@ def _load_transform_data(data,processed_data={}):
         
     return data
 
-def _run_data(data,ctx):
+def _run_data(data,clean,ctx):
     logger = Logger("_run_data")
     _data = copy.deepcopy(data)
     rules = _data.pop('rules')
@@ -121,15 +121,17 @@ def _run_data(data,ctx):
 
     input_folder = _data.pop('input')
     inputs = coconnect.tools.get_files(input_folder,type='csv')
-    filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
     
     output = _data.pop('output')
     
 
-    person_id_map = _data.pop('person_id_map',None)
-
+    kwargs = {
+        'split_outputs':True,
+        'allow_missing_data':True,
+        'write_mode':'a'
+    }
     #assume the remained are kwargs for the transform
-    kwargs = _data
+    kwargs.update(_data)
 
 
     output_database = None
@@ -141,28 +143,24 @@ def _run_data(data,ctx):
         output_folder = output
         if _outputs_exist(output_folder,destination_tables):
             logger.warning(f'{output_folder} exists!')
-            kwargs['write_mode'] = 'a'
-            #if clean and first and os.path.exists(output_folder) and os.path.isdir(output_folder):
-            #    logger.warning(f"removing {output_folder}")
-            #    shutil.rmtree(output_folder)
+            if clean and os.path.exists(output_folder) and os.path.isdir(output_folder):
+                logger.warning(f"removing {output_folder}")
+                shutil.rmtree(output_folder)
             #else:
 
     #invoke mapping
     try:
         ctx.invoke(cc_map,
-                   rules=filtered_rules,
+                   rules=rules,
                    inputs=inputs,
                    output_folder=output_folder,
                    output_database=output_database,
-                   split_outputs=True,
-                   #indexing_conf=indexer,
-                   person_id_map=person_id_map,
                    **kwargs
         )
     except coconnect.cdm.model.PersonExists as e:
         logger.error(e)
         logger.error(f"failed to map {inputs} because there were people")
-        logger.error(f" already processed and present in existing data. Check {person_id_map}")
+        logger.error(f" already processed and present in existing data. Check the person_id map/lookup!")
     return True
 
 
@@ -183,9 +181,12 @@ def etl(ctx,config_file):
         ctx.obj = {'conf':conf,'data':data}
         return
 
+    settings = conf.get('settings',{})
+    listen_for_changes = settings.get('listen_for_changes',False)
+    clean = settings.get('clean',False)
     
     #run the data
-    _ = [_run_data(d,ctx) for d in data.values()]
+    _ = [_run_data(d,clean,ctx) for d in data.values()]
         
     display_msg = True
     while True:
@@ -221,16 +222,17 @@ def etl(ctx,config_file):
 
         #update the data to 
         data = _load_transform_data(conf['transform']['data'])
-                                                      
+
+        if not listen_for_changes:
+            break
+        
         if display_msg:
             logger.info(f"Finished!... Listening for changes every 5 seconds to data in {config_file}")
             display_msg = False
     
         time.sleep(5)
-
-    
-    exit(0)
-    ctx.invoke(bclink,config_file=config_file,force=True)
+    #exit(0)
+    #ctx.invoke(bclink,config_file=config_file,force=True)
 
 
 

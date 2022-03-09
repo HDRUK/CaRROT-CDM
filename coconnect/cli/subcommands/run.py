@@ -342,6 +342,9 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
 @click.option("--split-outputs",
               is_flag=True,
               help="force the output files to be split into separate files")
+@click.option("--allow-missing-data",
+              is_flag=True,
+              help="don't crash if there is data tables in rules file that hasnt been loaded")
 @click.option("output_database","--database",
               default=None,
               help="define the output database where to insert data into")
@@ -395,7 +398,7 @@ def map(ctx,rules,inputs,format_level,
         person_id_map,max_rules,merge_output,
         objects,tables,db,write_mode,split_outputs,
         dont_automatically_fill_missing_columns,
-        number_of_rows_per_chunk,
+        number_of_rows_per_chunk,allow_missing_data,
         number_of_rows_to_process):
     """
     Perform OMOP Mapping given an json file and a series of input files
@@ -519,8 +522,11 @@ def map(ctx,rules,inputs,format_level,
     if db:
         inputs = tools.load_sql(connection_string=db,chunksize=number_of_rows_per_chunk,nrows=number_of_rows_to_process)
     else:
+        if allow_missing_data:
+            config = coconnect.tools.remove_missing_sources_from_rules(config,inputs)
+
         inputs = tools.load_csv(inputs,
-                                rules=rules,
+                                rules=config,
                                 chunksize=number_of_rows_per_chunk,
                                 nrows=number_of_rows_to_process)
 
