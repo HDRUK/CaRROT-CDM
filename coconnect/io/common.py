@@ -20,6 +20,8 @@ class DataCollection(Logger):
             key:self[key]
             for key in self.keys()
         }
+    def finalise(self):
+        pass
         
     def keys(self):
         return self.__bricks.keys()
