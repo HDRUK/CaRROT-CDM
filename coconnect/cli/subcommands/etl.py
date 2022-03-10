@@ -675,19 +675,16 @@ def clean_table(ctx,table):
 @click.pass_obj
 def clean_tables(ctx,tables):
     logger = Logger("clean-tables")
-    for item in ctx['data'].values():
-        output = item['output']
-        logger.info(f"cleaning {output}")
-        if 'bclink' in output:
-            settings = output['bclink']
-            settings['clean'] = True
-            if tables:
-                settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
-            helpers = BCLinkHelpers(**settings)
-        elif isinstance(output,str):
-            if os.path.exists(output) and os.path.isdir(output):
-                logger.info(f"removing {output}")
-                shutil.rmtree(output)
+    load = ctx['conf']['load']
+
+    if 'bclink' in load:
+        settings = load['bclink']
+        settings['clean'] = True
+        if tables:
+            settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+        helpers = BCLinkHelpers(**settings)
+    else:
+        raise NotImplementedError("cannot clean tables for configuration load: {load}")
          
 
 @click.command(help='delete data that has been inserted into bclink')
