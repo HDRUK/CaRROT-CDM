@@ -655,7 +655,7 @@ def check_tables(ctx,tables):
         logger.info(f"cleaning {output}")
         if 'bclink' in output:
             settings = output['bclink']
-            settings['clean'] = True
+            settings['clean'] = False
             if tables:
                 settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
             helpers = BCLinkHelpers(**settings)
