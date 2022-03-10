@@ -637,16 +637,32 @@ def delete_tables(ctx):
 
     files_to_delete = answers['files']
     if bc_settings:
-        print (bc_settings)
         helpers = BCLinkHelpers(**bc_settings)
         for f in files_to_delete:
             helpers.remove_table(f)
-        exit(0)
     
     for f in files_to_delete:
         logger.warning(f"removing {f}")
         os.remove(f)
-                        
+
+@click.command(help='check tables')
+@click.option('--tables',help="specify which tables to remove",default=None)
+@click.pass_obj
+def check_tables(ctx,tables):
+    logger = Logger("check-tables")
+    for item in ctx['data'].values():
+        output = item['output']
+        logger.info(f"cleaning {output}")
+        if 'bclink' in output:
+            settings = output['bclink']
+            settings['clean'] = True
+            if tables:
+                settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+            helpers = BCLinkHelpers(**settings)
+        else:
+            raise NotImplementedError(f"cannot call check_tables on output {output}. This is for bclink stuff")
+            
+
 
 @click.command(help='clean (delete all rows) of a given table name')
 @click.argument('table')
@@ -748,24 +764,7 @@ def drop_duplicates(ctx):
             
 
 
-@click.command(help='check the bclink tables')
-@click.pass_obj
-def check_tables(ctx):
-    bclink_helpers = ctx['bclink_helpers']
-    logger = Logger("check_tables")
-
-    retval = {}
-    logger.info("printing to see if tables exist")
-    for bclink_table in bclink_helpers.table_map.values():
-        retval[bclink_table] = bclink_helpers.check_table_exists(bclink_table)
-    if bclink_helpers.global_ids:
-        retval[bclink_helpers.global_ids] = bclink_helpers.check_table_exists(bclink_helpers.global_ids)
-
-    logger.info(json.dumps(retval,indent=6))
-    return retval
-
-
-@click.command(help='crate new bclink tables')
+@click.command(help='create new bclink tables')
 @click.pass_context
 def create_tables(ctx):
     logger = Logger("create_tables")
@@ -1179,6 +1178,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 #bclink.add_command(load,'load')
 #etl.add_command(manual,'bclink-manual')
 #etl.add_command(bclink,'bclink')
+etl.add_command(check_tables,'check-tables')
 etl.add_command(clean_table,'clean-table')
 etl.add_command(clean_tables,'clean-tables')
 etl.add_command(delete_tables,'delete-tables')
