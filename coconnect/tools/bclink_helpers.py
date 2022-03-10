@@ -504,15 +504,17 @@ class BCLinkHelpers(BashHelpers,Logger):
 
     def remove_table(self,fname):
         self.logger.info(f"Called remove_table on {fname}")
-        table = os.path.splitext(os.path.basename(fname))[0]
+        table = os.path.splitext(os.path.basename(fname))[0].split('.')[0]
         data = coconnect.tools.load_csv({table:{'fields':[0],'file':fname}},
                                         sep='\t',
                                         chunksize=1000)
 
-        if table in self.table_map:
-            bc_table = self.table_map[table]
-        else:#if table == 'global_ids':
-            return
+
+        if not table in self.table_map:
+            raise KeyError(f"{table} doesnt exist in bclink mapping")
+
+        bc_table = self.table_map[table]
+
                     
         pk = self.get_pk(bc_table)
         self.logger.debug(f"will remove {bc_table} using primary-key={pk}")

@@ -289,29 +289,6 @@ class DestinationTable(Logger):
         #add objects to this class
         self.__dict__.update(objs)
         
-    def filter(self,filters):
-
-        import operator
-        ops = {
-            '>': operator.gt,
-            '<': operator.lt,
-            '>=': operator.ge,
-            '<=': operator.le,
-            '==': operator.eq
-        }
-                
-        if not isinstance(filters,dict):
-            raise NotImplementedError("filter must be a 'dict' .")
-
-        df = self.get_df()
-        for col,value in filters.items():
-            if isinstance(value,dict):
-                for op_str,val in value.items():
-                    df = df[ops[op_str](df[col],val)]                        
-            else:
-                df = df[df[col] == value]
-            
-        return df
 
     def set_df(self,df):
         self.__df = df
@@ -323,6 +300,9 @@ class DestinationTable(Logger):
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
+        if not self.__df is None:
+            self.logger.debug(f"df({hex(id(self.__df))}) already exists")
+        
         if dont_build:
             if self.__df is None:
                 self.__df = pd.DataFrame(columns = self.fields)

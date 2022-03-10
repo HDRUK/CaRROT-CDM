@@ -4,6 +4,7 @@ import numpy as np
 import json
 import copy
 import getpass
+import operator
 
 import shutil
 import threading
@@ -154,6 +155,7 @@ class CommonDataModel(Logger):
         self.__objects = {}
         #check if objects have already been registered with this class
         #via the decorator methods
+                
         registered_objects = [
             getattr(self,name)
             for name in dir(self)
@@ -248,7 +250,12 @@ class CommonDataModel(Logger):
             cdm.add(obj)
         return cdm
 
-            
+    def __del__(self):
+        self.__df_map.clear()
+        del self.__df_map
+        self.__objects.clear()
+        del self.__objects
+                
         
     def __getitem__(self,key):
         """
@@ -354,18 +361,46 @@ class CommonDataModel(Logger):
     def find(self,config,cols=None,dropna=False):
         return self.filter(config,cols,dropna)
 
+    def _filter(self,df,filters):
+        ops = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '>=': operator.ge,
+            '<=': operator.le,
+            '==': operator.eq
+        }
+
+
+        if not isinstance(filters,dict):
+            raise NotImplementedError("filter must be a 'dict' .")
+
+        for col,value in filters.items():
+            if isinstance(value,dict):
+                for op_str,val in value.items():
+                    df = df[ops[op_str](df[col],val)]                        
+            else:
+                df = df[df[col] == value]
+        return df
+
+    
     def filter(self,config,cols=None,dropna=False):
         retval = None
         for obj in config:
             if isinstance(obj,str):
-                df = self[obj].get_df().set_index('person_id')
+                df = self[obj].get_df()
+                if df.index.name != 'person_id':
+                    df = df.set_index('person_id')
                 if retval is None:
                     retval = df
                 else:
                     retval = retval.merge(df,left_index=True,right_index=True)
             elif isinstance(obj,dict):
                 for key,value in obj.items():
-                    df = self[key].filter(value).set_index('person_id')
+                    print (self[key])
+                    df = self[key]
+                    df = self._filter(df,value)
+                    if df.index.name != 'person_id':
+                        df = df.set_index('person_id')
                     if retval is None:
                         retval = df
                     else:
@@ -391,7 +426,6 @@ class CommonDataModel(Logger):
             return 1
 
         if destination_table in self.indexing_conf:
-            print (self.indexing_conf[destination_table])
             return int(self.indexing_conf[destination_table])
         else:
             self.logger.warning(self.indexing_conf)
@@ -474,7 +508,6 @@ class CommonDataModel(Logger):
 
                     mode = 'w' if new else 'a'
                     self.outputs.write(f"person_ids",dfp,mode)
-                    print ('done')
                         
             #apply the masking
             if self.person_id_masker is None:
@@ -623,6 +656,7 @@ class CommonDataModel(Logger):
                 dfs = []
                 for j,obj in enumerate(df_generator):
                     df = obj.get_df()
+                        
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:

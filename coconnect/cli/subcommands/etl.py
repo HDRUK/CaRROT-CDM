@@ -87,7 +87,8 @@ def _find_data(d):
     root_output_folder = data.pop('output')
     subfolders = coconnect.tools.get_subfolders(root_input_folder)
     data = [
-        {**data,**{'input':f,'output':f'{root_output_folder}{os.path.sep}{k}{os.path.sep}'}}
+        #{**data,**{'input':f,'output':f'{root_output_folder}{os.path.sep}{k}{os.path.sep}'}}
+        {**data,**{'input':f,'output':root_output_folder}}
         for k,f in subfolders.items()
     ]
     return data
@@ -163,14 +164,11 @@ def _run_data(data,clean,ctx):
     return True
 
 
-@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
-@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
-@click.pass_context
-def etl(ctx,config_file):
-        
-    logger = Logger("etl")
 
+def _run_etl(ctx,config_file):
+    logger = Logger("run_etl")
     last_modified_config = os.path.getmtime(config_file)
+    logger.info(f"running etl on {config_file} (last modified: {last_modified_config})")
 
     conf = _load_config(config_file)
     _check_conf(conf)
@@ -207,7 +205,7 @@ def etl(ctx,config_file):
         
         display_msg = True if data_to_process else display_msg
         #run the data
-        _ = [_run_data(d,ctx) for d in data_to_process.values()]
+        _ = [_run_data(d,False,ctx) for d in data_to_process.values()]
 
         #update the data to 
         data = _load_transform_data(conf['transform']['data'])
@@ -220,7 +218,45 @@ def etl(ctx,config_file):
             display_msg = False
     
         time.sleep(5)
-   
+
+
+
+
+@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
+@click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
+@click.option('--log-file','-l',default='coconnect.log',help='specify the log file to write to')
+@click.pass_context
+def etl(ctx,config_file,run_as_daemon,log_file):
+    logger = Logger("etl")
+    
+    if run_as_daemon and daemon is None:
+        raise ImportError(f"You are trying to run in daemon mode, "
+                          "but the package 'daemon' hasn't been installed. "
+                          "pip install python-daemon. \n"
+                          "If you are running on a Windows machine, this package is not supported")
+
+    if run_as_daemon and daemon is not None:
+        stderr = log_file
+        stdout = f'{stderr}.out'
+     
+        logger.info(f"running as a daemon process, logging to {stderr}")
+        pidfile = TimeoutPIDLockFile('etl.pid', -1)
+        logger.info(f"process_id in {pidfile}")
+
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            d_ctx = daemon.DaemonContext(
+                working_directory=os.getcwd(),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+                pidfile=TimeoutPIDLockFile('etl.pid', -1)
+            )
+            with d_ctx:
+                _run_etl(ctx,config_file)
+    else:
+        _run_etl(ctx,config_file)
+
+
 
 
 
@@ -562,15 +598,63 @@ def print_tables(ctx,drop_na,markdown,head,tables):
 
         click.echo(df)
 
-                
 
-@click.command(help='clean (delete all rows) of a give bclink table')
+@click.command(help='delete some tables')
+@click.pass_obj
+def delete_tables(ctx):
+    logger = Logger('delete_tables')
+    out_folders = []
+    bc_settings = None
+    for item in ctx['data'].values():
+        output = item['output']
+        if isinstance(output,str):
+            pass
+        elif 'bclink' in output:
+            bc_settings = output['bclink']
+            output = output['cache']
+            
+        if os.path.exists(output) and os.path.isdir(output):
+            out_folders.append(output)
+
+    out_folders = list(set(out_folders))
+    all_files = [
+        coconnect.tools.get_files(f,type='tsv')
+        for f in out_folders
+    ]
+    all_files = [ subitem for item in all_files for subitem in item]
+
+    choices = all_files
+    questions = [
+        inquirer.Checkbox('files',
+                          message=f"Which tables do you want to delete? ... ",
+                          choices=choices,
+                          default=[],
+        )
+    ]
+    answers = inquirer.prompt(questions)
+    if answers == None:
+        os.kill(os.getpid(), signal.SIGINT)
+
+    files_to_delete = answers['files']
+    if bc_settings:
+        print (bc_settings)
+        helpers = BCLinkHelpers(**bc_settings)
+        for f in files_to_delete:
+            helpers.remove_table(f)
+        exit(0)
+    
+    for f in files_to_delete:
+        logger.warning(f"removing {f}")
+        os.remove(f)
+                        
+
+@click.command(help='clean (delete all rows) of a given table name')
 @click.argument('table')
 @click.pass_context
 def clean_table(ctx,table):
     ctx.invoke(clean_tables,tables=[table])
 
-@click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
+@click.command(help='clean (delete all rows) in the tables defined in the config file')
 @click.option('--tables',help="specify which tables to remove",default=None)
 @click.pass_obj
 def clean_tables(ctx,tables):
@@ -588,72 +672,7 @@ def clean_tables(ctx,tables):
             if os.path.exists(output) and os.path.isdir(output):
                 logger.info(f"removing {output}")
                 shutil.rmtree(output)
-   
-    exit(0)
-    bclink_helpers = ctx['bclink_helpers']
-    interactive = ctx['interactive']
-   
-    logger = Logger("clean_tables")
-
-
-    if data is None:
-        data = ctx['data']
-
-    if isinstance(data,dict):
-        output_folders = [data['output']]
-    else:
-        output_folders = [x['output'] for x in data]
-
-    
-    if interactive:
-        tables = list(bclink_helpers.table_map.values())
-        choices = [ (f"{v} ({k})",v) for k,v in bclink_helpers.table_map.items()]
-
-        tables.append(bclink_helpers.global_ids)
-        choices.append((f'{bclink_helpers.global_ids} (global_ids)',bclink_helpers.global_ids))
-        
-        questions = [
-            inquirer.Checkbox('clean_tables',
-                              message=f"Clean all-rows in which BCLink tables?",
-                              choices=choices,
-                              default=tables)
-        ]
-        answers = inquirer.prompt(questions)
-        if answers == None:
-            os.kill(os.getpid(), signal.SIGINT)
-
-        tables = answers['clean_tables']
-        bclink_helpers.clean_tables(tables)
-    else:
-        bclink_helpers.clean_tables()
-   
-    if skip_local_folder:
-        return
-
-    if interactive:    
-        questions = [
-            inquirer.Checkbox('output_folders',
-                              message=f"Clean the following output folders?",
-                              choices=output_folders,
-                              default=output_folders)
-        ]
-        answers = inquirer.prompt(questions)
-        if answers == None:
-            os.kill(os.getpid(), signal.SIGINT)
-        
-        output_folders = answers['output_folders']
-
-    for output_folder in output_folders:
-        if not os.path.exists(output_folder):
-            logger.info(f"No folder to remove at '{output_folder}'")
-            continue
-            
-        if os.path.exists(output_folder) and os.path.isdir(output_folder):
-            logger.info(f"removing {output_folder}")
-            shutil.rmtree(output_folder)
-   
-
-      
+         
 
 @click.command(help='delete data that has been inserted into bclink')
 @click.pass_obj
@@ -702,42 +721,6 @@ def delete_data(ctx):
             click.echo(f"Deleting {f}")
             os.remove(f)
 
-@click.command(help='find duplicates')
-@click.pass_obj
-def find_duplicates(obj):
-    data = obj['data']
-
-    out_folders = list(set([v['output'] for k,v in data.items()]))
-    all_files = [glob.glob(f+'*.*') for f in out_folders]
-    all_files = [item for sublist in all_files for item in sublist]
-    grouped_files = {}
-    for f in all_files:
-        name = f.split(os.path.sep)[-1].split('.')[0]
-        if name not in grouped_files:
-            grouped_files[name] = []
-        grouped_files[name].append(f)
-
-    for name,files in grouped_files.items():
-        df = []
-        for f in files:
-            _df = pd.read_csv(f,sep='\t',index_col=0).dropna(axis=1)
-            _df['file'] = f
-            df.append(_df)
-        df = pd.concat(df)
-        df_hash = pd.util.hash_pandas_object(df.drop('file', axis=1),index=False).to_frame()
-        df_hash.columns = ['hash']
-        is_duplicated = df_hash['hash'].duplicated(keep=False)
-        df_dup = df[is_duplicated].join(df_hash)
-        if len(df_dup) == 0:
-            continue
-        else:
-            print (len(df_dup),'duplicates found')
-
-        df_dup.set_index('hash',inplace=True)
-        df = df_dup[df_dup.index==df_dup.index[0]]
-        
-        
-        exit(0)
     
 @click.command(help='check and drop for duplicates')
 @click.pass_obj
@@ -1196,9 +1179,9 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 #bclink.add_command(load,'load')
 #etl.add_command(manual,'bclink-manual')
 #etl.add_command(bclink,'bclink')
-etl.add_command(find_duplicates,'find-duplicates')
 etl.add_command(clean_table,'clean-table')
 etl.add_command(clean_tables,'clean-tables')
+etl.add_command(delete_tables,'delete-tables')
 
 
 
