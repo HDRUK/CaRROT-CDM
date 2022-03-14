@@ -4,7 +4,7 @@ import signal
 import hashlib
 import os
 import glob
-
+import subprocess
 try:
     import daemon
     from daemon.pidfile import TimeoutPIDLockFile
@@ -76,19 +76,37 @@ def _check_conf(config):
 
 
 def _outputs_exist(output,tables):
-    #print (tables)
-    #print (temp)
-    #print (any(temp))
     return os.path.exists(output)
+
+def _run_extract(input_folder,config):
+    output_folder = config['output']
+    files = coconnect.tools.get_files(input_folder,type='csv')
+    for f in files:
+        bash_command = config['bash'].format(input=f,output=output_folder)
+        for command in bash_command.splitlines():
+            commands = command.split()
+            if len(commands) == 0 :
+                continue
+            process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+            output, error = process.communicate()
+            click.echo(output.decode("utf-8"))
+    
+    return output_folder
+
 
 def _find_data(d):
     data = copy.deepcopy(d)
     root_input_folder = data.pop('input')
     root_output_folder = data.pop('output')
+    additional = {}
+    if isinstance(root_input_folder,dict):
+        #there is some additional configuration to run here
+        temp = root_input_folder.pop('input')
+        additional = root_input_folder
+        root_input_folder = temp
     subfolders = coconnect.tools.get_subfolders(root_input_folder)
     data = [
-        #{**data,**{'input':f,'output':f'{root_output_folder}{os.path.sep}{k}{os.path.sep}'}}
-        {**data,**{'input':f,'output':root_output_folder}}
+        {**data,**{'input':f,'output':root_output_folder,'additional':additional}}
         for k,f in subfolders.items()
     ]
     return data
@@ -120,9 +138,14 @@ def _run_data(data,clean,ctx):
     
     destination_tables = list(rules['cdm'].keys())
 
-    input_folder = _data.pop('input')
-    inputs = coconnect.tools.get_files(input_folder,type='csv')
     
+    input_folder = _data.pop('input')
+
+    extract_config = _data.pop('additional',None)
+    if extract:
+        input_folder = _run_extract(input_folder,extract_config)
+    
+    inputs = coconnect.tools.get_files(input_folder,type='csv')
     output = _data.pop('output')
     
 
