@@ -22,10 +22,13 @@ __cdm_tables = {
             inspect.isclass)
 }
 
+
 __cdm_object_map = {
     obj.name : obj
     for obj in __cdm_tables.values()
 }
+def get_cdm_tables():
+    return __cdm_object_map
 
 import sys
 this = sys.modules[__name__]

@@ -4,6 +4,7 @@ import numpy as np
 import json
 import copy
 import getpass
+import operator
 
 import shutil
 import threading
@@ -13,6 +14,7 @@ from time import gmtime, strftime, sleep, time
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
+import coconnect.tools 
 from coconnect.io import DataCollection
 
 from coconnect import __version__ as cc_version
@@ -44,17 +46,22 @@ class CommonDataModel(Logger):
         cdm = cls(**default_kwargs)
         cdm._load_inputs(inputs)
         return cdm
+
+    @classmethod
+    def from_rules(cls,rules,**kwargs):
+        cdm = cls(**kwargs)
+        cdm.create_and_add_objects(rules)
+        return cdm
     
 
     def __init__(self, name=None, omop_version='5.3.1',
                  outputs = None,
-                 indexing_conf=None,
-                 person_id_map=None,
                  save_files=True,
                  inputs=None,
                  use_profiler=False,
                  format_level=None,
                  do_mask_person_id=True,
+                 drop_duplicates=True,
                  automatically_fill_missing_columns=True):
         """
         CommonDataModel class initialisation 
@@ -75,8 +82,8 @@ class CommonDataModel(Logger):
 
         self.omop_version = omop_version
 
+        self.drop_duplicates = drop_duplicates
         self.do_mask_person_id = do_mask_person_id
-        self.indexing_conf = indexing_conf
         self.execution_order = None
         
         if format_level == None:
@@ -123,7 +130,12 @@ class CommonDataModel(Logger):
             self.logger.info(f"Turning on automatic cdm column filling")
 
         #define a person_id masker, if the person_id are to be masked
-        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
+        if self.outputs:
+            self.person_id_masker = self.outputs.load_global_ids()
+            self.indexing_conf = self.outputs.load_indexing()
+        else:
+            self.person_id_masker = None
+            self.indexing_conf = None
 
         #stores the final pandas dataframe for each CDM object
         # {
@@ -150,6 +162,7 @@ class CommonDataModel(Logger):
         self.__objects = {}
         #check if objects have already been registered with this class
         #via the decorator methods
+                
         registered_objects = [
             getattr(self,name)
             for name in dir(self)
@@ -176,7 +189,7 @@ class CommonDataModel(Logger):
                 'total_data_processed':{}
             }
         }
-
+        
     def _load_inputs(self,inputs):
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
@@ -187,8 +200,21 @@ class CommonDataModel(Logger):
                 continue
                 
             df = obj.get_df(force_rebuild=False)
-            self[destination_table] = obj
+            self[destination_table] = df.set_index(df.columns[0])
 
+    def reset(self):
+        self.__df_map.clear()
+        [x.reset() for x in self.get_all_objects()]
+        self.inputs.reset()
+
+        if self.outputs:
+            self.person_id_masker = self.outputs.load_global_ids()
+            self.indexing_conf = self.outputs.load_indexing()
+        else:
+            self.person_id_masker = None
+            self.indexing_conf = None
+
+        
         
     def close(self):
         """
@@ -197,8 +223,11 @@ class CommonDataModel(Logger):
         """
 
 
-        self.logger.info(json.dumps(self.logs,indent=6))
-        
+        self.logger.info(json.dumps(self.logs['meta'],indent=6))
+        if self.outputs:
+            self.outputs.write_meta(self.logs)
+            self.outputs.finalise()
+
         if not hasattr(self,'profiler'):
             return
         if self.profiler:
@@ -230,12 +259,23 @@ class CommonDataModel(Logger):
             #obtain the name of the destination table
             #e.g fname='person.tsv' we want 'person'
             destination_table,_ = os.path.splitext(fname)
-            #
-            obj = get_cdm_decorator(destination_table)(load_file(fname))
+            name = destination_table
+            if '.' in destination_table:
+                destination_table = destination_table.split('.')[0]
+            try:
+                obj = get_cdm_class(destination_table).from_df(inputs[fname],name=name)
+            except KeyError:
+                cdm.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
+                continue
             cdm.add(obj)
         return cdm
 
-            
+    def __del__(self):
+        self.__df_map.clear()
+        del self.__df_map
+        self.__objects.clear()
+        del self.__objects
+                
         
     def __getitem__(self,key):
         """
@@ -265,6 +305,10 @@ class CommonDataModel(Logger):
         """
         self.logger.debug(f"creating {obj} for {key}")
         self.__df_map[key] = obj
+
+    def print(self):
+        for name in self.keys():
+            print (self[name].dropna(axis=1))
         
     def add(self,obj):
         """
@@ -285,6 +329,32 @@ class CommonDataModel(Logger):
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
 
+    def create_and_add_objects(self,config):
+        #loop over the cdm object types defined in the configuration
+        #e.g person, measurement etc..
+        for destination_table,rules_set in config['cdm'].items():
+            #loop over each object instance in the rule set
+            #for example, condition_occurrence may have multiple rulesx
+            #for multiple condition_ocurrences e.g. Headache, Fever ..
+            for name,rules in rules_set.items():
+                #make a new object for the cdm object
+                #Example:
+                # destination_table : person
+                # get_cdm_class returns <Person>
+                # obj : Person()
+                obj = get_cdm_class(destination_table)()
+                #set the name of the object
+                obj.set_name(name)
+            
+                #Build a lambda function that will get executed during run time
+                #and will be able to apply these rules to the inputs that are loaded
+                #(this is useful when chunk)
+                obj.define = lambda x,rules=rules : coconnect.tools.apply_rules(x,rules,inputs=self.inputs)
+                
+                #register this object with the CDM model, so it can be processed
+                self.add(obj)
+
+        
     def add_analysis(self,func,_id=None):
         if _id is None:
             _id = hex(id(func))
@@ -337,18 +407,46 @@ class CommonDataModel(Logger):
     def find(self,config,cols=None,dropna=False):
         return self.filter(config,cols,dropna)
 
+    def _filter(self,df,filters):
+        ops = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '>=': operator.ge,
+            '<=': operator.le,
+            '==': operator.eq
+        }
+
+
+        if not isinstance(filters,dict):
+            raise NotImplementedError("filter must be a 'dict' .")
+
+        for col,value in filters.items():
+            if isinstance(value,dict):
+                for op_str,val in value.items():
+                    df = df[ops[op_str](df[col],val)]                        
+            else:
+                df = df[df[col] == value]
+        return df
+
+    
     def filter(self,config,cols=None,dropna=False):
         retval = None
         for obj in config:
             if isinstance(obj,str):
-                df = self[obj].get_df().set_index('person_id')
+                df = self[obj].get_df()
+                if df.index.name != 'person_id':
+                    df = df.set_index('person_id')
                 if retval is None:
                     retval = df
                 else:
                     retval = retval.merge(df,left_index=True,right_index=True)
             elif isinstance(obj,dict):
                 for key,value in obj.items():
-                    df = self[key].filter(value).set_index('person_id')
+                    print (self[key])
+                    df = self[key]
+                    df = self._filter(df,value)
+                    if df.index.name != 'person_id':
+                        df = df.set_index('person_id')
                     if retval is None:
                         retval = df
                     else:
@@ -365,6 +463,7 @@ class CommonDataModel(Logger):
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
+    
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 
@@ -380,18 +479,6 @@ class CommonDataModel(Logger):
                                 f"but this table ({destination_table}) "
                                 "has not be passed, so starting from 1")
             return 1
-
-    def get_existing_person_id_masker(self,fname):
-        if fname == None:
-            return fname
-        elif os.path.exists(fname):
-            #this needs to be scalable for large number of person ids
-            _df = pd.read_csv(fname,sep='\t').set_index('TARGET_SUBJECT')['SOURCE_SUBJECT']
-            return _df.to_dict()
-        else:
-            self.logger.error(f"Supplied the file {fname} as a file containing already masked person_ids ")
-            raise FileNotFoundError("{fname} file does not exist!!")
-
 
     def clear_objects(self,destination_table=None):
         if destination_table:
@@ -466,7 +553,7 @@ class CommonDataModel(Logger):
                                        columns=['SOURCE_SUBJECT','TARGET_SUBJECT'])
 
                     mode = 'w' if new else 'a'
-                    self.outputs.write("global_ids",dfp,mode)
+                    self.outputs.write(f"person_ids",dfp,mode)
                         
             #apply the masking
             if self.person_id_masker is None:
@@ -478,9 +565,10 @@ class CommonDataModel(Logger):
 
             self.logger.debug(f"Just masked person_id using integers")
             if destination_table != 'person':
-                df.dropna(subset=['person_id'],inplace=True) 
+                df.dropna(subset=['person_id'],inplace=True)
                 nafter = len(df['person_id'])
                 ndiff = nbefore - nafter
+                df.attrs['person_id'] = {'before':nbefore,'after':nafter}
                 #if rows have been removed
                 if ndiff>0:
                     self.logger.error("There are person_ids in this table that are not in the output person table!")
@@ -544,24 +632,42 @@ class CommonDataModel(Logger):
                 ntables = 0
                 nrows = 0
                 dfs = []
+                #print (self.drop_duplicates)
                 for j,obj in enumerate(df_generator):
 
                     df = obj.get_df()
                     ntables +=1
                     nrows += len(df)
-                    if self.save_files:
-                        mode = 'w' if first else 'a'
+                    if conserve_memory and self.save_files:
+                        mode = None if first else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
-                    if not conserve_memory:
-                        dfs.append(df)
-                    else:
                         obj.clear()
                         del df
                         df = None
+                    else:
+                        dfs.append(df)
 
                 if not conserve_memory:
-                    self[destination_table] = pd.concat(dfs,ignore_index=True)
+                    df = pd.concat(dfs,ignore_index=True)#.sort_values(df.columns[0])
+                    if self.save_files:
+                        if self.drop_duplicates and destination_table != 'person':
+                            nbefore = len(df)
+                            df_hash = pd.util.hash_pandas_object(df.drop(df.columns[0],axis=1),index=False)
+                            df_temp = df[df_hash.duplicated(keep=False)].head(10).dropna(axis=1)
+                            df = df[~df_hash.duplicated()]
+                            nafter = len(df)
+                            ndiff = nbefore - nafter
+                            if ndiff>0:
+                                self.logger.error(f"Removed {ndiff} row(s) due to duplicates found when merging {destination_table}")
+                                self.logger.warning("Example duplicates...")
+                                self.logger.warning(df_temp.set_index(df_temp.columns[0]))
+                        
+                        mode = None if first else 'a'
+                        self.save_dataframe(destination_table,df,mode=mode)
+                        first = False
+                    self[destination_table] = df
+
 
                 self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows} rows from {ntables} tables')
                 
@@ -580,6 +686,11 @@ class CommonDataModel(Logger):
             #reset the inputs
             if self.inputs and not destination_table == self.execution_order[-1]:
                 self.inputs.reset()
+
+        #for destination_table in self.execution_order:
+        #    index = self.get_start_index(destination_table)
+        #    print (index)
+
                 
     def process_simult(self,object_list=None,conserve_memory=False):
         """
@@ -597,10 +708,11 @@ class CommonDataModel(Logger):
                 dfs = []
                 for j,obj in enumerate(df_generator):
                     df = obj.get_df()
+                        
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:
-                        mode = 'w' if i==0 else 'a'
+                        mode = None if i==0 else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
                     if not conserve_memory:
@@ -678,8 +790,10 @@ class CommonDataModel(Logger):
 
             start_index = self.get_start_index(destination_table)
             start_index += nrows_processed
-            
-            df = obj.get_df(force_rebuild=True,start_index=start_index)
+
+            #force_rebuild=True,
+            df = obj.get_df(start_index=start_index)
+
             self.logger.info(f"finished {obj.name} ({hex(id(df))}) "
                              f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
             if len(df) == 0:
@@ -688,14 +802,19 @@ class CommonDataModel(Logger):
 
             if self.do_mask_person_id:
                 df = self.mask_person_id(df,destination_table)
-            
+
+            obj._meta.update(df.attrs)
             nrows_processed += len(df)
             self.logs['meta']['total_data_processed'][destination_table] = nrows_processed
+            if destination_table not in self.logs:
+                self.logs[destination_table] = {}
+                
+            self.logs[destination_table][hex(id(df))] = obj._meta
             
             obj.set_df(df)
             yield obj
 
-    def save_dataframe(self,table,df=None,mode='w'):
+    def save_dataframe(self,table,df=None,mode=None):
         if self.outputs:
             _id = hex(id(df))
             self.logger.info(f"saving dataframe ({_id}) to {self.outputs}")
@@ -704,8 +823,10 @@ class CommonDataModel(Logger):
             self.logger.info(f"called save_dateframe but outputs are not defined. save_files: {self.save_files}")
             
     def set_person_id_map(self,person_id_map):
-        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
+        self.person_id_masker = person_id_map
 
+    def set_indexing_map(self,indexing):
+        self.indexing_conf = indexing
         
     def set_outfile_separator(self,sep):
         """

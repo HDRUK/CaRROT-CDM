@@ -4,7 +4,7 @@ import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import _Logger as Logger
-from coconnect.io import local,sql
+import coconnect.io as io
 
 class MissingInputFiles(Exception):
     pass
@@ -17,8 +17,20 @@ class DifferingRows(Exception):
     
 def load_json_delta(f_in,original):
     logger = Logger("load_json_delta")
-    logger.info(f"loading a json from '{f_in}' as a delta")
+    
     data = load_json(f_in)
+
+    if isinstance(original,str):
+        original = load_json(original)
+    
+    if original == None:
+        return data
+
+    if original == data:
+        return data
+
+    logger.info(f"loading a json from '{f_in}' as a delta")
+
     
     original_date = original['metadata']['date_created']
     data_date = data['metadata']['date_created']
@@ -44,7 +56,7 @@ def load_json_delta(f_in,original):
         if not _data['cdm'][destination_table]:
             _data['cdm'].pop(destination_table)
 
-    logger.info(json.dumps(_data,indent=6))
+    logger.debug(json.dumps(_data,indent=6))
     return _data
     
 
@@ -62,16 +74,25 @@ def load_json(f_in):
 
 
 def create_csv_store(**kwargs):
-    return local.LocalDataCollection(**kwargs)    
+    return io.LocalDataCollection(**kwargs)
+
+def create_bclink_store(**kwargs):
+    return io.BCLinkDataCollection(**kwargs)
 
 def create_sql_store(**kwargs):
-    return sql.SqlDataCollection(**kwargs)    
+    return io.SqlDataCollection(**kwargs)    
 
 def load_sql(**kwargs):
     store = create_sql_store(**kwargs)
     return store
 
-def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load_path="",rules=None,sep=',',na_values=['']):
+def load_csv(_map,chunksize=None,
+             dtype=str,nrows=None,
+             lower_col_names=False,
+             load_path="",
+             rules=None,
+             sep=',',
+             na_values=['']):
 
     if isinstance(_map,list):
         _map = {
@@ -90,10 +111,11 @@ def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load
         logger.debug("rules .json file supplied")
         if not isinstance(rules,dict):
             rules = load_json(rules)
-        source_map = get_mapped_fields_from_rules(rules)
 
-        inputs_from_json = list(source_map.keys())
         inputs_from_cli = list(_map.keys())
+            
+        source_map = get_mapped_fields_from_rules(rules)
+        inputs_from_json = list(source_map.keys())
 
         if len(inputs_from_cli) == 0:
             raise MissingInputFiles (f"You haven't loaded any input files!")
@@ -119,7 +141,7 @@ def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load
     if not nrows is None:
         chunksize = nrows if chunksize is None else chunksize
 
-    retval = local.LocalDataCollection(chunksize=chunksize)
+    retval = io.LocalDataCollection(chunksize=chunksize)
 
     for key,obj in _map.items():
         fields = None
@@ -147,7 +169,7 @@ def load_csv(_map,chunksize=None,dtype=str,nrows=None,lower_col_names=False,load
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = local.DataBrick(df,name=key)
+        retval[key] = io.DataBrick(df,name=key)
 
     return retval
 
@@ -194,11 +216,11 @@ def remove_missing_sources_from_rules(rules,tables):
             source_table = sub_table[first]['source_table']
             if source_table not in tables:
                 rules_copy['cdm'][destination_table].pop(table_name)
-                logger.debug(f"removed {table_name} from rules")
+                logger.warning(f"removed {table_name} from rules because it was not loaded")
                 
         if not rules_copy['cdm'][destination_table]:
             rules_copy['cdm'].pop(destination_table)
-            logger.debug(f"removed cdm table '{destination_table}' from rules")
+            logger.warning(f"removed cdm table '{destination_table}' from rules")
         
     return rules_copy
 

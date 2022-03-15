@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import pandas as pd
 import numpy as np
 import collections
@@ -143,18 +144,22 @@ class DestinationTable(Logger):
     def from_df(cls,df,name=None):
         obj = cls(name)
         obj.__df = df
-        for colname in df.columns:
-            obj[colname].series = df[colname]
+        #for colname in df.columns:
+        #    obj[colname].series = df[colname]
         return obj
 
     def __len__(self):
         return len(self.__df)
 
+    def reset(self):
+        self.clear()
+        self._meta.clear()
+    
     def clear(self):
         self.__df = None
-        for field in self.fields:
-            series = getattr(self,field)
-            del series
+        #for field in self.fields:
+        #    series = getattr(self,field)
+        #    del series
         
     def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
@@ -167,7 +172,7 @@ class DestinationTable(Logger):
         """
         self.name = name
         self._type = _type
-        self._meta = {}
+        self._meta = {'required_fields':{}}
 
         self.dtypes = DataFormatter()
         self.format_level = FormatterLevel(format_level)
@@ -288,29 +293,6 @@ class DestinationTable(Logger):
         #add objects to this class
         self.__dict__.update(objs)
         
-    def filter(self,filters):
-
-        import operator
-        ops = {
-            '>': operator.gt,
-            '<': operator.lt,
-            '>=': operator.ge,
-            '<=': operator.le,
-            '==': operator.eq
-        }
-                
-        if not isinstance(filters,dict):
-            raise NotImplementedError("filter must be a 'dict' .")
-
-        df = self.get_df()
-        for col,value in filters.items():
-            if isinstance(value,dict):
-                for op_str,val in value.items():
-                    df = df[ops[op_str](df[col],val)]                        
-            else:
-                df = df[df[col] == value]
-            
-        return df
 
     def set_df(self,df):
         self.__df = df
@@ -322,9 +304,13 @@ class DestinationTable(Logger):
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
+        if not self.__df is None:
+            self.logger.debug(f"df({hex(id(self.__df))}) already exists")
+        
         if dont_build:
             if self.__df is None:
                 self.__df = pd.DataFrame(columns = self.fields)
+                self.set_df_name()
             return self.__df
         
         #if the dataframe has already been built.. just return it
@@ -359,7 +345,9 @@ class DestinationTable(Logger):
         #if there's none defined, dont do anything
         if len(dfs) == 0:
             self.logger.warning("no objects defined")
-            return pd.DataFrame(columns = self.fields)
+            self.__df = pd.DataFrame(columns = self.fields)
+            self.set_df_name()
+            return self.__df
 
         #check the lengths of the dataframes
         lengths = list(set([len(df) for df in dfs.values()]))
@@ -375,8 +363,8 @@ class DestinationTable(Logger):
         #find which fields in the cdm havent been defined
         missing_fields = set(self.fields) - set(df.columns)
 
-        self._meta['defined_columns'] = df.columns.tolist()
-        self._meta['undefined_columns'] = list(missing_fields)
+        #self._meta['defined_columns'] = df.columns.tolist()
+        #self._meta['undefined_columns'] = list(missing_fields)
                 
         #set these to a nan/null series
         for field in missing_fields:
@@ -393,9 +381,22 @@ class DestinationTable(Logger):
          
         #register the df
         self.__df = df
-        self.logger.info(f"created df ({hex(id(df))})")
+        self.set_df_name()
+
+        self.logger.info(f"created df ({hex(id(df))})[{self.get_df_name()}]")
         return self.__df
 
+
+    def get_df_name(self):
+        if not self.__df is None:
+            return self.__df.attrs['name']
+    
+    def set_df_name(self):
+        if self.__df is None:
+            return
+        name = re.sub("[^0-9a-zA-Z]+","_",self.name)
+        self.__df.attrs['name'] = name
+    
     def format(self,df):
         
         if self.format_level is FormatterLevel.OFF:
@@ -479,8 +480,6 @@ class DestinationTable(Logger):
         Returns:
             pandas.Dataframe: cleaned output dataframe
         """
-
-        #self._meta['required_fields'] = {}
         
         #loop over the non-index fields
         for field in df.columns[1:]:
@@ -504,10 +503,10 @@ class DestinationTable(Logger):
                 log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
 
             #log some metadata
-            #self._meta['required_fields'][field] = {
-            #    'before':nbefore,
-            #    'after':nafter
-            #}
+            self._meta['required_fields'][field] = {
+                'before':nbefore,
+                'after':nafter
+            }
 
         #now index properly
         primary_column = df.columns[0]

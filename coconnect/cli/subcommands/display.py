@@ -6,6 +6,7 @@ import coconnect.tools as tools
 import coconnect
 import pandas as pd
 import numpy as np
+import datetime
 
 @click.group(help='Commands for displaying various types of data and files.')
 def display():
@@ -160,7 +161,15 @@ def print_json(rules,list_fields,list_tables,operations):
 def diff(file1,file2,separator,max_rows):
     tools.diff_csv(file1,file2,separator=separator,nrows=max_rows)
 
-
+@click.command(help="display a delta of two rules files")
+@click.argument("rules",nargs=2)
+def delta(rules):
+    r1,r2 = rules
+    delta = coconnect.tools.load_json_delta(r2,r1)
+    dt = str(datetime.datetime.now())
+    delta['metadata']['date_created'] = dt
+    click.echo(json.dumps(delta,indent=6))
+    
 @click.command(help="flattern a rules json file")
 @click.argument("rules")
 def flatten(rules):
@@ -207,6 +216,7 @@ def rules():
     pass
 
 
+rules.add_command(delta,"delta")
 rules.add_command(dag,"dag")
 rules.add_command(print_json,"json")
 rules.add_command(flatten,"flatten")

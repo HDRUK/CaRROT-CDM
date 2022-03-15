@@ -1,8 +1,10 @@
 import click
 import inquirer
 import signal
-
+import hashlib
 import os
+import glob
+import subprocess
 try:
     import daemon
     from daemon.pidfile import TimeoutPIDLockFile
@@ -41,24 +43,244 @@ class DuplicateDataDetected(Exception):
 class UnknownConfigurationSetting(Exception):
     pass
 
+class BadConfigurationFile(Exception):
+    pass
+
 class MissingRulesFile(Exception):
     pass
 
 class BadRulesFile(Exception):
     pass
 
-@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
-@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
-@click.pass_context
-def etl(ctx,config_file):
-    if ctx.invoked_subcommand == None :
-        #config = _load_config(config_file)
-        ctx.invoke(bclink,config_file=config_file,force=True)
-
 def _load_config(config_file):
     stream = open(config_file) 
     config = yaml.safe_load(stream)
     return config
+
+def _check_conf(config):
+    if 'transform' not in config:
+        raise BadConfigurationFile("You must specify a transform: block in your configration file")
+    
+    if 'data' not in config['transform']:
+        raise BadConfigurationFile("You must specify a transform: data:  block in your configration file")
+    #     raise MissingRulesFile(f"you must specify a json rules file in your '{config_file}'"
+    #                            f" via 'rules:<path of file>'")
+    
+    # try:
+    #     rules = coconnect.tools.load_json(config['transform']['rules'])
+    #     destination_tables = list(rules['cdm'].keys())
+    # except Exception as e:
+    #     raise BadRulesFile(e)
+
+    #data = config['transform']['data']
+
+
+def _outputs_exist(output,tables):
+    return os.path.exists(output)
+
+def _run_extract(input_folder,config):
+    output_folder = config['output']
+    files = coconnect.tools.get_files(input_folder,type='csv')
+    for f in files:
+        bash_command = config['bash'].format(input=f,output=output_folder)
+        for command in bash_command.splitlines():
+            commands = command.split()
+            if len(commands) == 0 :
+                continue
+            process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+            output, error = process.communicate()
+            click.echo(output.decode("utf-8"))
+    
+    return output_folder
+
+
+def _find_data(d):
+    data = copy.deepcopy(d)
+    root_input_folder = data.pop('input')
+    root_output_folder = data.pop('output')
+    additional = {}
+    if isinstance(root_input_folder,dict):
+        #there is some additional configuration to run here
+        temp = root_input_folder.pop('input')
+        additional = root_input_folder
+        root_input_folder = temp
+    subfolders = coconnect.tools.get_subfolders(root_input_folder)
+    data = [
+        {**data,**{'input':f,'output':root_output_folder,'additional':additional}}
+        for k,f in subfolders.items()
+    ]
+    return data
+
+def _make_id(d):
+    return hashlib.sha256(str(d).encode("utf-8")).hexdigest()
+
+def _load_transform_data(data,processed_data={}):
+
+    if isinstance(data,dict):
+        data = _find_data(data)
+    
+    #extract the rules from the data
+    data = {_make_id(d['input']):d for d in copy.deepcopy(data) }
+    
+    for _id,_data in data.items():
+        processed_rules = processed_data[_id]['rules'] if _id in processed_data else None
+        _data['rules'] = coconnect.tools.load_json_delta(_data['rules'],processed_rules)
+        
+    return data
+
+def _run_data(data,clean,ctx):
+    logger = Logger("_run_data")
+    _data = copy.deepcopy(data)
+    rules = _data.pop('rules')
+    if rules is None:
+        logger.warning('no rules to run')
+        return
+    
+    destination_tables = list(rules['cdm'].keys())
+
+    
+    input_folder = _data.pop('input')
+
+    extract_config = _data.pop('additional',None)
+    if extract_config:
+        input_folder = _run_extract(input_folder,extract_config)
+    
+    inputs = coconnect.tools.get_files(input_folder,type='csv')
+    output = _data.pop('output')
+    
+
+    kwargs = {
+        'split_outputs':True,
+        'allow_missing_data':True,
+        'write_mode':'a'
+    }
+    #assume the remained are kwargs for the transform
+    kwargs.update(_data)
+
+
+    output_database = None
+    output_folder = None
+    if isinstance(output,dict):
+        output_database = output
+    else:
+        ## get output folder
+        output_folder = output
+        if _outputs_exist(output_folder,destination_tables):
+            logger.warning(f'{output_folder} exists!')
+            if clean and os.path.exists(output_folder) and os.path.isdir(output_folder):
+                logger.warning(f"removing {output_folder}")
+                shutil.rmtree(output_folder)
+
+    #invoke mapping
+    try:
+        ctx.invoke(cc_map,
+                   rules=rules,
+                   inputs=inputs,
+                   output_folder=output_folder,
+                   output_database=output_database,
+                   **kwargs
+        )
+    except coconnect.cdm.model.PersonExists as e:
+        logger.error(e)
+        logger.error(f"failed to map {inputs} because there were people")
+        logger.error(f" already processed and present in existing data. Check the person_id map/lookup!")
+    return True
+
+
+
+def _run_etl(ctx,config_file):
+    logger = Logger("run_etl")
+    last_modified_config = os.path.getmtime(config_file)
+    logger.info(f"running etl on {config_file} (last modified: {last_modified_config})")
+
+    conf = _load_config(config_file)
+    _check_conf(conf)
+    data = _load_transform_data(conf['transform']['data'])
+
+    if not ctx.invoked_subcommand == None :
+        ctx.obj = {'conf':conf,'data':data}
+        return
+
+    settings = conf.get('settings',{})
+    listen_for_changes = settings.get('listen_for_changes',False)
+    clean = settings.get('clean',False)
+    
+    #run the data
+    _ = [_run_data(d,clean,ctx) for d in data.values()]
+        
+    display_msg = True
+    while True:
+        #if a change has been detected in the config_file
+        #load it up again
+        if last_modified_config !=  os.path.getmtime(config_file):
+            conf = _load_config(config_file)
+            _check_conf(conf)
+            last_modified_config = os.path.getmtime(config_file)
+        
+        #reload to detect if there's something different going on
+        new_data = _load_transform_data(conf['transform']['data'],data)
+        #work out what needs to be re-processed 
+        data_to_process = {
+            k:v
+            for k,v in new_data.items()
+            if not (k in data and v==data[k])
+        }
+        
+        display_msg = True if data_to_process else display_msg
+        #run the data
+        _ = [_run_data(d,False,ctx) for d in data_to_process.values()]
+
+        #update the data to 
+        data = _load_transform_data(conf['transform']['data'])
+
+        if not listen_for_changes:
+            break
+        
+        if display_msg:
+            logger.info(f"Finished!... Listening for changes every 5 seconds to data in {config_file}")
+            display_msg = False
+    
+        time.sleep(5)
+
+
+
+
+@click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
+@click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
+@click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
+@click.option('--log-file','-l',default='coconnect.log',help='specify the log file to write to')
+@click.pass_context
+def etl(ctx,config_file,run_as_daemon,log_file):
+    logger = Logger("etl")
+    
+    if run_as_daemon and daemon is None:
+        raise ImportError(f"You are trying to run in daemon mode, "
+                          "but the package 'daemon' hasn't been installed. "
+                          "pip install python-daemon. \n"
+                          "If you are running on a Windows machine, this package is not supported")
+
+    if run_as_daemon and daemon is not None:
+        stderr = log_file
+        stdout = f'{stderr}.out'
+     
+        logger.info(f"running as a daemon process, logging to {stderr}")
+        pidfile = TimeoutPIDLockFile('etl.pid', -1)
+        logger.info(f"process_id in {pidfile}")
+
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            d_ctx = daemon.DaemonContext(
+                working_directory=os.getcwd(),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+                pidfile=TimeoutPIDLockFile('etl.pid', -1)
+            )
+            with d_ctx:
+                _run_etl(ctx,config_file)
+    else:
+        _run_etl(ctx,config_file)
+
+
+
 
 
 @click.group(help='Command group for ETL integration with bclink')
@@ -183,6 +405,7 @@ def _process_list_data(ctx):
 
         current_rules_file = conf['rules']
         new_rules_file = rules_file != current_rules_file
+
         if new_rules_file:
             #if there's a new rules file
             logger.info(f"Detected a new rules file.. old was '{rules_file}' and new is '{current_rules_file}'")
@@ -200,6 +423,9 @@ def _process_list_data(ctx):
                 re_execute = True 
             
         current_data = conf['data']
+        print (data)
+        print (current_data)
+        exit(0)
         if not data == current_data:
             logger.debug(f"old {data}")
             logger.debug(f"new {current_data}")
@@ -210,6 +436,8 @@ def _process_list_data(ctx):
             new_data = data
 
         logger.debug(f"re-execute {re_execute}")
+        print (re_execute)
+        exit(0)
         if re_execute:
             current_data = copy.deepcopy(new_data)
             #loop over any new data
@@ -393,76 +621,94 @@ def print_tables(ctx,drop_na,markdown,head,tables):
 
         click.echo(df)
 
-                
 
-@click.command(help='clean (delete all rows) in the bclink tables defined in the config file')
-@click.option('--skip-local-folder',help="dont remove the local output folder",is_flag=True)
+@click.command(help='delete some tables')
 @click.pass_obj
-def clean_tables(ctx,skip_local_folder,data=None):
-    bclink_helpers = ctx['bclink_helpers']
-    interactive = ctx['interactive']
-   
-    logger = Logger("clean_tables")
-
-
-    if data is None:
-        data = ctx['data']
-
-    if isinstance(data,dict):
-        output_folders = [data['output']]
-    else:
-        output_folders = [x['output'] for x in data]
-
-    
-    if interactive:
-        tables = list(bclink_helpers.table_map.values())
-        choices = [ (f"{v} ({k})",v) for k,v in bclink_helpers.table_map.items()]
-
-        tables.append(bclink_helpers.global_ids)
-        choices.append((f'{bclink_helpers.global_ids} (global_ids)',bclink_helpers.global_ids))
-        
-        questions = [
-            inquirer.Checkbox('clean_tables',
-                              message=f"Clean all-rows in which BCLink tables?",
-                              choices=choices,
-                              default=tables)
-        ]
-        answers = inquirer.prompt(questions)
-        if answers == None:
-            os.kill(os.getpid(), signal.SIGINT)
-
-        tables = answers['clean_tables']
-        bclink_helpers.clean_tables(tables)
-    else:
-        bclink_helpers.clean_tables()
-   
-    if skip_local_folder:
-        return
-
-    if interactive:    
-        questions = [
-            inquirer.Checkbox('output_folders',
-                              message=f"Clean the following output folders?",
-                              choices=output_folders,
-                              default=output_folders)
-        ]
-        answers = inquirer.prompt(questions)
-        if answers == None:
-            os.kill(os.getpid(), signal.SIGINT)
-        
-        output_folders = answers['output_folders']
-
-    for output_folder in output_folders:
-        if not os.path.exists(output_folder):
-            logger.info(f"No folder to remove at '{output_folder}'")
-            continue
+def delete_tables(ctx):
+    logger = Logger('delete_tables')
+    out_folders = []
+    bc_settings = None
+    for item in ctx['data'].values():
+        output = item['output']
+        if isinstance(output,str):
+            pass
+        elif 'bclink' in output:
+            bc_settings = output['bclink']
+            output = output['cache']
             
-        if os.path.exists(output_folder) and os.path.isdir(output_folder):
-            logger.info(f"removing {output_folder}")
-            shutil.rmtree(output_folder)
-   
+        if os.path.exists(output) and os.path.isdir(output):
+            out_folders.append(output)
 
-      
+    out_folders = list(set(out_folders))
+    all_files = [
+        coconnect.tools.get_files(f,type='tsv')
+        for f in out_folders
+    ]
+    all_files = [ subitem for item in all_files for subitem in item]
+
+    choices = all_files
+    questions = [
+        inquirer.Checkbox('files',
+                          message=f"Which tables do you want to delete? ... ",
+                          choices=choices,
+                          default=[],
+        )
+    ]
+    answers = inquirer.prompt(questions)
+    if answers == None:
+        os.kill(os.getpid(), signal.SIGINT)
+
+    files_to_delete = answers['files']
+    if bc_settings:
+        helpers = BCLinkHelpers(**bc_settings)
+        for f in files_to_delete:
+            helpers.remove_table(f)
+    
+    for f in files_to_delete:
+        logger.warning(f"removing {f}")
+        os.remove(f)
+
+@click.command(help='check tables')
+@click.option('--tables',help="specify which tables to remove",default=None)
+@click.pass_obj
+def check_tables(ctx,tables):
+    logger = Logger("check-tables")
+    for item in ctx['data'].values():
+        output = item['output']
+        logger.info(f"cleaning {output}")
+        if 'bclink' in output:
+            settings = output['bclink']
+            settings['clean'] = False
+            if tables:
+                settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+            helpers = BCLinkHelpers(**settings)
+        else:
+            raise NotImplementedError(f"cannot call check_tables on output {output}. This is for bclink stuff")
+            
+
+
+@click.command(help='clean (delete all rows) of a given table name')
+@click.argument('table')
+@click.pass_context
+def clean_table(ctx,table):
+    ctx.invoke(clean_tables,tables=[table])
+
+@click.command(help='clean (delete all rows) in the tables defined in the config file')
+@click.option('--tables',help="specify which tables to remove",default=None)
+@click.pass_obj
+def clean_tables(ctx,tables):
+    logger = Logger("clean-tables")
+    load = ctx['conf']['load']
+
+    if 'bclink' in load:
+        settings = load['bclink']
+        settings['clean'] = True
+        if tables:
+            settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+        helpers = BCLinkHelpers(**settings)
+    else:
+        raise NotImplementedError("cannot clean tables for configuration load: {load}")
+         
 
 @click.command(help='delete data that has been inserted into bclink')
 @click.pass_obj
@@ -510,8 +756,8 @@ def delete_data(ctx):
     
             click.echo(f"Deleting {f}")
             os.remove(f)
-    
 
+    
 @click.command(help='check and drop for duplicates')
 @click.pass_obj
 def drop_duplicates(ctx):
@@ -538,24 +784,7 @@ def drop_duplicates(ctx):
             
 
 
-@click.command(help='check the bclink tables')
-@click.pass_obj
-def check_tables(ctx):
-    bclink_helpers = ctx['bclink_helpers']
-    logger = Logger("check_tables")
-
-    retval = {}
-    logger.info("printing to see if tables exist")
-    for bclink_table in bclink_helpers.table_map.values():
-        retval[bclink_table] = bclink_helpers.check_table_exists(bclink_table)
-    if bclink_helpers.global_ids:
-        retval[bclink_helpers.global_ids] = bclink_helpers.check_table_exists(bclink_helpers.global_ids)
-
-    logger.info(json.dumps(retval,indent=6))
-    return retval
-
-
-@click.command(help='crate new bclink tables')
+@click.command(help='create new bclink tables')
 @click.pass_context
 def create_tables(ctx):
     logger = Logger("create_tables")
@@ -687,8 +916,15 @@ def _extract(ctx,data,rules,bclink_helpers):
     
 
     _dir = data['output']
+ 
     f_global_ids = f"{_dir}/existing_global_ids.tsv"
     f_global_ids = bclink_helpers.get_global_ids(f_global_ids)
+    if f_global_ids == None:
+        f_global_ids = f"{_dir}/global_ids.tsv"
+        if not os.path.exists(f_global_ids):
+            f_global_ids = None
+        else:
+            logger.warning(f"falling back to {f_global_ids} for global_ids")
     
     indexer = bclink_helpers.get_indicies()
     return {
@@ -950,18 +1186,22 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 
                 
 
-bclink.add_command(print_tables,'print_tables')
-bclink.add_command(clean_tables,'clean_tables')
-bclink.add_command(delete_data,'delete_data')
-bclink.add_command(drop_duplicates,'drop_duplicates')
-bclink.add_command(check_tables,'check_tables')
-bclink.add_command(create_tables,'create_tables')
-bclink.add_command(execute,'execute')
-bclink.add_command(extract,'extract')
-bclink.add_command(transform,'transform')
-bclink.add_command(load,'load')
-etl.add_command(manual,'bclink-manual')
-etl.add_command(bclink,'bclink')
+#bclink.add_command(print_tables,'print_tables')
+#bclink.add_command(clean_tables,'clean_tables')
+#bclink.add_command(delete_data,'delete_data')
+#bclink.add_command(drop_duplicates,'drop_duplicates')
+#bclink.add_command(check_tables,'check_tables')
+#bclink.add_command(create_tables,'create_tables')
+#bclink.add_command(execute,'execute')
+#bclink.add_command(extract,'extract')
+#bclink.add_command(transform,'transform')
+#bclink.add_command(load,'load')
+#etl.add_command(manual,'bclink-manual')
+#etl.add_command(bclink,'bclink')
+etl.add_command(check_tables,'check-tables')
+etl.add_command(clean_table,'clean-table')
+etl.add_command(clean_tables,'clean-tables')
+etl.add_command(delete_tables,'delete-tables')
 
 
 
