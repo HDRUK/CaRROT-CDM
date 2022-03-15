@@ -52,7 +52,7 @@ class BCLinkHelpers(BashHelpers,Logger):
         ]
         stdout,_ = self.run_bash_cmd(cmd)
         if stdout == None:
-            return  False
+            return  True
         return bool(int(stdout.splitlines()[1]))
 
     def check_tables(self):
