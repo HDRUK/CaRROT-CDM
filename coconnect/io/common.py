@@ -147,7 +147,7 @@ class DataBrick:
                 self.__df = self.__df_handler.get_chunk(chunksize)
             except StopIteration:#,ValueError):
                 #otherwise, if at the end of the file reader, return an empty frame
-                self.__df = pd.DataFrame(columns=self.__df.columns)
+                self.__df = pd.DataFrame(columns=self.__df.columns) if self.__df is not None else None
                 self.__end = True
         elif isinstance(self.__df_handler,pd.DataFrame):
             #if we're handling non-chunked data
@@ -162,7 +162,7 @@ class DataBrick:
             try:
                 self.__df = next(self.__df_handler)
             except StopIteration:
-                self.__df = pd.DataFrame(columns=self.__df.columns)
+                self.__df = pd.DataFrame(columns=self.__df.columns) if self.__df is not None else None
                 self.__end = True
         else:
             raise NotImplementedError(f"{type(self.__df_handler)} not implemented")

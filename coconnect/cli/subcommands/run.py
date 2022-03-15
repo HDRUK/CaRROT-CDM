@@ -564,30 +564,7 @@ def map(ctx,rules,inputs,format_level,
     #the default is tab (\t) separation
     #if not csv_separator is None:
     #    cdm.set_csv_separator(csv_separator)
-    
-    #loop over the cdm object types defined in the configuration
-    #e.g person, measurement etc..
-    for destination_table,rules_set in config['cdm'].items():
-        #loop over each object instance in the rule set
-        #for example, condition_occurrence may have multiple rulesx
-        #for multiple condition_ocurrences e.g. Headache, Fever ..
-        for name,rules in rules_set.items():
-            #make a new object for the cdm object
-            #Example:
-            # destination_table : person
-            # get_cdm_class returns <Person>
-            # obj : Person()
-            obj = coconnect.cdm.get_cdm_class(destination_table)()
-            #set the name of the object
-            obj.set_name(name)
-            
-            #Build a lambda function that will get executed during run time
-            #and will be able to apply these rules to the inputs that are loaded
-            #(this is useful when chunk)
-            obj.define = lambda x,rules=rules : tools.apply_rules(x,rules,inputs=cdm.inputs)
-            
-            #register this object with the CDM model, so it can be processed
-            cdm.add(obj)
+    cdm.create_and_add_objects(config)
 
     cdm.process(conserve_memory=True)
     cdm.close()

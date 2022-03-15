@@ -4,7 +4,7 @@ import copy
 import json
 import pandas as pd
 from coconnect.tools.logger import _Logger as Logger
-from coconnect.io import local,sql,bclink
+import coconnect.io as io
 
 class MissingInputFiles(Exception):
     pass
@@ -74,16 +74,13 @@ def load_json(f_in):
 
 
 def create_csv_store(**kwargs):
-    return local.LocalDataCollection(**kwargs)    
-
-def create_csv_store(**kwargs):
-    return local.LocalDataCollection(**kwargs)
+    return io.LocalDataCollection(**kwargs)
 
 def create_bclink_store(**kwargs):
-    return bclink.BCLinkDataCollection(**kwargs)
+    return io.BCLinkDataCollection(**kwargs)
 
 def create_sql_store(**kwargs):
-    return sql.SqlDataCollection(**kwargs)    
+    return io.SqlDataCollection(**kwargs)    
 
 def load_sql(**kwargs):
     store = create_sql_store(**kwargs)
@@ -144,7 +141,7 @@ def load_csv(_map,chunksize=None,
     if not nrows is None:
         chunksize = nrows if chunksize is None else chunksize
 
-    retval = local.LocalDataCollection(chunksize=chunksize)
+    retval = io.LocalDataCollection(chunksize=chunksize)
 
     for key,obj in _map.items():
         fields = None
@@ -172,7 +169,7 @@ def load_csv(_map,chunksize=None,
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = local.DataBrick(df,name=key)
+        retval[key] = io.DataBrick(df,name=key)
 
     return retval
 

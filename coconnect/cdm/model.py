@@ -14,6 +14,7 @@ from time import gmtime, strftime, sleep, time
 from .operations import OperationTools
 from coconnect.tools.logger import Logger
 from coconnect.tools.profiling import Profiler
+import coconnect.tools 
 from coconnect.io import DataCollection
 
 from coconnect import __version__ as cc_version
@@ -44,6 +45,12 @@ class CommonDataModel(Logger):
         default_kwargs.update(kwargs)
         cdm = cls(**default_kwargs)
         cdm._load_inputs(inputs)
+        return cdm
+
+    @classmethod
+    def from_rules(cls,rules,**kwargs):
+        cdm = cls(**kwargs)
+        cdm.create_and_add_objects(rules)
         return cdm
     
 
@@ -124,7 +131,7 @@ class CommonDataModel(Logger):
 
         #define a person_id masker, if the person_id are to be masked
         if self.outputs:
-            self.person_id_masker = self.outputs.load_global_ids()#self.get_existing_person_id_masker(person_id_map)
+            self.person_id_masker = self.outputs.load_global_ids()
             self.indexing_conf = self.outputs.load_indexing()
         else:
             self.person_id_masker = None
@@ -193,8 +200,21 @@ class CommonDataModel(Logger):
                 continue
                 
             df = obj.get_df(force_rebuild=False)
-            self[destination_table] = obj
+            self[destination_table] = df.set_index(df.columns[0])
 
+    def reset(self):
+        self.__df_map.clear()
+        [x.reset() for x in self.get_all_objects()]
+        self.inputs.reset()
+
+        if self.outputs:
+            self.person_id_masker = self.outputs.load_global_ids()
+            self.indexing_conf = self.outputs.load_indexing()
+        else:
+            self.person_id_masker = None
+            self.indexing_conf = None
+
+        
         
     def close(self):
         """
@@ -309,6 +329,32 @@ class CommonDataModel(Logger):
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
 
+    def create_and_add_objects(self,config):
+        #loop over the cdm object types defined in the configuration
+        #e.g person, measurement etc..
+        for destination_table,rules_set in config['cdm'].items():
+            #loop over each object instance in the rule set
+            #for example, condition_occurrence may have multiple rulesx
+            #for multiple condition_ocurrences e.g. Headache, Fever ..
+            for name,rules in rules_set.items():
+                #make a new object for the cdm object
+                #Example:
+                # destination_table : person
+                # get_cdm_class returns <Person>
+                # obj : Person()
+                obj = get_cdm_class(destination_table)()
+                #set the name of the object
+                obj.set_name(name)
+            
+                #Build a lambda function that will get executed during run time
+                #and will be able to apply these rules to the inputs that are loaded
+                #(this is useful when chunk)
+                obj.define = lambda x,rules=rules : coconnect.tools.apply_rules(x,rules,inputs=self.inputs)
+                
+                #register this object with the CDM model, so it can be processed
+                self.add(obj)
+
+        
     def add_analysis(self,func,_id=None):
         if _id is None:
             _id = hex(id(func))
@@ -519,9 +565,10 @@ class CommonDataModel(Logger):
 
             self.logger.debug(f"Just masked person_id using integers")
             if destination_table != 'person':
-                df.dropna(subset=['person_id'],inplace=True) 
+                df.dropna(subset=['person_id'],inplace=True)
                 nafter = len(df['person_id'])
                 ndiff = nbefore - nafter
+                df.attrs['person_id'] = {'before':nbefore,'after':nafter}
                 #if rows have been removed
                 if ndiff>0:
                     self.logger.error("There are person_ids in this table that are not in the output person table!")
@@ -639,6 +686,11 @@ class CommonDataModel(Logger):
             #reset the inputs
             if self.inputs and not destination_table == self.execution_order[-1]:
                 self.inputs.reset()
+
+        #for destination_table in self.execution_order:
+        #    index = self.get_start_index(destination_table)
+        #    print (index)
+
                 
     def process_simult(self,object_list=None,conserve_memory=False):
         """
@@ -750,9 +802,14 @@ class CommonDataModel(Logger):
 
             if self.do_mask_person_id:
                 df = self.mask_person_id(df,destination_table)
-            
+
+            obj._meta.update(df.attrs)
             nrows_processed += len(df)
             self.logs['meta']['total_data_processed'][destination_table] = nrows_processed
+            if destination_table not in self.logs:
+                self.logs[destination_table] = {}
+                
+            self.logs[destination_table][hex(id(df))] = obj._meta
             
             obj.set_df(df)
             yield obj
@@ -766,8 +823,10 @@ class CommonDataModel(Logger):
             self.logger.info(f"called save_dateframe but outputs are not defined. save_files: {self.save_files}")
             
     def set_person_id_map(self,person_id_map):
-        self.person_id_masker = self.get_existing_person_id_masker(person_id_map)
+        self.person_id_masker = person_id_map
 
+    def set_indexing_map(self,indexing):
+        self.indexing_conf = indexing
         
     def set_outfile_separator(self,sep):
         """

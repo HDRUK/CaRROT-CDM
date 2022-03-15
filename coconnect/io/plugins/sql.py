@@ -1,22 +1,29 @@
 from sqlalchemy import create_engine
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy_utils import database_exists, create_database, drop_database
 from coconnect.io.common import DataCollection,DataBrick
 from sqlalchemy import inspect
 import pandas as pd
 
 class SqlDataCollection(DataCollection):
-    def __init__(self,connection_string,chunksize=None,nrows=None,**kwargs):
+    def __init__(self,connection_string,chunksize=None,nrows=None,write_mode='r',drop_existing=False,**kwargs):
         super().__init__(chunksize=chunksize)
 
-        engine = create_engine(connection_string)
-        if not database_exists(engine.url):
-            create_database(engine.url)
-
+        #default mode is 'r' aka replace
+        self.__write_mode =  write_mode
+        
+        self.engine = create_engine(connection_string)
+        if not database_exists(self.engine.url):
+            create_database(self.engine.url)
+        elif drop_existing:
+            self.drop_database()
+            
+        self.logger.info(self.engine)
         #get the names of existing tables
-        self.logger.info(engine)
-        self.engine = engine
         self.build()
 
+    def drop_database(self):
+        drop_database(self.engine.url)
+    
     def reset(self):
         self.build()
         self.__df = None
@@ -28,8 +35,9 @@ class SqlDataCollection(DataCollection):
         chunksize = self.chunksize
         if chunksize == None:
             chunksize = 1e6
-            
-        for table in insp.get_table_names():
+
+        self.existing_tables = insp.get_table_names()
+        for table in self.existing_tables:
             df_handler = pd.read_sql(table,self.engine,chunksize=chunksize)
             b = DataBrick(df_handler,name=table)
 
@@ -41,16 +49,21 @@ class SqlDataCollection(DataCollection):
     def write(self,name,df,mode='w'):
         #set the method of pandas based on the mode supplied
 
-        if mode == 'w':
-            mode = 'r'
+        if mode == None:
+            mode = self.__write_mode
         
+        if mode == 'w':
+            #write mode we probably mean r mode, r = replace (rather than read)
+            mode = 'r'
+
         if mode == 'a':
             if_exists = 'append'
         elif mode == 'r':
             if_exists = 'replace'
-        elif mode == 'w':
+        elif mode == 'ww':
             if_exists = 'fail'
         else:
+            self.logger.error(f"cant write {name} ")
             raise Exception(f"Unknown mode for dumping to sql, mode = '{mode}'")
 
         #check if the table exists already
@@ -60,16 +73,16 @@ class SqlDataCollection(DataCollection):
         pk = df.columns[0]
         df.set_index(pk,inplace=True)
         self.logger.info(f'updating {name} in {self.engine}')
-        
+
         #check if the table already exists in the psql database
-        if table_exists and False:
+        if table_exists and mode == 'a':
             #get the last row
             last_row_existing = pd.read_sql(f"select {pk} from {name} "
                                             f"order by {pk} desc limit 1",
                                                 self.engine)
             
             #if there's already a row and the mode is set to append
-            if len(last_row_existing) > 0 and mode == 'a':
+            if len(last_row_existing) > 0:
                 #get the cell value of the (this will be the id, e.g. condition_occurrence_id)
                 last_pk_existing = last_row_existing.iloc[0,0]
                 #get the index integer of this current dataframe

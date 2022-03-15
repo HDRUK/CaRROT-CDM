@@ -151,11 +151,15 @@ class DestinationTable(Logger):
     def __len__(self):
         return len(self.__df)
 
+    def reset(self):
+        self.clear()
+        self._meta.clear()
+    
     def clear(self):
         self.__df = None
-        for field in self.fields:
-            series = getattr(self,field)
-            del series
+        #for field in self.fields:
+        #    series = getattr(self,field)
+        #    del series
         
     def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
@@ -168,7 +172,7 @@ class DestinationTable(Logger):
         """
         self.name = name
         self._type = _type
-        self._meta = {}
+        self._meta = {'required_fields':{}}
 
         self.dtypes = DataFormatter()
         self.format_level = FormatterLevel(format_level)
@@ -359,8 +363,8 @@ class DestinationTable(Logger):
         #find which fields in the cdm havent been defined
         missing_fields = set(self.fields) - set(df.columns)
 
-        self._meta['defined_columns'] = df.columns.tolist()
-        self._meta['undefined_columns'] = list(missing_fields)
+        #self._meta['defined_columns'] = df.columns.tolist()
+        #self._meta['undefined_columns'] = list(missing_fields)
                 
         #set these to a nan/null series
         for field in missing_fields:
@@ -476,8 +480,6 @@ class DestinationTable(Logger):
         Returns:
             pandas.Dataframe: cleaned output dataframe
         """
-
-        #self._meta['required_fields'] = {}
         
         #loop over the non-index fields
         for field in df.columns[1:]:
@@ -501,10 +503,10 @@ class DestinationTable(Logger):
                 log(f"Requiring non-null values in {field} removed {ndiff} rows, leaving {nafter} rows.")
 
             #log some metadata
-            #self._meta['required_fields'][field] = {
-            #    'before':nbefore,
-            #    'after':nafter
-            #}
+            self._meta['required_fields'][field] = {
+                'before':nbefore,
+                'after':nafter
+            }
 
         #now index properly
         primary_column = df.columns[0]
