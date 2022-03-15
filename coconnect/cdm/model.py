@@ -223,7 +223,7 @@ class CommonDataModel(Logger):
         """
 
 
-        self.logger.info(json.dumps(self.logs,indent=6))
+        self.logger.info(json.dumps(self.logs['meta'],indent=6))
         if self.outputs:
             self.outputs.write_meta(self.logs)
             self.outputs.finalise()
