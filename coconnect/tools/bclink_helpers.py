@@ -39,7 +39,10 @@ class BCLinkHelpers(BashHelpers,Logger):
             self.clean_tables()
 
         self.print_summary()
-                 
+        
+    def get_table_map(self):
+        return self.table_map
+        
     def check_table_exists(self,table):
         query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' )"
                
@@ -102,7 +105,10 @@ class BCLinkHelpers(BashHelpers,Logger):
         if stdout == None:
             return None
 
-        return pd.read_csv(io.StringIO(stdout),sep='\t')
+        df = pd.read_csv(io.StringIO(stdout),sep='\t')
+        df.columns = [x.lower() for x in df.columns]
+        #df = df.drop('batch',axis=1)
+        return df
        
   
     def get_bclink_table(self,table):
