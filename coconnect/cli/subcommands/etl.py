@@ -142,7 +142,7 @@ def _run_data(data,clean,ctx):
     input_folder = _data.pop('input')
 
     extract_config = _data.pop('additional',None)
-    if extract:
+    if extract_config:
         input_folder = _run_extract(input_folder,extract_config)
     
     inputs = coconnect.tools.get_files(input_folder,type='csv')
