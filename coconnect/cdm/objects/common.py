@@ -154,12 +154,16 @@ class DestinationTable(Logger):
     def reset(self):
         self.clear()
         self._meta.clear()
+        self.__init_meta()
     
     def clear(self):
         self.__df = None
         #for field in self.fields:
         #    series = getattr(self,field)
         #    del series
+
+    def __init_meta(self):
+        self._meta = {'required_fields':{}}
         
     def __init__(self,name,_type,_version='v5_3_1',format_level=1):
         """
@@ -172,7 +176,7 @@ class DestinationTable(Logger):
         """
         self.name = name
         self._type = _type
-        self._meta = {'required_fields':{}}
+        self.__init_meta()
 
         self.dtypes = DataFormatter()
         self.format_level = FormatterLevel(format_level)

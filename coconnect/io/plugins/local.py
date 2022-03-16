@@ -165,6 +165,10 @@ class LocalDataCollection(DataCollection):
                              chunksize=self.chunksize,
                              dtype=str)
             self[name] = DataBrick(df)
+
+    def load_input_dataframe(self,file_map):
+        for name,df in file_map.items():
+            self[name] = DataBrick(df)
     
                 
         

@@ -12,10 +12,12 @@ class SqlDataCollection(DataCollection):
         self.__write_mode =  write_mode
         
         self.engine = create_engine(connection_string)
+        
+        if drop_existing and database_exists(self.engine.url):
+            self.drop_database()
+        
         if not database_exists(self.engine.url):
             create_database(self.engine.url)
-        elif drop_existing:
-            self.drop_database()
             
         self.logger.info(self.engine)
         #get the names of existing tables
