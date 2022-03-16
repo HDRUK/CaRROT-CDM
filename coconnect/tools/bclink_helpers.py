@@ -23,7 +23,7 @@ class BCLinkHelpersException(Exception):
 
 class BCLinkHelpers(BashHelpers,Logger):
 
-    def __init__(self,user='bclink',clean=False,gui_user='data',database='bclink',dry_run=False,tables=get_default_tables()):
+    def __init__(self,user='bclink',clean=False,check=True,gui_user='data',database='bclink',dry_run=False,tables=get_default_tables()):
         super().__init__(dry_run=dry_run)
 
         self.report = []
@@ -34,11 +34,12 @@ class BCLinkHelpers(BashHelpers,Logger):
         if self.table_map == None:
             raise BCLinkHelpersException("Table map between the dataset id and the OMOP tables must be defined")
 
-        self.check_tables()
+        if check:
+            self.check_tables()
         if clean:
             self.clean_tables()
-
-        self.print_summary()
+        if check:
+            self.print_summary()
                  
     def check_table_exists(self,table):
         query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' )"
@@ -51,7 +52,7 @@ class BCLinkHelpers(BashHelpers,Logger):
         ]
         stdout,_ = self.run_bash_cmd(cmd)
         if stdout == None:
-            return True
+            return  True
         return bool(int(stdout.splitlines()[1]))
 
     def check_tables(self):
@@ -61,7 +62,7 @@ class BCLinkHelpers(BashHelpers,Logger):
                 self.logger.info(f"{table_name} ({table}) already exists --> all good")
             else:
                 self.logger.error(f"{table_name} which is to be used for {table} does not exist!")
-                self.create_table(table_name,table)
+                #self.create_table(table_name,table)
                 raise BCLinkHelpersException(f"{table_name} does not exist")
 
     def create_table(self,table_name,table):
@@ -76,10 +77,9 @@ class BCLinkHelpers(BashHelpers,Logger):
             f'--form={table_upper}',
             self.database
         ]
-        print (' '.join(cmd))
-        exit(0)
         stdout,stderr = self.run_bash_cmd(cmd)
-        self.logger.info(stdout)
+        if stdout:
+            self.logger.info(stdout)
 
     def create_tables(self):
         for table,table_name in self.table_map.items():

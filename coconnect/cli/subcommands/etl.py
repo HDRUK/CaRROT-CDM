@@ -668,6 +668,24 @@ def delete_tables(ctx):
         logger.warning(f"removing {f}")
         os.remove(f)
 
+@click.command(help='create new bclink tables')
+@click.option('--tables',help="specify which tables to remove",default=None)
+@click.pass_obj
+def create_tables(ctx,tables):
+    logger = Logger("check-tables")
+    load = ctx['conf']['load']
+    if 'bclink' in load:
+        settings = load['bclink']
+        settings['clean'] = False
+        settings['check'] = False
+        if tables:
+            settings['tables'] = {k:v for k,v in settings['tables'].items() if k in tables}
+        helpers = BCLinkHelpers(**settings)
+        helpers.create_tables()
+    else:
+        raise NotImplementedError("cannot clean tables for configuration load: {load}")
+  
+
 @click.command(help='check tables')
 @click.option('--tables',help="specify which tables to remove",default=None)
 @click.pass_obj
@@ -782,15 +800,6 @@ def drop_duplicates(ctx):
         if len(droped_duplicates)>0:
             logger.warning(f"Found and dropped {len(droped_duplicates)} duplicates in {bclink_table}")
             
-
-
-@click.command(help='create new bclink tables')
-@click.pass_context
-def create_tables(ctx):
-    logger = Logger("create_tables")
-    bclink_helpers = ctx.obj['bclink_helpers']
-    bclink_helpers.create_tables()                
-
 @click.command(help='Run the Extract part of ETL process for CO-CONNECT integrated with BCLink')
 @click.pass_context
 def extract(ctx):
@@ -1198,6 +1207,7 @@ def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database
 #bclink.add_command(load,'load')
 #etl.add_command(manual,'bclink-manual')
 #etl.add_command(bclink,'bclink')
+etl.add_command(create_tables,'create-tables')
 etl.add_command(check_tables,'check-tables')
 etl.add_command(clean_table,'clean-table')
 etl.add_command(clean_tables,'clean-tables')
