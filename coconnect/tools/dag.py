@@ -17,10 +17,10 @@ def make_dag_from_objects(object_dict):
     dot.render('dag.gv', view=True)  
     return
 
-def make_dag(data,name='dag',render=False,orientation='RL',show_concepts=False):
-    _format = 'svg'
-    if render == True:
-        _format = 'pdf'
+def make_dag(data,output_file='dag.gv',format='pdf',render=False,orientation='RL',show_concepts=False):
+    _format = format
+    if render == False:
+        _format = 'svg'
 
     dot = Digraph(strict=True,format=_format)
     dot.attr(rankdir=orientation)#, size='20,8')
@@ -98,7 +98,7 @@ def make_dag(data,name='dag',render=False,orientation='RL',show_concepts=False):
     
                 
     if render:
-        dot.render(f'{name}.gv', view=True)  
+        dot.render(output_file, view=True)  
         return
     #    
     #return dot.pipe().decode('utf-8')
