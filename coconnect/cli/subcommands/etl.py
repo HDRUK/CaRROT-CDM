@@ -78,8 +78,9 @@ def _check_conf(config):
 def _outputs_exist(output,tables):
     return os.path.exists(output)
 
-def _run_extract(input_folder,config):
+def _run_extract(config):
     output_folder = config['output']
+    input_folder = config['input']
     files = coconnect.tools.get_files(input_folder,type='csv')
     for f in files:
         bash_command = config['bash'].format(input=f,output=output_folder)
@@ -143,12 +144,13 @@ def _run_data(data,clean,ctx):
 
     extract_config = _data.pop('additional',None)
     if extract_config:
-        input_folder = _run_extract(input_folder,extract_config)
-    
+        input_folder = _run_extract(extract_config)
+    elif isinstance(input_folder,dict):
+        input_folder = _run_extract(input_folder)
+        
     inputs = coconnect.tools.get_files(input_folder,type='csv')
     output = _data.pop('output')
     
-
     kwargs = {
         'split_outputs':True,
         'allow_missing_data':True,
