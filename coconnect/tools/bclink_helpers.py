@@ -40,7 +40,10 @@ class BCLinkHelpers(BashHelpers,Logger):
             self.clean_tables()
         if check:
             self.print_summary()
-                 
+        
+    def get_table_map(self):
+        return self.table_map
+
     def check_table_exists(self,table):
         query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' )"
                
@@ -102,7 +105,10 @@ class BCLinkHelpers(BashHelpers,Logger):
         if stdout == None:
             return None
 
-        return pd.read_csv(io.StringIO(stdout),sep='\t')
+        df = pd.read_csv(io.StringIO(stdout),sep='\t')
+        df.columns = [x.lower() for x in df.columns]
+        #df = df.drop('batch',axis=1)
+        return df
        
   
     def get_bclink_table(self,table):
@@ -301,7 +307,11 @@ class BCLinkHelpers(BashHelpers,Logger):
         return info
    
     def get_global_ids(self):
-        global_ids = self.table_map[get_default_global_id_name()]
+        name = get_default_global_id_name()
+        if name not in self.table_map.keys():
+            self.logger.warning(f"No table for getting existing person ids ({name}) has been defined")
+            return None
+        global_ids = self.table_map[name]
    
         query=f"SELECT * FROM {global_ids} "
         cmd=['bc_sqlselect',f'--user={self.user}',f'--query={query}',self.database]

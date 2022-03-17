@@ -359,7 +359,7 @@ class CommonDataModel(Logger):
         if _id is None:
             _id = hex(id(func))
         self.__analyses[_id] = func
-
+       
     def get_analyses(self):
         return self.__analyses
     def get_analysis(self,key):
@@ -372,7 +372,7 @@ class CommonDataModel(Logger):
             
         def msg(x):
             self.logger.info(f"finished with {x}")
-            self.logger.info(x.result())
+            self.logger.debug(x.result())
 
         start = time()
             
@@ -431,34 +431,52 @@ class CommonDataModel(Logger):
     
     def filter(self,config,cols=None,dropna=False):
         retval = None
-        for obj in config:
-            if isinstance(obj,str):
-                df = self[obj].get_df()
-                if df.index.name != 'person_id':
-                    df = df.set_index('person_id')
-                if retval is None:
-                    retval = df
-                else:
-                    retval = retval.merge(df,left_index=True,right_index=True)
-            elif isinstance(obj,dict):
-                for key,value in obj.items():
-                    print (self[key])
-                    df = self[key]
-                    df = self._filter(df,value)
-                    if df.index.name != 'person_id':
-                        df = df.set_index('person_id')
-                    if retval is None:
-                        retval = df
-                    else:
-                        retval = retval.merge(df,left_index=True,right_index=True)
-            else:
-                raise NotImplementedError("need to pass a json object to filter()")
+        for table,spec in config.items():
+            df = self[table]
+            if isinstance(df,DestinationTable):
+                df = df.get_df()
+            for col,func in spec.items():
+                df = df[df[col].apply(func)]
 
+            if df.index.name != 'person_id':
+                df = df.reset_index().set_index('person_id')
+                
+            if retval is None:
+                retval = df
+            else:
+                retval = retval.merge(df,left_index=True,right_index=True)
+            
         if dropna:
             retval = retval.dropna(axis=1)
         if cols is not None:
-            retval = retval[cols]
+            index = retval.index.name
+            retval = retval.reset_index()
+            retval = retval[[col for col,keep in cols.items() if keep]]
+            if index in retval.columns:
+                retval = retval.set_index(index)
+            
         return retval
+
+        
+        # for obj in config:
+        #     if isinstance(obj,str):
+        #         df = self[obj].get_df()
+        #         if df.index.name != 'person_id':
+        #             df = df.set_index('person_id')
+        #     elif isinstance(obj,dict):
+        #         for key,value in obj.items():
+        #             print (self[key])
+        #             df = self[key]
+        #             df = self._filter(df,value)
+        #             if df.index.name != 'person_id':
+        #                 df = df.set_index('person_id')
+        #             if retval is None:
+        #                 retval = df
+        #             else:
+        #                 retval = retval.merge(df,left_index=True,right_index=True)
+        #     else:
+        #         raise NotImplementedError("need to pass a json object to filter()")
+
         
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
@@ -487,7 +505,7 @@ class CommonDataModel(Logger):
             for destination_table in self.__objects:
                 self.__objects[destination_table].clear()
             
-    def get_objects(self,destination_table):
+    def get_objects(self,destination_table=None):
         """
         For a given destination table:
         * Retrieve all associated objects that have been registered with the class
@@ -500,7 +518,7 @@ class CommonDataModel(Logger):
                    which would be objects for male and female mapping
         """
         if destination_table == None:
-            return self.get_all_objects()
+            return self.__objects
         
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
@@ -666,6 +684,13 @@ class CommonDataModel(Logger):
                         mode = None if first else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
+
+                    for col in df.columns:
+                        if col.endswith("_id"):
+                            df[col] = df[col].astype(float).astype(pd.Int64Dtype())
+                    if df.index.name == 'index' or df.index.name is None:
+                        df = df.set_index(df.columns[0])
+                    
                     self[destination_table] = df
 
 
@@ -737,7 +762,7 @@ class CommonDataModel(Logger):
 
     def get_tables(self):
         return list(self.__objects.keys())
-
+    
     def get_execution_order(self):
         if not self.execution_order:
             self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')

@@ -101,7 +101,7 @@ def make_dag(data,output_file='dag.gv',format='pdf',render=False,orientation='RL
         dot.render(output_file, view=True)  
         return
     #    
-    #return dot.pipe().decode('utf-8')
+    return dot.pipe().decode('utf-8')
 
 def make_report_dag(data,name='dag',render=False,orientation='RL'):
     _format = 'svg'

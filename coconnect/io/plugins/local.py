@@ -8,8 +8,8 @@ import pandas as pd
 from time import gmtime, strftime
         
 class LocalDataCollection(DataCollection):
-    def __init__(self,file_map=None,chunksize=None,output_folder=None,sep=',',write_mode='w',write_separate=False,**kwargs):
-        super().__init__(chunksize=chunksize)
+    def __init__(self,file_map=None,chunksize=None,nrows=None,output_folder=None,sep=',',write_mode='w',write_separate=False,**kwargs):
+        super().__init__(chunksize=chunksize,nrows=nrows)
 
         self.__output_folder = output_folder
         self.__separator = sep
@@ -163,7 +163,12 @@ class LocalDataCollection(DataCollection):
         for name,path in file_map.items():
             df = pd.read_csv(path,
                              chunksize=self.chunksize,
+                             nrows=self.nrows,
                              dtype=str)
+            self[name] = DataBrick(df)
+
+    def load_input_dataframe(self,file_map):
+        for name,df in file_map.items():
             self[name] = DataBrick(df)
     
                 

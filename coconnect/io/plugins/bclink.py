@@ -1,5 +1,6 @@
 from coconnect.tools.bclink_helpers import BCLinkHelpers
 from .local import LocalDataCollection
+from coconnect.io.common import DataBrick
 import io
 import pandas as pd
 import time
@@ -28,6 +29,14 @@ class BCLinkDataCollection(LocalDataCollection):
             time.sleep(5)
          
         self.logger.info(f"done!")
+
+    def retrieve(self):
+        tables = self.bclink_helpers.get_table_map()
+        for name in tables:
+            df = self.bclink_helpers.get_table(name)
+            b = DataBrick(df,name=name)
+            self[name] = b
+   
 
     def write(self,*args,**kwargs):
         f_out = super().write(*args,**kwargs)

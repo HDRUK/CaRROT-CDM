@@ -4,10 +4,11 @@ from types import GeneratorType
 import io
 
 class DataCollection(Logger):
-    def __init__(self,chunksize=None,**kwargs):
+    def __init__(self,chunksize=None,nrows=None,**kwargs):
         self.logger.info("DataCollection Object Created")
         self.__bricks = {}
         self.chunksize = chunksize
+        self.nrows = nrows
         
         if self.chunksize is not None:
             self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
