@@ -433,7 +433,9 @@ class CommonDataModel(Logger):
         retval = None
         for obj in config:
             if isinstance(obj,str):
-                df = self[obj].get_df()
+                df = self[obj]
+                if isinstance(df,DestinationTable):
+                    df = df.get_df()
                 if df.index.name != 'person_id':
                     df = df.set_index('person_id')
                 if retval is None:
@@ -443,6 +445,9 @@ class CommonDataModel(Logger):
             elif isinstance(obj,dict):
                 for key,value in obj.items():
                     df = self[key]
+                    if isinstance(df,DestinationTable):
+                        df = df.get_df()
+
                     df = self._filter(df,value)
                     if df.index.name != 'person_id':
                         df = df.set_index('person_id')
