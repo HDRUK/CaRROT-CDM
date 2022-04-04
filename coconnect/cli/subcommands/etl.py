@@ -164,6 +164,8 @@ def _run_data(data,clean,ctx):
     output_folder = None
     if isinstance(output,dict):
         output_database = output
+        if clean:
+            ctx.invoke(clean_tables)
     else:
         ## get output folder
         output_folder = output
@@ -199,8 +201,8 @@ def _run_etl(ctx,config_file):
     _check_conf(conf)
     data = _load_transform_data(conf['transform']['data'])
 
+    ctx.obj = {'conf':conf,'data':data}
     if not ctx.invoked_subcommand == None :
-        ctx.obj = {'conf':conf,'data':data}
         return
 
     settings = conf.get('settings',{})
@@ -208,7 +210,7 @@ def _run_etl(ctx,config_file):
     clean = settings.get('clean',False)
     
     #run the data
-    _ = [_run_data(d,clean,ctx) for d in data.values()]
+    _ = [_run_data(d,clean if i==0 else False,ctx) for i,d in enumerate(data.values())]
         
     display_msg = True
     while True:
