@@ -41,10 +41,13 @@ class BCLinkDataCollection(LocalDataCollection):
     def write(self,*args,**kwargs):
         f_out = super().write(*args,**kwargs)
         destination_table = args[0]
+        self.load(f_out,destination_table)
+
+    def load(self,f_out,destination_table):
         job_id = self.bclink_helpers.load_table(f_out,destination_table)
         if job_id:
             self.job_ids.append(job_id)
-        
+    
     def load_indexing(self):
         indexer = self.bclink_helpers.get_indicies()
         if indexer:
