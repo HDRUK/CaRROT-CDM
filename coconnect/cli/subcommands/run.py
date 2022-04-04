@@ -195,6 +195,21 @@ def merge(inputs,output_folder):
     cdm.process()
 
 
+@click.command(help="loading")
+@click.option("--config","-c",required=True,type=str)
+@click.argument("inputs",nargs=-1,required=True)
+def load(inputs,config):
+    inputs = {os.path.basename(x).split('.')[0]:x for x in inputs}
+    config = json.loads(config)
+    if 'bclink' in config:
+        outputs = coconnect.io.BCLinkDataCollection(config['bclink'])
+    else:
+        raise NotImplementedError(f"Not setup to implement configuration for load {config}")
+
+    for destination_table,fname in inputs.items():
+        outputs.load(fname,destination_table)
+
+    outputs.finalise()
     
 @click.command()
 @click.option("--input",
@@ -772,6 +787,7 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"map")
 run.add_command(py,"py")
 run.add_command(map,"map")
+run.add_command(load,"load")
 run.add_command(analysis,"analysis")
 run.add_command(format,"format")
 run.add_command(merge,"merge")
