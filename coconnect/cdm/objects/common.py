@@ -308,6 +308,7 @@ class DestinationTable(Logger):
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
+       
         if not self.__df is None:
             self.logger.debug(f"df({hex(id(self.__df))}) already exists")
         
@@ -319,7 +320,7 @@ class DestinationTable(Logger):
         
         #if the dataframe has already been built.. just return it
         if not self.__df is None and not force_rebuild:
-            self.logger.debug('already got a dataframe, so returning the existing one')
+            self.logger.info('already got a dataframe, so returning the existing one')
             if dropna:
                 return self.__df.dropna(axis=1)
             else:
@@ -445,10 +446,18 @@ class DestinationTable(Logger):
                         self.logger.error(self._meta['source_files'][col])
                     raise(e)
 
+                #if col == 'value_as_number':
+                #    print (df[col],self.format_level,self.format_level is FormatterLevel.ON)
+                #    print (self.required_fields)
+                #    exit(0)
+
                 if col in self.required_fields:
                     df = df[~df[col].isna()]
                     #count the number of rows after
                     nafter = len(df)
+                    self._meta['required_fields'][col]['after_formatting'] = nafter
+                    
+
                     if nafter == 0 :
                         self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                         self.logger.info(f"Formatting resulted in all NaN values. Sample of this column before formatting:")

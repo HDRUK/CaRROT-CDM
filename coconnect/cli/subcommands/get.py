@@ -83,9 +83,10 @@ def date_events(config):
     click.echo(list(set([x['name'].replace("\ufeff","") for x in response.json()])))
         
 
-@click.command(help="get a report of the concepts that have been mapped")
+@click.command(help="get a report of the concepts that have been mapped ")
+@click.option("--flat",help="do one object for each concept (dont group)",is_flag=True)
 @click.pass_obj
-def concepts(config):
+def concepts(config,flat):
 
     token = config['CCOM_TOKEN']
     url = config['CCOM_URL']
@@ -177,9 +178,11 @@ def concepts(config):
         {'concept_id':_id,**obj}
         for _id,obj in inverted.items()
     ]
-                            
-    print (json.dumps(inverted,indent=6))
-    #print (json.dumps(_list,indent=6))
+
+    if not flat:
+        print (json.dumps(inverted,indent=6))
+    else:
+        print (json.dumps(_list,indent=6))
             
 
 @click.command(help="get a json file")
