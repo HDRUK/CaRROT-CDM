@@ -308,6 +308,7 @@ class DestinationTable(Logger):
         Returns:
            pandas.Dataframe: extracted dataframe of the cdm object
         """
+       
         if not self.__df is None:
             self.logger.debug(f"df({hex(id(self.__df))}) already exists")
         
@@ -449,6 +450,8 @@ class DestinationTable(Logger):
                     df = df[~df[col].isna()]
                     #count the number of rows after
                     nafter = len(df)
+                    self._meta['required_fields'][col]['after_formatting'] = nafter
+
                     if nafter == 0 :
                         self.logger.error(f"Something wrong with the formatting of the required field {col} using {dtype}")
                         self.logger.info(f"Formatting resulted in all NaN values. Sample of this column before formatting:")

@@ -430,21 +430,15 @@ class CommonDataModel(Logger):
 
     
     def filter(self,config,cols=None,dropna=False):
-        retval = None
+        retval = copy.deepcopy(self)
         for table,spec in config.items():
-            df = self[table]
+            df = retval[table]
             if isinstance(df,DestinationTable):
                 df = df.get_df()
             for col,func in spec.items():
                 df = df[df[col].apply(func)]
 
-            if df.index.name != 'person_id':
-                df = df.reset_index().set_index('person_id')
-                
-            if retval is None:
-                retval = df
-            else:
-                retval = retval.merge(df,left_index=True,right_index=True)
+            retval[table] = df
             
         if dropna:
             retval = retval.dropna(axis=1)
@@ -586,7 +580,7 @@ class CommonDataModel(Logger):
                 df.dropna(subset=['person_id'],inplace=True)
                 nafter = len(df['person_id'])
                 ndiff = nbefore - nafter
-                df.attrs['person_id'] = {'before':nbefore,'after':nafter}
+                df.attrs['valid_person_id'] = {'before':nbefore,'after':nafter}
                 #if rows have been removed
                 if ndiff>0:
                     self.logger.error("There are person_ids in this table that are not in the output person table!")
@@ -737,15 +731,15 @@ class CommonDataModel(Logger):
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:
-                        mode = None if i==0 else 'a'
+                        mode = None if j==0 else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
                     if not conserve_memory:
                         dfs.append(df)
-                    else:
-                        obj.clear()
-                        del df
-                        df = None
+                    #else:
+                    #    obj.clear()
+                    #    del df
+                    #    df = None
                 if not conserve_memory:
                     self[destination_table] = pd.concat(dfs,ignore_index=True)
                         
