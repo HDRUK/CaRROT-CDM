@@ -430,21 +430,15 @@ class CommonDataModel(Logger):
 
     
     def filter(self,config,cols=None,dropna=False):
-        retval = None
+        retval = copy.deepcopy(self)
         for table,spec in config.items():
-            df = self[table]
+            df = retval[table]
             if isinstance(df,DestinationTable):
                 df = df.get_df()
             for col,func in spec.items():
                 df = df[df[col].apply(func)]
 
-            if df.index.name != 'person_id':
-                df = df.reset_index().set_index('person_id')
-                
-            if retval is None:
-                retval = df
-            else:
-                retval = retval.merge(df,left_index=True,right_index=True)
+            retval[table] = df
             
         if dropna:
             retval = retval.dropna(axis=1)
