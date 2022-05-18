@@ -736,6 +736,10 @@ class CommonDataModel(Logger):
                         first = False
                     if not conserve_memory:
                         dfs.append(df)
+                    # Calum - 18/05/2022
+                    # - turn of memory clean up when processing simulataneously for now
+                    # - this is because for generate synthetic data using this code
+                    #   we want to look up between objects (hence dont delete when done)
                     #else:
                     #    obj.clear()
                     #    del df
