@@ -24,9 +24,9 @@ setuptools.setup(
     url="https://github.com/CO-CONNECT/co-connect-tools",
     entry_points = {
         'console_scripts':[
-            'coconnect=coconnect.cli.cli:coconnect',
-            'etltool=coconnect.cli.subcommands.map:run',
-            'etl-gui=coconnect.cli.subcommands.map:gui',
+            'carrot=coconnect.cli.cli:coconnect',
+            'etltool=coconnect.cli.subcommands.run:map',
+            'etl-gui=coconnect.cli.subcommands.run:gui',
         ],
     },
     packages=setuptools.find_packages(),
