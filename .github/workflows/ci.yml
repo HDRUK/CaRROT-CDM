@@ -1,4 +1,4 @@
-name: co-coconnect-tools
+name: carrot-cdm
 on: [push]
 
 jobs:
@@ -17,9 +17,9 @@ jobs:
       - run: ls .
       - name: Install setuptools
         run: pip3 install setuptools
-      - name: Install co-connect-tools
+      - name: Install carrot-tools
         run:  pip3 install -e .
-      - run: coconnect --help
+      - run: carrot --help
   unit_test_py_config:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -36,12 +36,12 @@ jobs:
       - run: ls .
       - name: Install setuptools
         run: pip3 install setuptools
-      - name: Install co-connect-tools
+      - name: Install carrot-tools
         run:  pip3 install -e .
-      - run: coconnect display rules json coconnect/data/example/sample_config/lion_structural_mapping.json
-      - run: coconnect run py make --name Lion --register  coconnect/data/example/sample_config/lion_structural_mapping.json
-      - run: coconnect run py list
-      - run: coconnect run py map --conf Lion.py coconnect/data/example/sample_input_data/*.csv
+      - run: carrot display rules json carrot/data/example/sample_config/lion_structural_mapping.json
+      - run: carrot run py make --name Lion --register  carrot/data/example/sample_config/lion_structural_mapping.json
+      - run: carrot run py list
+      - run: carrot run py map --conf Lion.py carrot/data/example/sample_input_data/*.csv
       - uses: actions/upload-artifact@v2
         with:
           name: outputs
@@ -63,15 +63,15 @@ jobs:
       - run: ls .
       - name: Install setuptools
         run: pip3 install setuptools
-      - name: Install co-connect-tools
+      - name: Install carrot-tools
         run:  pip3 install -e .
       - run: |
-          COCONNECT_DATA_FOLDER=$(coconnect info data_folder)
-          coconnect run map --rules $COCONNECT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $COCONNECT_DATA_FOLDER/test/inputs/*.csv 
+          CARROT_DATA_FOLDER=$(carrot info data_folder)
+          carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
-               coconnect display diff $filename coconnect/data/test/expected_outputs/$fname
+               carrot display diff $filename carrot/data/test/expected_outputs/$fname
           done
 
       - uses: actions/upload-artifact@v2
@@ -94,17 +94,17 @@ jobs:
       - run: ls .
       - name: Install setuptools
         run: pip3 install setuptools
-      - name: Install co-connect-tools
+      - name: Install carrot-tools
         run:  pip3 install -e .
       - run: |
-          coconnect run map --rules coconnect\data\test\rules\rules_14June2021.json --output-folder tests coconnect\data\test\inputs 
+          carrot run map --rules carrot\data\test\rules\rules_14June2021.json --output-folder tests carrot\data\test\inputs 
       - run: |
           $files = Get-ChildItem tests\*.tsv
           Foreach ($file in $files )
           {
               $newFile = $file.FullName
-              $refFile = $('coconnect\data\test\expected_outputs\' + $file.Name)
-              $command = $('coconnect display diff ' + $newFile + ' ' +  $refFile)
+              $refFile = $('carrot\data\test\expected_outputs\' + $file.Name)
+              $command = $('carrot display diff ' + $newFile + ' ' +  $refFile)
               Invoke-expression $command
           }
           
@@ -124,8 +124,8 @@ jobs:
       - run: pip3 install wheel
       - uses: actions/checkout@v2
       - run:  |
-         echo "__version__ = '${GITHUB_REF#refs/*/}'" > coconnect/_version.py
-         cat coconnect/_version.py
+         echo "__version__ = '${GITHUB_REF#refs/*/}'" > carrot/_version.py
+         cat carrot/_version.py
          python3 setup.py sdist bdist_wheel
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
@@ -142,9 +142,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install setuptools
         run: pip3 install setuptools
-      - name: Install co-connect-tools
+      - name: Install carrot-tools
         run:  pip3 install -e .
       - name: Run automation ETL
         run: |
-          cd coconnect/data/test
-          coconnect etl --config automation/example.yml 
+          cd carrot/data/test
+          carrot etl --config automation/example.yml 
