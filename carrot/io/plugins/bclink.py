@@ -1,6 +1,6 @@
-from coconnect.tools.bclink_helpers import BCLinkHelpers
+from carrot.tools.bclink_helpers import BCLinkHelpers
 from .local import LocalDataCollection
-from coconnect.io.common import DataBrick
+from carrot.io.common import DataBrick
 import io
 import pandas as pd
 import time

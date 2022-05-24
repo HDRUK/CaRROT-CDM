@@ -1,4 +1,4 @@
-import coconnect
+import carrot
 import os
 import sys
 import json
@@ -48,7 +48,7 @@ def set_debug(value):
     
 def get_classes(format=False):
     retval = get_classes_from_tool(format=format)
-    config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
+    config_folder = os.environ.get('carrot_CONFIG_FOLDER')
     if config_folder is not None:
         sys.path.append(config_folder)
         files = [x for x in os.listdir(config_folder) if x.endswith(".py") and not x.startswith('__')]
@@ -70,7 +70,7 @@ def get_classes(format=False):
     return retval
     
 def get_classes_from_tool(format=format):
-    from coconnect.cdm import classes
+    from carrot.cdm import classes
     _dir = os.path.dirname(classes.__file__)
     files = [x for x in os.listdir(_dir) if x.endswith(".py") and not x.startswith('__')]
     retval = {}

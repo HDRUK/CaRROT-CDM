@@ -1,4 +1,4 @@
-import coconnect
+import carrot
 import logging
 DEBUG_LEVELV_NUM = 9 
 logging.addLevelName(DEBUG_LEVELV_NUM, "NOTICE")
@@ -24,8 +24,8 @@ class _Logger(logging.Logger):
     def __init__(self,name):
         super().__init__(name)
         
-        save_to_file = coconnect.params['log_file']
-        debug_level = coconnect.params['debug_level']
+        save_to_file = carrot.params['log_file']
+        debug_level = carrot.params['debug_level']
         if debug_level < 0:
             debug_level = logging.CRITICAL
         elif debug_level == 0:

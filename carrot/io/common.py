@@ -1,5 +1,5 @@
 import pandas as pd
-from coconnect.tools.logger import Logger
+from carrot.tools.logger import Logger
 from types import GeneratorType
 import io
 

@@ -8,8 +8,8 @@ import yaml
 import glob
 import copy
 import subprocess
-import coconnect
-import coconnect.tools as tools
+import carrot
+import carrot.tools as tools
 
 @click.group(help="Commands for mapping data to the OMOP CommonDataModel (CDM).")
 def run():
@@ -65,7 +65,7 @@ def remove_class(ctx,name):
 @click.command(help="Execute the running of the test dataset")
 @click.pass_context
 def test(ctx):
-    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    _dir = os.path.dirname(os.path.abspath(carrot.__file__))
     _dir = f"{_dir}{os.path.sep}data{os.path.sep}test"
     inputs = glob.glob(f"{_dir}{os.path.sep}inputs{os.path.sep}*.csv")
     rules = f"{_dir}{os.path.sep}rules{os.path.sep}rules_14June2021.json"
@@ -100,7 +100,7 @@ def transform(inputs,config,number_of_rows_per_chunk,output_folder):
     }
     input_data = tools.load_csv(inputs,chunksize=number_of_rows_per_chunk)
 
-    operation_tools = coconnect.cdm.OperationTools()
+    operation_tools = carrot.cdm.OperationTools()
 
     header=True
     mode='w'
@@ -154,7 +154,7 @@ def format(inputs,number_of_rows_per_chunk,output_folder):
     else:
         inputs = tools.load_tsv(inputs,chunksize=number_of_rows_per_chunk)
 
-    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+    cdm = carrot.cdm.CommonDataModel.from_existing(inputs=inputs,
                                                       output_folder=output_folder,
                                                       format_level=1)
     #cdm.save_files = False
@@ -185,9 +185,9 @@ def merge(inputs,output_folder):
     else:
         inputs = tools.load_tsv(inputs)#,chunksize=number_of_rows_per_chunk)
 
-    outputs = coconnect.tools.create_csv_store(output_folder=output_folder,sep='\t',write_mode='w',write_separate=False)
+    outputs = carrot.tools.create_csv_store(output_folder=output_folder,sep='\t',write_mode='w',write_separate=False)
         
-    cdm = coconnect.cdm.CommonDataModel.from_existing(inputs=inputs,
+    cdm = carrot.cdm.CommonDataModel.from_existing(inputs=inputs,
                                                       do_mask_person_id=False,
                                                       drop_duplicates=True,
                                                       format_level=0,
@@ -202,7 +202,7 @@ def load(inputs,config):
     inputs = {os.path.basename(x).split('.')[0]:x for x in inputs}
     config = json.loads(config)
     if 'bclink' in config:
-        outputs = coconnect.io.BCLinkDataCollection(config['bclink'])
+        outputs = carrot.io.BCLinkDataCollection(config['bclink'])
     else:
         raise NotImplementedError(f"Not setup to implement configuration for load {config}")
 
@@ -226,7 +226,7 @@ def format_input_data(column,operation,input):
     Useful formatting command for applying an operation on some data before being passed into the ETL-Tool
 
     """
-    optools = coconnect.cdm.OperationTools()
+    optools = carrot.cdm.OperationTools()
     allowed_operations = optools.keys()
     if operation not in allowed_operations:
         raise Exception(f"Operation '{operation}' is not a known operation. Choose from {allowed_operations}")
@@ -291,10 +291,10 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
     config = yaml.safe_load(stream)
     
     inputs = config['cdm']
-    inputs = coconnect.tools.load_tsv(config['cdm'],
+    inputs = carrot.tools.load_tsv(config['cdm'],
                                       dtype=None)
 
-    cdm = coconnect.cdm.CommonDataModel.load(inputs=inputs)
+    cdm = carrot.cdm.CommonDataModel.load(inputs=inputs)
 
     analyses = config['analyses']
 
@@ -424,14 +424,14 @@ def map(ctx,rules,inputs,format_level,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
 
-    #if log_file == 'auto' and coconnect.params['log_file'] is None:
+    #if log_file == 'auto' and carrot.params['log_file'] is None:
     if log_file == 'auto':
-        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}coconnect.log"
-        coconnect.params['log_file'] = log_file
+        log_file = f"{output_folder}{os.path.sep}logs{os.path.sep}carrot.log"
+        carrot.params['log_file'] = log_file
     elif log_file == 'none':
         pass
     else:
-        coconnect.params['log_file'] = log_file
+        carrot.params['log_file'] = log_file
         
     #load the json loads
     if type(rules) == dict:
@@ -441,11 +441,11 @@ def map(ctx,rules,inputs,format_level,
 
     if tables:
         tables = list(set(tables))
-        config = coconnect.tools.filter_rules_by_destination_tables(config,tables)
+        config = carrot.tools.filter_rules_by_destination_tables(config,tables)
 
     if objects:
         objects = list(set(objects))
-        config = coconnect.tools.filter_rules_by_object_names(config,objects)
+        config = carrot.tools.filter_rules_by_object_names(config,objects)
         
     if max_rules:
         i = 0
@@ -510,7 +510,7 @@ def map(ctx,rules,inputs,format_level,
     
     #check if exists
     if any('*' in x for x in inputs):
-        data_dir = os.path.dirname(coconnect.__file__)
+        data_dir = os.path.dirname(carrot.__file__)
         data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
 
         new_inputs = []
@@ -538,7 +538,7 @@ def map(ctx,rules,inputs,format_level,
         inputs = tools.load_sql(connection_string=db,chunksize=number_of_rows_per_chunk,nrows=number_of_rows_to_process)
     else:
         if allow_missing_data:
-            config = coconnect.tools.remove_missing_sources_from_rules(config,inputs)
+            config = carrot.tools.remove_missing_sources_from_rules(config,inputs)
 
         inputs = tools.load_csv(inputs,
                                 rules=config,
@@ -550,7 +550,7 @@ def map(ctx,rules,inputs,format_level,
         
     if isinstance(output_database,dict):
         if 'bclink' in output_database:
-            outputs = coconnect.tools.create_bclink_store(bclink_settings=output_database['bclink'],
+            outputs = carrot.tools.create_bclink_store(bclink_settings=output_database['bclink'],
                                                           output_folder=output_database['cache'],
                                                           sep=csv_separator,
                                                           write_separate=split_outputs,
@@ -558,15 +558,15 @@ def map(ctx,rules,inputs,format_level,
         else:
             raise NotImplementedError(f"dont know how to configure outputs... {output_database}")   
     elif output_database == None:
-        outputs = coconnect.tools.create_csv_store(output_folder=output_folder,
+        outputs = carrot.tools.create_csv_store(output_folder=output_folder,
                                                    sep=csv_separator,
                                                    write_separate=split_outputs,
                                                    write_mode=write_mode)
     else:
-        outputs = coconnect.tools.create_sql_store()
+        outputs = carrot.tools.create_sql_store()
 
     #build an object to store the cdm
-    cdm = coconnect.cdm.CommonDataModel(name=name,
+    cdm = carrot.cdm.CommonDataModel(name=name,
                                         inputs=inputs,
                                         format_level=format_level,
                                         do_mask_person_id=not no_mask_person_id,
@@ -634,7 +634,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
         
     #check if exists
     if any('*' in x for x in inputs):
-        data_dir = os.path.dirname(coconnect.__file__)
+        data_dir = os.path.dirname(carrot.__file__)
         data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
 
         new_inputs = []
@@ -660,7 +660,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
         
-    outputs = coconnect.tools.create_csv_store(output_folder=output_folder)
+    outputs = carrot.tools.create_csv_store(output_folder=output_folder)
 
 
     if not inputs:
@@ -674,7 +674,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     available_classes = tools.get_classes()
     if pyconf not in available_classes:
         ctx.invoke(list_classes)
-        raise KeyError(f"cannot find config {pyconf}. Run 'coconnect map py list' to see available classes.")
+        raise KeyError(f"cannot find config {pyconf}. Run 'carrot map py list' to see available classes.")
     
     module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
     defined_classes = [
@@ -698,7 +698,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
 def gui(ctx):
     import PySimpleGUI as sg
 
-    coconnect_theme = {'BACKGROUND': 'white',
+    carrot_theme = {'BACKGROUND': 'white',
                        'TEXT': '#000000',
                        'INPUT': '#c4c6e2',
                        'TEXT_INPUT': '#000000',
@@ -710,10 +710,10 @@ def gui(ctx):
                        'PROGRESS_DEPTH': 0}
     
     # Add your dictionary to the PySimpleGUI themes
-    sg.theme_add_new('coconnect', coconnect_theme)
-    sg.theme('coconnect')
+    sg.theme_add_new('carrot', carrot_theme)
+    sg.theme('carrot')
 
-    _dir = os.path.dirname(os.path.abspath(coconnect.__file__))
+    _dir = os.path.dirname(os.path.abspath(carrot.__file__))
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
     
     layout = [
@@ -735,7 +735,7 @@ def gui(ctx):
 
     font = ("Roboto", 15)
     
-    window = sg.Window('COCONNECT', layout, font=font)
+    window = sg.Window('carrot', layout, font=font)
     while True:
         event, values = window.Read()
         

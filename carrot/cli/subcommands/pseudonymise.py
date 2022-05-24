@@ -1,9 +1,9 @@
 import click
 import requests
-import coconnect
+import carrot
 import hashlib
 import os
-from coconnect.tools.logger import Logger
+from carrot.tools.logger import Logger
 
 @click.command(help="Command to help pseudonymise data.")
 @click.option("-s","--salt",help="salt hash",required=True,type=str)
@@ -23,7 +23,7 @@ def pseudonymise(input,output_folder,chunksize,salt,person_id):
     logger.info(f"Saving new file to {f_out}")
     
     #load data
-    data = coconnect.tools.load_csv(input,chunksize=chunksize)
+    data = carrot.tools.load_csv(input,chunksize=chunksize)
 
     i = 0 
     while True:

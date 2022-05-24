@@ -1,7 +1,7 @@
 import os
 import click
 import json
-import coconnect
+import carrot
 import pandas as pd
 import numpy as np
 import requests
@@ -12,7 +12,7 @@ class MissingToken(Exception):
 
 
 @click.group(help='Commands to get data from the CCOM api.')
-@click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default=None)
@@ -187,15 +187,15 @@ def concepts(config,flat):
 
 @click.command(help="get a json file")
 @click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
-@click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default="https://ccom.azurewebsites.net")
 def _json(report_id,token,url):
 
-    token = os.environ.get("COCONNECT_TOKEN") or token
+    token = os.environ.get("carrot_TOKEN") or token
     if token == None:
-        raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+        raise MissingToken("you must use the option --token or set the environment variable carrot_TOKEN to be able to use this functionality. I.e  export carrot_TOKEN=12345678 ")
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
@@ -214,7 +214,7 @@ def _json(report_id,token,url):
 @click.command(help="get a json file")
 @click.argument('rules')
 def object_list(rules):
-    config = coconnect.tools.load_json(rules)
+    config = carrot.tools.load_json(rules)
     object_list = {
         dest: [k for k,v in rule_set.items()]
         for dest,rule_set in config['cdm'].items()

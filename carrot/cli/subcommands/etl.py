@@ -24,9 +24,9 @@ import json
 import copy
 import pandas as pd
 
-import coconnect
-from coconnect.tools.bclink_helpers import BCLinkHelpers
-from coconnect.tools.logger import _Logger as Logger
+import carrot
+from carrot.tools.bclink_helpers import BCLinkHelpers
+from carrot.tools.logger import _Logger as Logger
 
 from .run import map as cc_map
 from .pseudonymise import pseudonymise
@@ -67,7 +67,7 @@ def _check_conf(config):
     #                            f" via 'rules:<path of file>'")
     
     # try:
-    #     rules = coconnect.tools.load_json(config['transform']['rules'])
+    #     rules = carrot.tools.load_json(config['transform']['rules'])
     #     destination_tables = list(rules['cdm'].keys())
     # except Exception as e:
     #     raise BadRulesFile(e)
@@ -81,7 +81,7 @@ def _outputs_exist(output,tables):
 def _run_extract(config):
     output_folder = config['output']
     input_folder = config['input']
-    files = coconnect.tools.get_files(input_folder,type='csv')
+    files = carrot.tools.get_files(input_folder,type='csv')
     for f in files:
         bash_command = config['bash'].format(input=f,output=output_folder)
         for command in bash_command.splitlines():
@@ -105,7 +105,7 @@ def _find_data(d):
         temp = root_input_folder.pop('input')
         additional = root_input_folder
         root_input_folder = temp
-    subfolders = coconnect.tools.get_subfolders(root_input_folder)
+    subfolders = carrot.tools.get_subfolders(root_input_folder)
     data = [
         {**data,**{'input':f,'output':root_output_folder,'additional':additional}}
         for k,f in subfolders.items()
@@ -125,7 +125,7 @@ def _load_transform_data(data,processed_data={}):
     
     for _id,_data in data.items():
         processed_rules = processed_data[_id]['rules'] if _id in processed_data else None
-        _data['rules'] = coconnect.tools.load_json_delta(_data['rules'],processed_rules)
+        _data['rules'] = carrot.tools.load_json_delta(_data['rules'],processed_rules)
         
     return data
 
@@ -148,7 +148,7 @@ def _run_data(data,clean,ctx):
     elif isinstance(input_folder,dict):
         input_folder = _run_extract(input_folder)
         
-    inputs = coconnect.tools.get_files(input_folder,type='csv')
+    inputs = carrot.tools.get_files(input_folder,type='csv')
     output = _data.pop('output')
     
     kwargs = {
@@ -184,7 +184,7 @@ def _run_data(data,clean,ctx):
                    output_database=output_database,
                    **kwargs
         )
-    except coconnect.cdm.model.PersonExists as e:
+    except carrot.cdm.model.PersonExists as e:
         logger.error(e)
         logger.error(f"failed to map {inputs} because there were people")
         logger.error(f" already processed and present in existing data. Check the person_id map/lookup!")
@@ -252,7 +252,7 @@ def _run_etl(ctx,config_file):
 @click.group(help='Command group for running the full ETL of a dataset',invoke_without_command=True)
 @click.option('config_file','--config','--config-file',help='specify a yaml configuration file')
 @click.option('run_as_daemon','--daemon','-d',help='run the ETL as a daemon process',is_flag=True)
-@click.option('--log-file','-l',default='coconnect.log',help='specify the log file to write to')
+@click.option('--log-file','-l',default='carrot.log',help='specify the log file to write to')
 @click.pass_context
 def etl(ctx,config_file,run_as_daemon,log_file):
     logger = Logger("etl")
@@ -314,7 +314,7 @@ def bclink(ctx,force,config_file,interactive):
                                f" via 'rules:<path of file>'")
 
     try:
-        rules = coconnect.tools.load_json(config['rules'])
+        rules = carrot.tools.load_json(config['rules'])
         destination_tables = list(rules['cdm'].keys())
     except Exception as e:
         raise BadRulesFile(e)
@@ -342,7 +342,7 @@ def bclink(ctx,force,config_file,interactive):
     ctx.obj['rules'] = rules
     ctx.obj['data'] = config['data']
    
-    log = 'coconnect.log'
+    log = 'carrot.log'
     if 'log' in config.keys():
         log = config['log']
     ctx.obj['log'] = log
@@ -414,7 +414,7 @@ def _process_list_data(ctx):
             #if there's a new rules file
             logger.info(f"Detected a new rules file.. old was '{rules_file}' and new is '{current_rules_file}'")
             rules_file = current_rules_file
-            rules = coconnect.tools.load_json_delta(rules_file,rules)
+            rules = carrot.tools.load_json_delta(rules_file,rules)
             rules_file_last_modified = os.path.getmtime(rules_file)
             re_execute = True
         else: 
@@ -423,7 +423,7 @@ def _process_list_data(ctx):
             change_in_rules = rules_file_last_modified != new_rules_file_last_modified
             if change_in_rules:
                 logger.info(f"Detected a change/update in the rules file '{rules_file}'")
-                rules = coconnect.tools.load_json_delta(current_rules_file,rules)
+                rules = carrot.tools.load_json_delta(current_rules_file,rules)
                 re_execute = True 
             
         current_data = conf['data']
@@ -452,8 +452,8 @@ def _process_list_data(ctx):
                     input_folder = item['input']
                     if not os.path.isdir(input_folder):
                         raise Exception(f"{input_folder} is not a directory containing files!")
-                    inputs = coconnect.tools.get_files(input_folder,type='csv')
-                filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+                    inputs = carrot.tools.get_files(input_folder,type='csv')
+                filtered_rules = carrot.tools.remove_missing_sources_from_rules(rules,inputs)
 
                 _execute(ctx,
                          data=item,
@@ -471,7 +471,7 @@ def _process_list_data(ctx):
             #need to pick up the full rules for the next loop
             #incase we insert new data
             # --> we dont want to just apply the delta to the new data
-            rules = coconnect.tools.load_json(current_rules_file)
+            rules = carrot.tools.load_json(current_rules_file)
        
         if ctx.obj['listen_for_changes'] == False:
             break
@@ -511,7 +511,7 @@ def _process_dict_data(ctx):
     i = 0
     while True:
         #find subfolders containing data dumps
-        subfolders = coconnect.tools.get_subfolders(input_folder)
+        subfolders = carrot.tools.get_subfolders(input_folder)
         # if len(subfolders)>0:
         #     logger.info(f"Found {len(subfolders)} subfolders at path '{input_folder}'")
         # if interactive and len(subfolders)>0:
@@ -540,13 +540,13 @@ def _process_dict_data(ctx):
         for name,path in sorted(subfolders.items(),key=lambda x: os.path.getmtime(x[1])):
             output_folder_exists = os.path.exists(f"{output_folder}/{name}")
   
-            inputs = coconnect.tools.get_files(path,type='csv')
-            filtered_rules = coconnect.tools.remove_missing_sources_from_rules(rules,inputs)
+            inputs = carrot.tools.get_files(path,type='csv')
+            filtered_rules = carrot.tools.remove_missing_sources_from_rules(rules,inputs)
 
             if output_folder_exists:
                 output_tables = [
                     os.path.splitext(os.path.basename(x))[0]
-                    for x in coconnect.tools.get_files(f"{output_folder}/{name}",type='tsv')
+                    for x in carrot.tools.get_files(f"{output_folder}/{name}",type='tsv')
                 ]
                 
                 expected_outputs = list(filtered_rules['cdm'].keys())
@@ -555,7 +555,7 @@ def _process_dict_data(ctx):
                 if len(to_process) == 0:
                     continue
 
-                filtered_rules = coconnect.tools.filter_rules_by_destination_tables(filtered_rules,to_process)
+                filtered_rules = carrot.tools.filter_rules_by_destination_tables(filtered_rules,to_process)
                
 
             logger.debug(f"New data found!")
@@ -645,7 +645,7 @@ def delete_tables(ctx):
 
     out_folders = list(set(out_folders))
     all_files = [
-        coconnect.tools.get_files(f,type='tsv')
+        carrot.tools.get_files(f,type='tsv')
         for f in out_folders
     ]
     all_files = [ subitem for item in all_files for subitem in item]
@@ -744,7 +744,7 @@ def delete_data(ctx):
     output_data = data['output']
     
     
-    folders = coconnect.tools.get_subfolders(output_data)
+    folders = carrot.tools.get_subfolders(output_data)
     
     options = [
         inquirer.Checkbox('folders',
@@ -758,7 +758,7 @@ def delete_data(ctx):
     selected_folders = selected_folders["folders"]
 
     for selected_folder in selected_folders:
-        files = coconnect.tools.get_files(selected_folder,type='tsv')
+        files = carrot.tools.get_files(selected_folder,type='tsv')
                 
         options = [
             inquirer.Checkbox('files',
@@ -875,7 +875,7 @@ def _extract(ctx,data,rules,bclink_helpers):
             raise Exception(f"{inputs} is not an existing path")
         if not os.path.isdir(inputs):
              raise Exception(f"{inputs} is not a dir!")
-        inputs = coconnect.tools.get_files(inputs)
+        inputs = carrot.tools.get_files(inputs)
         if len(inputs) == 0:
             raise Exception(f"No .csv files found in {inputs}")
     
@@ -902,8 +902,8 @@ def _extract(ctx,data,rules,bclink_helpers):
                 
         logger.info(f"Called do_pseudonymisation on input data {data} ")
         if not isinstance(rules,dict):
-            rules = coconnect.tools.load_json(rules)
-        person_id_map = coconnect.tools.get_person_ids(rules)
+            rules = carrot.tools.load_json(rules)
+        person_id_map = carrot.tools.get_person_ids(rules)
 
         input_map = {os.path.basename(x):x for x in inputs}
 
@@ -1024,7 +1024,7 @@ def _execute(ctx,
         for table in tables:
             source_tables = [
                 f"{data['input']}/{x}"
-                for x in coconnect.tools.get_source_tables_from_rules(rules,table)
+                for x in carrot.tools.get_source_tables_from_rules(rules,table)
             ]
             choices.append((f"{table} ({source_tables})",table))
         questions = [
@@ -1041,7 +1041,7 @@ def _execute(ctx,
         if len(tables) == 0:
             logger.info("no tables selected, skipping..")
             return
-        rules = coconnect.tools.filter_rules_by_destination_tables(rules,tables)
+        rules = carrot.tools.filter_rules_by_destination_tables(rules,tables)
         logger.info(f'cdm tables: {tables}')
         
     logger.info(f"Executing ETL...")
@@ -1083,7 +1083,7 @@ def _execute(ctx,
         logger.info("done!")
         return
 
-    cdm_tables = coconnect.tools.get_files(output_folder,type='tsv')
+    cdm_tables = carrot.tools.get_files(output_folder,type='tsv')
     if interactive:
         choices = []
         for x in cdm_tables:
@@ -1142,7 +1142,7 @@ def _execute(ctx,
 def _get_table_map(table_map,destination_tables):
     #if it's not a dict, and is a file, load the json
     if not isinstance(table_map,dict):
-        table_map = coconnect.tools.load_json(table_map)
+        table_map = carrot.tools.load_json(table_map)
 
     # loop over all tables from the rules json
     for table_name in destination_tables:
@@ -1167,7 +1167,7 @@ def _get_table_map(table_map,destination_tables):
 @click.pass_context
 def manual(ctx,rules,inputs,output_folder,clean,table_map,gui_user,user,database,dry_run):
 
-    _rules = coconnect.tools.load_json(rules)
+    _rules = carrot.tools.load_json(rules)
     destination_tables = list(_rules['cdm'].keys())
     
     data = {

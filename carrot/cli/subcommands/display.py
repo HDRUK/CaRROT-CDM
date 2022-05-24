@@ -2,8 +2,8 @@ import os
 import click
 import pandas
 import json
-import coconnect.tools as tools
-import coconnect
+import carrot.tools as tools
+import carrot
 import pandas as pd
 import numpy as np
 import datetime
@@ -23,7 +23,7 @@ def cdm():
 @click.option('--latex',is_flag=True)
 def table(names,markdown,latex):
     for name in names:
-        obj = coconnect.cdm.get_cdm_class(name)()
+        obj = carrot.cdm.get_cdm_class(name)()
         data = []
         for field in obj.fields:
             pk = obj[field].pk
@@ -167,7 +167,7 @@ def diff(file1,file2,separator,max_rows):
 @click.argument("rules",nargs=2)
 def delta(rules):
     r1,r2 = rules
-    delta = coconnect.tools.load_json_delta(r2,r1)
+    delta = carrot.tools.load_json_delta(r2,r1)
     dt = str(datetime.datetime.now())
     delta['metadata']['date_created'] = dt
     click.echo(json.dumps(delta,indent=6))

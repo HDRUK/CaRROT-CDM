@@ -1,7 +1,7 @@
 import os
 import click
 import json
-import coconnect
+import carrot
 import pandas as pd
 import numpy as np
 import requests
@@ -26,11 +26,11 @@ def omop(ctx):
 
     config = dotenv_values(".env")
     
-    host = config['COCONNECT_DB_HOST']
-    port = config['COCONNECT_DB_PORT']
-    dbname = config['COCONNECT_DB_NAME']
-    user = config['COCONNECT_DB_USER']
-    password = config['COCONNECT_DB_PASSWORD']
+    host = config['carrot_DB_HOST']
+    port = config['carrot_DB_PORT']
+    dbname = config['carrot_DB_NAME']
+    user = config['carrot_DB_USER']
+    password = config['carrot_DB_PASSWORD']
     
     connection_str = f'postgresql://{user}:{password}@{host}/{dbname}'
     

@@ -1,17 +1,17 @@
-import coconnect 
+import carrot 
 import importlib
 import inspect
 
 __default_cdm_version = '5.3.1'
-if 'cdm' in coconnect.params:
-    __cdm_version = coconnect.params['cdm']
+if 'cdm' in carrot.params:
+    __cdm_version = carrot.params['cdm']
 else:
     __cdm_version = __default_cdm_version
 
 __cdm_version_split = '_'.join(__cdm_version.split('.'))
 
 try:
-    __cdm_tables = importlib.import_module(f'coconnect.cdm.objects.versions.v{__cdm_version_split}')
+    __cdm_tables = importlib.import_module(f'carrot.cdm.objects.versions.v{__cdm_version_split}')
 except ModuleNotFoundError as e:
     raise ModuleNotFoundError(f'Cannot find CDM version {__cdm_version}, this does not exist in this package!') from e
 

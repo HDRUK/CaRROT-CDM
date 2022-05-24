@@ -56,7 +56,7 @@ module load anaconda/{anaconda}
 
 # Load the virtual environment
 source /exports/applications/apps/SL7/anaconda/5.3.1/etc/profile.d/conda.sh
-conda activate coconnect-env
+conda activate carrot-env
 
 {command}
 '''

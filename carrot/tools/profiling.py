@@ -3,7 +3,7 @@ import time
 import threading
 import psutil
 import pandas as pd
-from coconnect.tools.logger import Logger
+from carrot.tools.logger import Logger
         
 
 class Profiler(Logger):

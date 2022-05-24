@@ -2,7 +2,7 @@ import os
 import click
 import json
 import yaml
-import coconnect
+import carrot
 import pandas as pd
 import numpy as np
 import requests
@@ -28,7 +28,7 @@ def synthetic():
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
-@click.option("-t","--token",help="specify the coconnect_token for accessing the CCOM website",type=str,default=None)
+@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
 @click.option("--get-json",help="also download the json",is_flag=True)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
@@ -39,9 +39,9 @@ def ccom(report_id,number_of_events,output_directory,
 
     fill_column_with_values = list(fill_column_with_values)
     
-    token = os.environ.get("COCONNECT_TOKEN") or token
+    token = os.environ.get("carrot_TOKEN") or token
     if token == None:
-        raise MissingToken("you must use the option --token or set the environment variable COCONNECT_TOKEN to be able to use this functionality. I.e  export COCONNECT_TOKEN=12345678 ")
+        raise MissingToken("you must use the option --token or set the environment variable carrot_TOKEN to be able to use this functionality. I.e  export carrot_TOKEN=12345678 ")
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
@@ -232,7 +232,7 @@ def synthetic_cdm(config):
     order = sorted(config.items(), key=lambda x: x[0] != 'person')
     for destination_table_name,destination_table in order:
         n = destination_table['n']
-        obj = coconnect.cdm.get_cdm_class(destination_table_name)()
+        obj = carrot.cdm.get_cdm_class(destination_table_name)()
         columns = destination_table['columns']
         for column,spec in columns.items():
             if 'range' in spec:
@@ -283,7 +283,7 @@ generate.add_command(synthetic,"synthetic")
 @click.argument("table")
 @click.argument("version")
 def cdm(table,version):
-    data_dir = os.path.dirname(coconnect.__file__)
+    data_dir = os.path.dirname(carrot.__file__)
     data_dir = f'{data_dir}{os.path.sep}data{os.path.sep}'
     data_dir = f'{data_dir}{os.path.sep}cdm{os.path.sep}BCLINK_EXPORT{os.path.sep}'
     
@@ -463,7 +463,7 @@ def mapping_rules(report):
         return {b:max([get_similar_score(a,b) for a in matcher]) for b in cols }
     
     domain_lookup = {'Condition':'condition_occurrence','Observation':'observation','Gender':'person'}
-    #date_lookup = coconnect.cdm.get_cdm_class(destination_
+    #date_lookup = carrot.cdm.get_cdm_class(destination_
     #print (dir(date_lookup))
     #exit(0)
     def create_hde_from_value(concept,value,table,field,person_id,date_event):
@@ -471,7 +471,7 @@ def mapping_rules(report):
         name = concept['concept_name']
         concept_id = concept['concept_id']
         destination_table = domain_lookup[concept['domain_id']]
-        obj = coconnect.cdm.get_cdm_class(destination_table)()
+        obj = carrot.cdm.get_cdm_class(destination_table)()
         date_events = [k for k,v in obj.get_field_dtypes().items() if v == 'Timestamp']
         date_destination = date_events[0]
         obj = {
@@ -522,7 +522,7 @@ def mapping_rules(report):
                     retval[destination_table][name] = obj
         return retval
     
-    report = coconnect.tools.load_json(report)
+    report = carrot.tools.load_json(report)
     hdes = []
     for table in report:
         fields = [x['field'] for x in table['fields']]

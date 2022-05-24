@@ -3,10 +3,10 @@ import io
 import time
 import json
 import os
-import coconnect
-from coconnect.tools.logger import Logger
+import carrot
+from carrot.tools.logger import Logger
 from .bash_helpers import BashHelpers
-from coconnect.cdm.objects import get_cdm_tables
+from carrot.cdm.objects import get_cdm_tables
 
 
 def get_default_global_id_name():
@@ -341,7 +341,7 @@ class BCLinkHelpers(BashHelpers,Logger):
             self.logger.warning("skipping global id check")
             return True
 
-        data = coconnect.tools.load_csv({"ids":f"{output_directory}/global_ids.tsv"},
+        data = carrot.tools.load_csv({"ids":f"{output_directory}/global_ids.tsv"},
                                         sep='\t',
                                         chunksize=100)
         
@@ -515,7 +515,7 @@ class BCLinkHelpers(BashHelpers,Logger):
     def remove_table(self,fname):
         self.logger.info(f"Called remove_table on {fname}")
         table = os.path.splitext(os.path.basename(fname))[0].split('.')[0]
-        data = coconnect.tools.load_csv({table:{'fields':[0],'file':fname}},
+        data = carrot.tools.load_csv({table:{'fields':[0],'file':fname}},
                                         sep='\t',
                                         chunksize=1000)
 

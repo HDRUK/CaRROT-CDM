@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy_utils import database_exists, create_database, drop_database
-from coconnect.io.common import DataCollection,DataBrick
+from carrot.io.common import DataCollection,DataBrick
 from sqlalchemy import inspect
 import pandas as pd
 

@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 import collections
 from enum import Enum
-from coconnect.cdm.operations import OperationTools
-from coconnect.tools.logger import Logger
+from carrot.cdm.operations import OperationTools
+from carrot.tools.logger import Logger
 
 class RequiredFieldIsNone(Exception):
     pass

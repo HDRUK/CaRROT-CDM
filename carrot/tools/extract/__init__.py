@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from . import templates
 import glob
-from coconnect.cdm import classes
+from carrot.cdm import classes
 
 def make_class(data,
                name=None,
@@ -99,10 +99,10 @@ def make_class(data,
     
 def register_class(fname):
     name = os.path.basename(fname)
-    #register the file within coconnect/classes so it can be imported
+    #register the file within carrot/classes so it can be imported
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
 
-    config_folder = os.environ.get('COCONNECT_CONFIG_FOLDER')
+    config_folder = os.environ.get('carrot_CONFIG_FOLDER')
     if config_folder is not None:
         save_dir = config_folder
         fname_dst = os.path.join(save_dir, name)

@@ -12,12 +12,12 @@ import concurrent.futures
 from time import gmtime, strftime, sleep, time
 
 from .operations import OperationTools
-from coconnect.tools.logger import Logger
-from coconnect.tools.profiling import Profiler
-import coconnect.tools 
-from coconnect.io import DataCollection
+from carrot.tools.logger import Logger
+from carrot.tools.profiling import Profiler
+import carrot.tools 
+from carrot.io import DataCollection
 
-from coconnect import __version__ as cc_version
+from carrot import __version__ as cc_version
 from .objects import DestinationTable, FormatterLevel
 from .objects import get_cdm_class, get_cdm_decorator
 from .decorators import load_file, analysis
@@ -149,12 +149,12 @@ class CommonDataModel(Logger):
         # {
         #     'observation':
         #     {
-        #         'observation_0': <coconnect.cdm.objects.observation.Observation object 0x000>,
-        #         'observation_1': <coconnect.cdm.objects.observation.Observation object 0x001>,
+        #         'observation_0': <carrot.cdm.objects.observation.Observation object 0x000>,
+        #         'observation_1': <carrot.cdm.objects.observation.Observation object 0x001>,
         #     },
         #     'measurement':
         #     {
-        #         'measurement_0': <coconnect.cdm.objects.measurement.Measurement object 0x000>,
+        #         'measurement_0': <carrot.cdm.objects.measurement.Measurement object 0x000>,
         #         ...
         #     }
         #     ...
@@ -349,7 +349,7 @@ class CommonDataModel(Logger):
                 #Build a lambda function that will get executed during run time
                 #and will be able to apply these rules to the inputs that are loaded
                 #(this is useful when chunk)
-                obj.define = lambda x,rules=rules : coconnect.tools.apply_rules(x,rules,inputs=self.inputs)
+                obj.define = lambda x,rules=rules : carrot.tools.apply_rules(x,rules,inputs=self.inputs)
                 
                 #register this object with the CDM model, so it can be processed
                 self.add(obj)

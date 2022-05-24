@@ -9,8 +9,8 @@ from .subcommands.get import get
 from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
 
-from coconnect.tools.logger import _Logger as Logger
-import coconnect as cc
+from carrot.tools.logger import _Logger as Logger
+import carrot as cc
 
 import click
 import json
@@ -24,7 +24,7 @@ import json
               help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
 @click.option("-cp", "--cprofile", is_flag=True, help='use cProfile to profile the tool')
 @click.pass_context
-def coconnect(ctx,version,log_level,cprofile):
+def carrot(ctx,version,log_level,cprofile):
     if ctx.invoked_subcommand == None :
         if version:
             click.echo(cc.__version__)
@@ -34,7 +34,7 @@ def coconnect(ctx,version,log_level,cprofile):
            
 
     cc.params['debug_level'] = int(log_level)
-    log = Logger("coconnect")
+    log = Logger("carrot")
     if cprofile:
         import cProfile
         log.info("Profiling...")
@@ -44,22 +44,22 @@ def coconnect(ctx,version,log_level,cprofile):
         def callback():
             pr.disable()
             log.info("Profiling completed")
-            pr.dump_stats('coconnect.prof')
+            pr.dump_stats('carrot.prof')
 
         ctx.call_on_close(callback)
 
         
-coconnect.add_command(etl, "etl")
-coconnect.add_command(run, "run")
-coconnect.add_command(info, "info")
-coconnect.add_command(display, "display")
-coconnect.add_command(generate, "generate")
-coconnect.add_command(get, "get")
-coconnect.add_command(search, "search")
-coconnect.add_command(pseudonymise, "pseudonymise")
-coconnect.add_command(airflow,'airflow')
+carrot.add_command(etl, "etl")
+carrot.add_command(run, "run")
+carrot.add_command(info, "info")
+carrot.add_command(display, "display")
+carrot.add_command(generate, "generate")
+carrot.add_command(get, "get")
+carrot.add_command(search, "search")
+carrot.add_command(pseudonymise, "pseudonymise")
+carrot.add_command(airflow,'airflow')
 
 
 
 if __name__ == "__main__":
-    coconnect()
+    carrot()

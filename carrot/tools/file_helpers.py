@@ -3,8 +3,8 @@ import glob
 import copy
 import json
 import pandas as pd
-from coconnect.tools.logger import _Logger as Logger
-import coconnect.io as io
+from carrot.tools.logger import _Logger as Logger
+import carrot.io as io
 
 class MissingInputFiles(Exception):
     pass
@@ -100,7 +100,7 @@ def load_csv(_map,chunksize=None,
             for x in _map
         }
     
-    logger = Logger("coconnect.tools.load_csv")
+    logger = Logger("carrot.tools.load_csv")
 
     if isinstance(_map,list) or isinstance(_map,tuple):
         _map = { x:x for x in _map}
