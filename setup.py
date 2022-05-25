@@ -24,7 +24,7 @@ setuptools.setup(
     url="https://github.com/HDRUK/CaRROT-CDM",
     entry_points = {
         'console_scripts':[
-            'carrot=carrot.cli.cli:carrot'
+            'carrot=pycdm.cli.cli:carrot'
         ],
     },
     packages=setuptools.find_packages(),
