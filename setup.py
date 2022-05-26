@@ -9,13 +9,13 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 
-sys.path.append("coconnect/")
+sys.path.append("carrot/")
 from _version import __version__ as version
 
     
 setuptools.setup(
-    name="carrot-tools", 
-    author="CaRROT",
+    name="pycarrot", 
+    author="CO-CONNECT Collaboration",
     version=version,
     author_email="calmacx@gmail.com",
     description="Python package for performing mapping of ETL to CDM ",
@@ -24,7 +24,7 @@ setuptools.setup(
     url="https://github.com/HDRUK/CaRROT-CDM",
     entry_points = {
         'console_scripts':[
-            'carrot=pycdm.cli.cli:carrot'
+            'carrot=carrot.cli.cli:carrot'
         ],
     },
     packages=setuptools.find_packages(),
