@@ -4,7 +4,9 @@ import sys
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
-
+    print (long_description)
+cwd = os.getcwd()
+os.system(f'ls {cwd}')
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
@@ -14,7 +16,7 @@ from _version import __version__ as version
 
     
 setuptools.setup(
-    name="pycarrot", 
+    name="carrot-cdm", 
     author="CO-CONNECT Collaboration",
     version=version,
     author_email="calmacx@gmail.com",
