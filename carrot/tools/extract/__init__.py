@@ -102,7 +102,7 @@ def register_class(fname):
     #register the file within carrot/classes so it can be imported
     save_dir = os.path.dirname(os.path.abspath(classes.__file__))
 
-    config_folder = os.environ.get('carrot_CONFIG_FOLDER')
+    config_folder = os.environ.get('CONFIG_CONFIG_FOLDER')
     if config_folder is not None:
         save_dir = config_folder
         fname_dst = os.path.join(save_dir, name)
