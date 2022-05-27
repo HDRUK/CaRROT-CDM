@@ -1,13 +1,7 @@
 from .subcommands.info import info
-print (info)
-import os
-print (os.system("ls"))
-print (os.system("pwd"))
 from .subcommands.etl import etl
 from .subcommands.display import display
 from .subcommands.run import run
-print (run)
-print (os.system("ls "))
 from .subcommands.airflow import airflow
 from .subcommands.generate import generate
 
