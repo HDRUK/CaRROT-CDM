@@ -1,0 +1,19 @@
+VARIABLE	DESCRIPTION	TYPE	KEY	MINVAL	MAXVAL	CHOICESET	REQUIRED	LENGTH	VALUEFUNCTION	DEFAULT	VALUEFORMATREGEXP	BCDBITRATE
+MEASUREMENT_ID	measurement_id	Integer	1				yes					
+PERSON_ID	person_id	Integer										
+MEASUREMENT_CONCEPT_ID	measurement_concept_id	Integer										
+MEASUREMENT_DATE	measurement_date	Date										
+MEASUREMENT_DATETIME	measurement_datetime	Timestamp										
+MEASUREMENT_TYPE_CONCEPT_ID	measurement_type_concept_id	Integer										
+OPERATOR_CONCEPT_ID	operator_concept_id	Integer										
+VALUE_AS_NUMBER	value_as_number	Float										
+VALUE_AS_CONCEPT_ID	value_as_concept_id	Integer										
+UNIT_CONCEPT_ID	unit_concept_id	Integer										
+RANGE_LOW	range_low	Float										
+RANGE_HIGH	range_high	Float										
+PROVIDER_ID	provider_id	Integer										
+VISIT_OCCURRENCE_ID	visit_occurrence_id	Integer										
+MEASUREMENT_SOURCE_VALUE	measurement_source_value	Text						50				
+MEASUREMENT_SOURCE_CONCEPT_ID	measurement_source_concept_id	Integer										
+UNIT_SOURCE_VALUE	unit_source_value	Text						50				
+VALUE_SOURCE_VALUE	value_source_value	Text						50				

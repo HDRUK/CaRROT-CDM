@@ -1,0 +1,18 @@
+clean: true
+rules: /usr/lib/bcos/OMOP-test-data/tests_06Oct/rules.json 
+log: /usr/lib/bcos/OMOP-test-data/tests_06Oct/etl.log
+data: 
+   watch: 
+      seconds: 5
+   input: /usr/lib/bcos/OMOP-test-data/tests_06Oct/data
+   output: /usr/lib/bcos/OMOP-test-data/tests_06Oct/output
+   pseudonymise: 
+      output: /usr/lib/bcos/OMOP-test-data/tests_06Oct/pseudo_data
+      salt: 00ed1234da
+bclink:
+   global_ids: ids_001
+   tables:
+      person: person_001
+      observation: observation_001
+      condition_occurrence: condition_occurrence_001
+      measurement: measurement_001
