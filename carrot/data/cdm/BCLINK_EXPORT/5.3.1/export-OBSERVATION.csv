@@ -1,0 +1,18 @@
+VARIABLE	DESCRIPTION	TYPE	KEY	MINVAL	MAXVAL	CHOICESET	REQUIRED	LENGTH	VALUEFUNCTION	DEFAULT	VALUEFORMATREGEXP	BCDBITRATE
+OBSERVATION_ID	observation_id	Integer	1				yes					
+PERSON_ID	person_id	Integer										
+OBSERVATION_CONCEPT_ID	observation_concept_id	Integer										
+OBSERVATION_DATE	observation_date	Date										
+OBSERVATION_DATETIME	observation_datetime	Timestamp										
+OBSERVATION_TYPE_CONCEPT_ID	observation_type_concept_id	Integer										
+VALUE_AS_NUMBER	value_as_number	Float										
+VALUE_AS_STRING	value_as_string	Text						60				
+VALUE_AS_CONCEPT_ID	value_as_concept_id	Integer										
+QUALIFIER_CONCEPT_ID	qualifier_concept_id	Integer										
+UNIT_CONCEPT_ID	unit_concept_id	Integer										
+PROVIDER_ID	provider_id	Integer										
+VISIT_OCCURRENCE_ID	visit_occurrence_id	Integer										
+OBSERVATION_SOURCE_VALUE	observation_source_value	Text						50				
+OBSERVATION_SOURCE_CONCEPT_ID	observation_source_concept_id	Integer										
+UNIT_SOURCE_VALUE	unit_source_value	Text						50				
+QUALIFIER_SOURCE_VALUE	qualifier_source_value	Text						50				

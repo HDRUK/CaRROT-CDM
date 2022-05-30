@@ -10,7 +10,7 @@ from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
 
 from carrot.tools.logger import _Logger as Logger
-import carrot as cc
+import carrot as c
 
 import click
 import json
@@ -27,13 +27,13 @@ import json
 def carrot(ctx,version,log_level,cprofile):
     if ctx.invoked_subcommand == None :
         if version:
-            click.echo(cc.__version__)
+            click.echo(c.__version__)
         else:
             click.echo(ctx.get_help()) 
         return
            
 
-    cc.params['debug_level'] = int(log_level)
+    c.params['debug_level'] = int(log_level)
     log = Logger("carrot")
     if cprofile:
         import cProfile

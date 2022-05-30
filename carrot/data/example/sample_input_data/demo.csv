@@ -1,0 +1,5 @@
+study number,consent date,gender,dob,group,smoker,diabetic,ethnicity,antibody
+1,02/05/2020,F,18/07/1962,NURSE,y,n,WHITE BRITISH,0.7
+2,02/05/2020,M,01/03/1972,NURSE,n,n,WHITE BRITISH,0.2
+3,03/05/2020,F,23/01/1979,DOCTOR,y,y,BLACK CARIBBEAN,0.1
+4,04/05/2020,F,13/09/1991,NURSE,n,y,WHITE BRITISH,0.6

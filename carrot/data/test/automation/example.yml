@@ -1,0 +1,14 @@
+transform:
+  data: 
+    - input: inputs/
+      rules: rules/rules_14June2021.json
+      output:
+        cache: output/
+        bclink:
+          dry_run: true
+          tables:
+            person_ids: ds00000
+            person: person_001
+            observation: observation_001
+            measurement: measurement_001
+            condition_occurrence: condition_occurrence_001

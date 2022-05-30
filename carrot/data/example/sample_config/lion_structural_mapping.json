@@ -1,0 +1,295 @@
+{
+      "metadata": {
+            "datapartner": "University of Nottingham Trent",
+            "dataset": "Lion",
+            "date_created": "2021-03-17T22:10:31.022137",
+            "person_id": {
+                  "demo.csv": "study number",
+                  "questions.csv": "study id"
+            }
+      },
+      "cdm": {
+            "person": {
+		  "person": {
+			"birth_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "dob",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "day_of_birth": {
+                              "source_table": "demo.csv",
+                              "source_field": "dob",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_day"
+			      ]
+                        },
+                        "gender_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": {
+                                    "F": 8532,
+                                    "M": 8507
+                              }
+                        },
+                        "gender_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "gender",
+                              "term_mapping": null
+                        },
+                        "month_of_birth": {
+                              "source_table": "demo.csv",
+                              "source_field": "dob",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_month"
+			      ]
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        },
+                        "race_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 4196428,
+                                    "BLACK CARIBBEAN": 4087917
+                              }
+                        },
+                        "race_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": {
+                                    "WHITE BRITISH": 123456,
+                                    "BLACK CARIBBEAN": 123422
+                              }
+                        },
+                        "race_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "ethnicity",
+                              "term_mapping": null
+                        },
+                        "year_of_birth": {
+                              "source_table": "demo.csv",
+                              "source_field": "dob",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_year"
+			      ]
+                        }
+                  }
+	    },
+	    "condition_occurrence":  {
+                  "headache": {
+                        "condition_end_date": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                
+                        },
+                        "condition_start_date": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "person_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "study id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questions.csv",
+                              "source_field": "headache",
+                              "term_mapping": null
+                        },
+                        "condition_source_concept_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "headache",
+                              "term_mapping": {
+                                    "Y": 378253,
+                                    "Yes": 378253
+                              }
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "headache",
+                              "term_mapping": {
+                                    "Y": 378253,
+                                    "Yes": 378253
+                              }
+                        }
+                  },
+		  "sore throat": {
+			"condition_end_date": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
+                        },
+                        "condition_end_datetime": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "condition_start_date": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_date"
+			      ]
+                        },
+                        "condition_start_datetime": {
+                              "source_table": "questions.csv",
+                              "source_field": "date of visit",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "person_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "study id",
+                              "term_mapping": null
+                        },
+                        "condition_source_value": {
+                              "source_table": "questions.csv",
+                              "source_field": "sore throat",
+                              "term_mapping": null
+                        },
+			"condition_source_concept_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "sore throat",
+                              "term_mapping": {
+                                    "Y": 4147326,
+                                    "Yes": 4147326
+                              }
+                        },
+                        "condition_concept_id": {
+                              "source_table": "questions.csv",
+                              "source_field": "sore throat",
+                              "term_mapping": {
+                                    "Y": 4147326,
+                                    "Yes": 4147326
+                              }
+                        }
+                  }
+	    },
+            "observation": {
+                  "smoker": {
+                        "observation_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": {
+                                    "y": "40766945"
+                              }
+                        },
+                        "observation_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "consent date",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "observation_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": {
+                                    "y": "40766945"
+                              }
+                        },
+                        "observation_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "smoker",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_source_field_name_as_value"
+			      ]
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        }
+                  }
+            },
+	    "measurement": {
+		  "antibodies": {
+                        "measurement_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": "4022977"
+                        },
+                        "measurement_datetime": {
+                              "source_table": "demo.csv",
+                              "source_field": "consent date",
+                              "term_mapping": null,
+			      "operations": [
+				    "get_datetime"
+			      ]
+                        },
+                        "measurement_source_concept_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": "4022977"
+                        },
+                        "measurement_source_value": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": null
+                        },
+                        "person_id": {
+                              "source_table": "demo.csv",
+                              "source_field": "study number",
+                              "term_mapping": null
+                        },
+                        "value_as_number": {
+                              "source_table": "demo.csv",
+                              "source_field": "antibody",
+                              "term_mapping": null
+                        }
+		  }
+	    }
+      }      
+}

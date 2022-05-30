@@ -48,7 +48,7 @@ def set_debug(value):
     
 def get_classes(format=False):
     retval = get_classes_from_tool(format=format)
-    config_folder = os.environ.get('carrot_CONFIG_FOLDER')
+    config_folder = os.environ.get('CARROT_CONFIG_FOLDER')
     if config_folder is not None:
         sys.path.append(config_folder)
         files = [x for x in os.listdir(config_folder) if x.endswith(".py") and not x.startswith('__')]

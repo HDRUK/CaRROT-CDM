@@ -1,0 +1,16 @@
+VARIABLE	DESCRIPTION	TYPE	KEY	MINVAL	MAXVAL	CHOICESET	REQUIRED	LENGTH	VALUEFUNCTION	DEFAULT	VALUEFORMATREGEXP	BCDBITRATE
+CONDITION_OCCURRENCE_ID	condition_occurrence_id	Integer	1				yes					
+PERSON_ID	person_id	Integer										
+CONDITION_CONCEPT_ID	condition_concept_id	Integer										
+CONDITION_START_DATE	condition_start_date	Date										
+CONDITION_START_DATETIME	condition_start_datetime	Timestamp										
+CONDITION_END_DATE	condition_end_date	Date										
+CONDITION_END_DATETIME	condition_end_datetime	Timestamp										
+CONDITION_TYPE_CONCEPT_ID	condition_type_concept_id	Integer										
+STOP_REASON	stop_reason	Text						20				
+PROVIDER_ID	provider_id	Integer										
+VISIT_OCCURRENCE_ID	visit_occurrence_id	Integer										
+CONDITION_SOURCE_VALUE	condition_source_value	Text						50				
+CONDITION_SOURCE_CONCEPT_ID	condition_source_concept_id	Integer										
+CONDITION_STATUS_SOURCE_VALUE	condition_status_source_value	Text						50				
+CONDITION_STATUS_CONCEPT_ID	condition_status_concept_id	Integer										

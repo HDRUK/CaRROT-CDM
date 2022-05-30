@@ -17,7 +17,7 @@ from carrot.tools.profiling import Profiler
 import carrot.tools 
 from carrot.io import DataCollection
 
-from carrot import __version__ as cc_version
+from carrot import __version__ as carrot_version
 from .objects import DestinationTable, FormatterLevel
 from .objects import get_cdm_class, get_cdm_decorator
 from .decorators import load_file, analysis
@@ -78,7 +78,7 @@ class CommonDataModel(Logger):
         self.profiler = None
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
             
-        self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {cc_version}")
+        self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {carrot_version}")
 
         self.omop_version = omop_version
 
@@ -182,7 +182,7 @@ class CommonDataModel(Logger):
         #bookkeep some logs
         self.logs = {
             'meta':{
-                'version': cc_version,
+                'version': carrot_version,
                 'created_by': getpass.getuser(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
