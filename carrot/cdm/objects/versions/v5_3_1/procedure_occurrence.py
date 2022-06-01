@@ -41,12 +41,8 @@ class ProcedureOccurrence(DestinationTable):
         df = super().get_df(**kwargs)
     
         if self.automatically_fill_missing_columns == True:
-            if df['procedure_start_date'].isnull().all():
-                df['procedure_start_date'] = self.tools.get_date(df['procedure_start_datetime'])
+            if df['procedure_date'].isnull().all():
+                df['procedure_date'] = self.tools.get_date(df['procedure_datetime'])
 
-            if df['procedure_end_date'].isnull().all():
-                df['procedure_end_date'] = self.tools.get_date(df['procedure_end_datetime'])
-            
-                
         return df
     
