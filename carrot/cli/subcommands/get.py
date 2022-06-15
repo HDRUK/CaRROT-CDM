@@ -18,24 +18,7 @@ class MissingToken(Exception):
               default=None)
 @click.pass_context
 def get(ctx,token,url):
-    config = dotenv_values(".env")
-    if token:
-        config['CCOM_TOKEN'] = token
-    if url:
-        config['CCOM_URL'] = url
-
-    if 'CCOM_TOKEN' not in config:
-        raise MissingToken("you must use the option --token or create a .env file containing CCOM_TOKEN to be able to use this functionality.")
-
-    token = config['CCOM_TOKEN']
-    config['headers'] = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
-        "Content-type": "application/json",
-        "charset": "utf-8",
-        "Authorization": f"Token {token}"
-    }
-    ctx.obj = config
-    
+    pass
 
 @click.command(help="get information about a concept")
 @click.argument("concept_id",required=True)
@@ -189,9 +172,8 @@ def concepts(config,flat):
 @click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
 @click.pass_obj
 def _json(ctx,report_id):
-    url = ctx['CCOM_URL']
+    url = ctx['url']
     headers = ctx['headers']
-
     response = requests.get(
         f"{url}/api/json/?id={report_id}",
         headers=headers

@@ -10,10 +10,12 @@ from .subcommands.search import search
 from .subcommands.pseudonymise import pseudonymise
 
 from carrot.tools.logger import _Logger as Logger
-import carrot as c
 
+import carrot as c
 import click
 import json
+from dotenv import dotenv_values
+
 
 
 @click.group(invoke_without_command=True)
@@ -22,17 +24,38 @@ import json
               type=click.Choice(['0','1','2','3']),
               default='2',
               help="change the level for log messaging. 0 - ERROR, 1 - WARNING, 2 - INFO (default), 3 - DEBUG ")
+@click.option("token","--carrot-mapper-token",help="specify a token for interacting with the CaRROT-Mapper tool",default=None)
+@click.option("url","--carrot-mapper-url",help="specify a url for a CaRROT-Mapper tool instance",default=None)
 @click.option("-cp", "--cprofile", is_flag=True, help='use cProfile to profile the tool')
 @click.pass_context
-def carrot(ctx,version,log_level,cprofile):
+def carrot(ctx,version,log_level,cprofile,token,url):
+    
     if ctx.invoked_subcommand == None :
         if version:
             click.echo(c.__version__)
         else:
             click.echo(ctx.get_help()) 
         return
-           
 
+    #load any variables/value stored in a local .env file
+    env_values = dotenv_values(".env")
+    token = (
+        env_values['CARROT_MAPPER_TOKEN']
+        if 'CARROT_MAPPER_TOKEN' in env_values else None
+    ) if token is None else token
+
+    url = (
+        env_values['CARROT_MAPPER_URL']
+        if 'CARROT_MAPPER_URL' in env_values else None
+    ) if url is None else url
+    
+    ctx.obj = {
+        'token': token,
+        'url': url
+    }
+    
+    ctx.obj['headers'] = c.tools.get_request_headers(token) if token else None
+    
     c.params['debug_level'] = int(log_level)
     log = Logger("carrot")
     if cprofile:

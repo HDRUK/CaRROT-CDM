@@ -24,42 +24,21 @@ def generate():
 def synthetic():
     pass
 
-@click.command(help="generate synthetic data from a ScanReport ID from CCOM")
+@click.command(help="generate synthetic data from a ScanReport ID from CaRROT-Mapper website")
 @click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
 @click.option("-n","--number-of-events",help="number of rows to generate",required=True,type=int)
 @click.option("-o","--output-directory",help="folder to save the synthetic data to",required=True,type=str)
 @click.option("--fill-column-with-values",help="select columns to fill values for",multiple=True,type=str)
-@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
 @click.option("--get-json",help="also download the json",is_flag=True)
-@click.option("-u","--url",help="url endpoint for the CCOM website to ping",
-              type=str,
-              default="https://ccom.azurewebsites.net")
-def ccom(report_id,number_of_events,output_directory,
-         fill_column_with_values,token,get_json,
-         url):
+@click.pass_obj
+def carrot_mapper(ctx,report_id,number_of_events,output_directory,
+         fill_column_with_values,get_json):
 
+    url = ctx['url']
+    headers = ctx['headers']
+    
     fill_column_with_values = list(fill_column_with_values)
-
-    
-    token = os.environ.get("CCOM_TOKEN") or token
-    if token == None:
-        config = dotenv_values(".env")
-        if 'CCOM_TOKEN' in config:
-            token = config['CCOM_TOKEN']
-        else:
-            raise MissingToken("you must use the option --token, a .env file or set the environment variable CCOM_TOKEN to be able to use this functionality. I.e  export CCOM_TOKEN=12345678 ")
-
-        if 'CCOM_URL' in config:
-            url = config['CCOM_URL']
-            
-            
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
-        "Content-type": "application/json",
-        "charset": "utf-8",
-        "Authorization": f"Token {token}"
-    }
-    
+        
     if get_json:
         response = requests.get(
             f"{url}/api/json/?id={report_id}",
@@ -70,8 +49,7 @@ def ccom(report_id,number_of_events,output_directory,
         with open(f'{fname}.json', 'w') as outfile:
             print ('saving',fname)
             json.dump(response.json()[0],outfile,indent=6)
-            
-    
+        
     response = requests.get(
         f"{url}/api/scanreporttables/?scan_report={report_id}",
         headers=headers
@@ -229,8 +207,8 @@ def xlsx(report,number_of_events,output_directory,fill_column_with_values):
         print (f"created {fname} with {number_of_events} events")
 
 
-synthetic.add_command(xlsx,"from_xlsx")
-synthetic.add_command(ccom,"from_ccom")
+synthetic.add_command(xlsx,"from-xlsx")
+synthetic.add_command(carrot_mapper,"from-carrot-mapper")
 
 @click.command(help="generate a synthetic CDM from a yaml file")
 @click.argument("config")
