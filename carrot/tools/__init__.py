@@ -101,3 +101,11 @@ def get_classes_from_tool(format=format):
     else:
         return retval
 
+def get_request_headers(token):
+    return {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
+        "Content-type": "application/json",
+        "charset": "utf-8",
+        "Authorization": f"Token {token}"
+    }
+
