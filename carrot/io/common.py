@@ -107,7 +107,7 @@ class DataBrick:
         self.__df = None
         self.__end = False
         self.__is_init = False
-
+        
     def get_handler(self):
         return self.__df_handler
 
@@ -126,13 +126,11 @@ class DataBrick:
     def reset(self):
         if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
             options = self.__df_handler.orig_options
-            f = self.__df_handler.f
-            del self.__df_handler
-            options['engine'] = 'c'
-            if isinstance(f,io.StringIO):
-                f.seek(0)
+            f = self.__df_handler.handles.handle
+            f.seek(0)
+            del  self.__df_handler
             self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
-            
+                                    
         self.__df = None
         self.__end = False
         self.__is_init = False
