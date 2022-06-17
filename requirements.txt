@@ -1,6 +1,9 @@
+pandas>=1.4.2
+sqlalchemy>=1.4.0
+#psycopg2-binary==2.8.6
+sqlalchemy-utils
 numpy
 scipy
-pandas>=1.4.2
 coloredlogs
 Jinja2
 graphviz
@@ -15,6 +18,3 @@ python-daemon
 inquirer
 python-dotenv
 co-connect-pseudonymise
-sqlalchemy
-#psycopg2-binary==2.8.6
-sqlalchemy-utils
