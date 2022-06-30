@@ -7,8 +7,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
     print (long_description)
 cwd = os.getcwd()
 os.system(f'ls {cwd}')
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
 
 
 sys.path.append("carrot/")
@@ -34,7 +32,27 @@ setuptools.setup(
         'airflow':['apache-airflow'],
         'performance':['snakeviz'],
     },
-    install_requires=required,
+    install_requires=[
+        "pandas<=1.1.0",
+        "sqlalchemy>=1.4.0",
+        "sqlalchemy-utils",
+        "numpy",
+        "scipy",
+        "coloredlogs",
+        "Jinja2",
+        "graphviz",
+        "click",
+        "tabulate",
+        "psutil",
+        "pysimplegui",
+        "requests",
+        "openpyxl",
+        "pyyaml",
+        "python-daemon",
+        "inquirer"
+        "python-dotenv",
+        "co-connect-pseudonymise"
+    ],
     package_data={'carrot': ['data/cdm/*','data/example/*/*','data/test/*/*','data/test/*/*/*']},
     include_package_data=True,
     classifiers=[
