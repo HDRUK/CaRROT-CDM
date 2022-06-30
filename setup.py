@@ -49,7 +49,7 @@ setuptools.setup(
         "openpyxl",
         "pyyaml",
         "python-daemon",
-        "inquirer"
+        "inquirer",
         "python-dotenv",
         "co-connect-pseudonymise"
     ],
