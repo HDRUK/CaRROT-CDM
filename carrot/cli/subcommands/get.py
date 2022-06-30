@@ -12,7 +12,7 @@ class MissingToken(Exception):
 
 
 @click.group(help='Commands to get data from the CCOM api.')
-@click.option("-t","--token",help="specify the token for accessing the CCOM website",type=str,default=None)
+@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
 @click.option("-u","--url",help="url endpoint for the CCOM website to ping",
               type=str,
               default=None)
@@ -187,10 +187,22 @@ def concepts(config,flat):
 
 @click.command(help="get a json file")
 @click.option("-i","--report-id",help="ScanReport ID on the website",required=True,type=int)
-@click.pass_obj
-def _json(ctx,report_id):
-    url = ctx['CCOM_URL']
-    headers = ctx['headers']
+@click.option("-t","--token",help="specify the carrot_token for accessing the CCOM website",type=str,default=None)
+@click.option("-u","--url",help="url endpoint for the CCOM website to ping",
+              type=str,
+              default="https://ccom.azurewebsites.net")
+def _json(report_id,token,url):
+
+    token = os.environ.get("carrot_TOKEN") or token
+    if token == None:
+        raise MissingToken("you must use the option --token or set the environment variable carrot_TOKEN to be able to use this functionality. I.e  export carrot_TOKEN=12345678 ")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
+        "Content-type": "application/json",
+        "charset": "utf-8",
+        "Authorization": f"Token {token}"
+    }
 
     response = requests.get(
         f"{url}/api/json/?id={report_id}",
