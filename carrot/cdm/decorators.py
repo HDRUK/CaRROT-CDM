@@ -5,7 +5,8 @@ from .objects import (
     VisitOccurrence,
     Measurement,
     Observation,
-    DrugExposure
+    DrugExposure,
+    Death
 )
 import copy
 import sys
@@ -140,6 +141,12 @@ def define_observation(defs):
 
 def define_drug_exposure(defs):
     c = DrugExposure()
+    c.define = defs
+    c.set_name(defs.__name__)
+    return c
+
+def define_death(defs):
+    c = Death()
     c.define = defs
     c.set_name(defs.__name__)
     return c
