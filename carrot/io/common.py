@@ -130,16 +130,23 @@ class DataBrick:
                 f = self.__df_handler.f
                 if isinstance(f,io.StringIO):
                     f.seek(0)
-                #else it's just going to be a string for a file name
+                else:
+                    #it's just going to be a string for a file name
+                    pass
             elif hasattr(self.__df_handler,'handles'):
                 f = self.__df_handler.handles.handle
                 if not f.closed:
                     f.seek(0)
+                else:
+                    #if the i/o is closed, get the name of the original file instead
+                    f = f.name
             else:
                 raise NotImplementedError('check your pandas version! It is not supported by the tool - try upgrading')
 
             del  self.__df_handler
+            #f is an i/o object or a filename (string)
             self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
+            
                                     
         self.__df = None
         self.__end = False
