@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{ version.os }}
+          python-version: ${{ matrix.version }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
@@ -90,7 +90,7 @@ jobs:
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{ version.os }}
+          python-version: ${{ matrix.version }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
