@@ -67,12 +67,13 @@ jobs:
         run:  pip3 install -e .
       - run: |
           CARROT_DATA_FOLDER=$(carrot info data_folder)
-          carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv -nc 100 
+          carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv -nc 100
+          rm -rf tests/
           carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
-               carrot display diff $filename carrot/data/test/expected_outputs/$fname
+               carrot display diff $filename $CARROT_DATA_FOLDER/test/expected_outputs/$fname
           done
 
       - uses: actions/upload-artifact@v2
@@ -98,7 +99,6 @@ jobs:
       - name: Install carrot-tools
         run:  pip3 install -e .
       - run: |
-          carrot run map --rules carrot\data\test\rules\rules_14June2021.json --output-folder tests carrot\data\test\inputs -nc 500
           carrot run map --rules carrot\data\test\rules\rules_14June2021.json --output-folder tests carrot\data\test\inputs 
       - run: |
           $files = Get-ChildItem tests\*.tsv
