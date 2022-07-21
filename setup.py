@@ -33,7 +33,7 @@ setuptools.setup(
         'performance':['snakeviz'],
     },
     install_requires=[
-        "pandas<=1.1.0",
+        "pandas",
         "sqlalchemy>=1.4.0",
         "sqlalchemy-utils",
         "numpy",

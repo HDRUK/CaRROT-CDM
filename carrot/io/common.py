@@ -126,8 +126,17 @@ class DataBrick:
     def reset(self):
         if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
             options = self.__df_handler.orig_options
-            f = self.__df_handler.handles.handle
-            f.seek(0)
+            if hasattr(self.__df_handler,'f'):
+                f = self.__df_handler.f
+                if isinstance(f,io.StringIO):
+                    f.seek(0)
+                #else it's just going to be a string for a file name
+            elif hasattr(self.__df_handler,'handles'):
+                f = self.__df_handler.handles.handle
+                f.seek(0)
+            else:
+                raise NotImplementedError('check your pandas version! It is not supported by the tool - try upgrading')
+
             del  self.__df_handler
             self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
                                     
