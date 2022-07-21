@@ -52,13 +52,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.6.8, 3.10.5]
+        version: [3.6.8, 3.10.5]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{ python-version.os }}
+          python-version: ${{ version.os }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
@@ -84,13 +84,13 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: [3.6.8, 3.10.5]
+        version: [3.6.8, 3.10.5]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{ python-version.os }}
+          python-version: ${{ version.os }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
