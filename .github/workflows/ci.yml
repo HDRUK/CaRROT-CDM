@@ -73,7 +73,7 @@ jobs:
       - run: |
           for filename in tests/*.tsv; do
                fname=${filename##*/}
-               carrot display diff $filename $CARROT_DATA_FOLDER/test/expected_outputs/$fname
+               carrot display diff $filename carrot/data/test/expected_outputs/$fname
           done
 
       - uses: actions/upload-artifact@v2
