@@ -133,7 +133,8 @@ class DataBrick:
                 #else it's just going to be a string for a file name
             elif hasattr(self.__df_handler,'handles'):
                 f = self.__df_handler.handles.handle
-                f.seek(0)
+                if not f.closed:
+                    f.seek(0)
             else:
                 raise NotImplementedError('check your pandas version! It is not supported by the tool - try upgrading')
 
