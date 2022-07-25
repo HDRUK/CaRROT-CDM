@@ -12,9 +12,9 @@ os.system(f'ls {cwd}')
 sys.path.append("carrot/")
 from _version import __version__ as version
 
-    
+
 setuptools.setup(
-    name="carrot-cdm", 
+    name="carrot-cdm",
     author="CO-CONNECT Collaboration",
     version=version,
     author_email="calmacx@gmail.com",
@@ -33,7 +33,7 @@ setuptools.setup(
         'performance':['snakeviz'],
     },
     install_requires=[
-        "pandas<=1.1.0",
+        "pandas<=1.1.1",
         "sqlalchemy>=1.4.0",
         "sqlalchemy-utils",
         "numpy",
