@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: [3.6.8]
+        python-version: [3.6.8,3.10.5]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - uses: actions/setup-python@v2
@@ -52,13 +52,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.6.8]
+        version: [3.6.8, 3.10.5]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6.8
+          python-version: ${{ matrix.version }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
@@ -67,6 +67,8 @@ jobs:
         run:  pip3 install -e .
       - run: |
           CARROT_DATA_FOLDER=$(carrot info data_folder)
+          carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv -nc 100
+          rm -rf tests/
           carrot run map --rules $CARROT_DATA_FOLDER/test/rules/rules_14June2021.json --output-folder tests/ $CARROT_DATA_FOLDER/test/inputs/*.csv 
       - run: |
           for filename in tests/*.tsv; do
@@ -83,13 +85,13 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: [3.6.8]
+        version: [3.6.8, 3.10.5]
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     needs: build
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.6.8
+          python-version: ${{ matrix.version }}
       - uses: actions/checkout@v2
       - run: ls .
       - name: Install setuptools
