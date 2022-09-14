@@ -646,7 +646,6 @@ class CommonDataModel(Logger):
                 dfs = []
                 #print (self.drop_duplicates)
                 for j,obj in enumerate(df_generator):
-
                     df = obj.get_df()
                     ntables +=1
                     nrows += len(df)
@@ -693,13 +692,18 @@ class CommonDataModel(Logger):
                 #move onto the next iteration                
                 i+=1
 
+                
                 if self.inputs:
                     try:
+                        #make sure to reset the objects, clearing any existing dataframes
+                        [x.reset() for x in self.get_all_objects()]
                         self.inputs.next()
                     except StopIteration:
                         break
                 else:
                     break
+
+
 
             #if inputs are defined, and we havent just finished the last table,
             #reset the inputs
@@ -745,6 +749,7 @@ class CommonDataModel(Logger):
                         
             if self.inputs:
                 try:
+                    [x.reset() for x in self.get_all_objects()]
                     self.inputs.next()
                 except StopIteration:
                     break
@@ -811,6 +816,13 @@ class CommonDataModel(Logger):
             start_index += nrows_processed
 
             #force_rebuild=True,
+            # Why was this (force_rebuild=True) turned off/removed from the initial get_df?
+            # ---> this also explains the problem we observed
+            #     and why we need a reset when retrieving new input chunks
+            #     ( [x.reset() for x in self.get_all_objects()] )
+            #
+            # Answer: I think to save computational time if you load an existing CDM dataset
+            #         into the software (?) 
             df = obj.get_df(start_index=start_index)
 
             self.logger.info(f"finished {obj.name} ({hex(id(df))}) "
