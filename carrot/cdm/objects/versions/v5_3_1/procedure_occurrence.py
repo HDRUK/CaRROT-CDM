@@ -9,10 +9,10 @@ class ProcedureOccurrence(DestinationTable):
     name = 'procedure_occurrence'
     def __init__(self,name=None):
         self.procedure_occurrence_id     = DestinationField(dtype="Integer"   , required=False , pk=True)
-        self.person_id                   = DestinationField(dtype="Integer"   , required=False )
-        self.procedure_concept_id        = DestinationField(dtype="Integer"   , required=False )
+        self.person_id                   = DestinationField(dtype="Integer"   , required=True )
+        self.procedure_concept_id        = DestinationField(dtype="Integer"   , required=True )
         self.procedure_date              = DestinationField(dtype="Date"      , required=False )
-        self.procedure_datetime          = DestinationField(dtype="Timestamp" , required=False )
+        self.procedure_datetime          = DestinationField(dtype="Timestamp" , required=True )
         self.procedure_type_concept_id   = DestinationField(dtype="Integer"   , required=False )
         self.modifier_concept_id         = DestinationField(dtype="Integer"   , required=False )
         self.quantity                    = DestinationField(dtype="Integer"   , required=False )
