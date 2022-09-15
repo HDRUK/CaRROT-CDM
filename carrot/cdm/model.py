@@ -14,6 +14,7 @@ from time import gmtime, strftime, sleep, time
 from .operations import OperationTools
 from carrot.tools.logger import Logger
 from carrot.tools.profiling import Profiler
+from carrot.tools.metrics import Metrics
 import carrot.tools
 from carrot.io import DataCollection
 
@@ -76,6 +77,7 @@ class CommonDataModel(Logger):
                                  The default is set to false.
         """
         self.profiler = None
+        self.metrics = Metrics()
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
 
         self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {carrot_version}")
@@ -224,8 +226,10 @@ class CommonDataModel(Logger):
 
 
         self.logger.info(json.dumps(self.logs['meta'],indent=6))
+        #self.logger.info(self.metrics.get_summary())
         if self.outputs:
             self.outputs.write_meta(self.logs)
+            self.outputs.write_tsv_summary(self.metrics.get_summary(), 'summary')
             self.outputs.finalise()
 
         if not hasattr(self,'profiler'):
@@ -829,6 +833,7 @@ class CommonDataModel(Logger):
                 self.logs[destination_table] = {}
 
             self.logs[destination_table][hex(id(df))] = copy.deepcopy(obj._meta)
+            self.metrics.add_data(destination_table, obj._meta)
 
             obj.set_df(df)
             yield obj
