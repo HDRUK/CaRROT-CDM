@@ -12,9 +12,9 @@ os.system(f'ls {cwd}')
 sys.path.append("carrot/")
 from _version import __version__ as version
 
-    
+
 setuptools.setup(
-    name="carrot-cdm", 
+    name="carrot-cdm",
     author="CO-CONNECT Collaboration",
     version=version,
     author_email="calmacx@gmail.com",
