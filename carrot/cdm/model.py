@@ -229,7 +229,7 @@ class CommonDataModel(Logger):
         #self.logger.info(self.metrics.get_summary())
         if self.outputs:
             self.outputs.write_meta(self.logs)
-            self.outputs.write_tsv_summary(self.metrics.get_summary(), 'summary')
+            self.outputs.write_tsv_summary(self.metrics.get_summary(), '.summary')
             self.outputs.finalise()
 
         if not hasattr(self,'profiler'):
@@ -696,7 +696,7 @@ class CommonDataModel(Logger):
                 #move onto the next iteration
                 i+=1
 
-                
+
                 if self.inputs:
                     try:
                         #make sure to reset the objects, clearing any existing dataframes
@@ -826,7 +826,7 @@ class CommonDataModel(Logger):
             #     ( [x.reset() for x in self.get_all_objects()] )
             #
             # Answer: I think to save computational time if you load an existing CDM dataset
-            #         into the software (?) 
+            #         into the software (?)
             df = obj.get_df(start_index=start_index)
 
             self.logger.info(f"finished {obj.name} ({hex(id(df))}) "

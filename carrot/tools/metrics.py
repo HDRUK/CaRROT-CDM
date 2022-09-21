@@ -7,8 +7,6 @@ class Metrics():
     add_data(self, destination table, data increment)
     Apply the contents of a data increment to the stored self.datasummary
     """
-    for key in increment:
-      print("INCREMENT: {0} -> {1}".format(str(key), str(increment[key])))
     name = increment["name"]
     for datakey, dataitem in increment.items():
       if datakey == "valid_person_id":
@@ -20,8 +18,9 @@ class Metrics():
       elif datakey == "required_fields":
         for fieldname in dataitem:
           prfx = "NA"
-          if fieldname in increment["source_files"]:
-            prfx = self.get_prefix(increment["source_files"][fieldname]["table"])
+          if "source_files" in increment:
+            if fieldname in increment["source_files"]:
+              prfx = self.get_prefix(increment["source_files"][fieldname]["table"])
           dkey = prfx + "." + desttablename + "." + name + "." + fieldname
           self.add_counts_to_summary(dkey, dataitem[fieldname])
 
