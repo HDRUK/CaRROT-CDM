@@ -5,7 +5,7 @@ class ProcedureOccurrence(DestinationTable):
     """
     CDM Procedure Occurrence object class
     """
-    
+
     name = 'procedure_occurrence'
     def __init__(self,name=None):
         self.procedure_occurrence_id     = DestinationField(dtype="Integer"   , required=False , pk=True)
@@ -21,28 +21,27 @@ class ProcedureOccurrence(DestinationTable):
         self.procedure_source_value      = DestinationField(dtype="Text50"    , required=False )
         self.procedure_source_concept_id = DestinationField(dtype="Integer"   , required=False )
         self.qualifier_source_value      = DestinationField(dtype="Text50"    , required=False )
-        
+
         if name is None:
             name = hex(id(self))
         super().__init__(name,self.name)
 
-            
+
     def get_df(self,**kwargs):
         """
         Overload/append the creation of the dataframe, specifically for the procedure_occurrence objects
         * procedure_concept_id is required to be not null
           this can happen when spawning multiple rows from a person
           we just want to keep the ones that have actually been filled
-        
+
         Returns:
            pandas.Dataframe: output dataframe
         """
 
         df = super().get_df(**kwargs)
-    
+
         if self.automatically_fill_missing_columns == True:
             if df['procedure_date'].isnull().all():
                 df['procedure_date'] = self.tools.get_date(df['procedure_datetime'])
 
         return df
-    

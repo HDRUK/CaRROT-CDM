@@ -39,7 +39,7 @@ def ccom(report_id,number_of_events,output_directory,
 
     fill_column_with_values = list(fill_column_with_values)
     
-    token = os.environ.get("carrot_TOKEN") or token
+    token = os.environ.get("CARROT_MAPPER_TOKEN") or token
     if token == None:
         raise MissingToken("you must use the option --token or set the environment variable carrot_TOKEN to be able to use this functionality. I.e  export carrot_TOKEN=12345678 ")
 
@@ -61,9 +61,8 @@ def ccom(report_id,number_of_events,output_directory,
             print ('saving',fname)
             json.dump(response.json()[0],outfile,indent=6)
             
-    
     response = requests.get(
-        f"{url}/api/scanreporttablesfilter/?scan_report={report_id}",
+        f"{url}/api/scanreporttables/?scan_report={report_id}",
         headers=headers
     )
     if response.status_code != 200:
@@ -83,8 +82,7 @@ def ccom(report_id,number_of_events,output_directory,
         if person_id == None:
             continue
         
-        _url = f"{url}/api/scanreportfieldsfilter/?id={person_id}&fields=name"
-
+        _url = f"{url}/api/scanreportfields/?id={person_id}&fields=name"
         person_id = requests.get(
             _url, headers=headers,
             allow_redirects=True,
@@ -96,17 +94,20 @@ def ccom(report_id,number_of_events,output_directory,
             _url, headers=headers,
             allow_redirects=True,
         )
+        
 
                 
         df = pd.DataFrame.from_records(response.json()).set_index('scan_report_field')        
-        _url = f"{url}/api/scanreportfieldsfilter/?scan_report_table={_id}&fields=id,name"
+        _url = f"{url}/api/scanreportfields/?scan_report_table={_id}&fields=id,name"
         response = requests.get(
             _url, headers=headers,
             allow_redirects=True,
         )
 
-        
+
+        print (response.content)
         res = json.loads(response.content.decode('utf-8'))
+        print (res)
         id_to_col_name = {
             field['id']:field['name'].lstrip('\ufeff')
             for field in res

@@ -14,7 +14,8 @@ from time import gmtime, strftime, sleep, time
 from .operations import OperationTools
 from carrot.tools.logger import Logger
 from carrot.tools.profiling import Profiler
-import carrot.tools 
+from carrot.tools.metrics import Metrics
+import carrot.tools
 from carrot.io import DataCollection
 
 from carrot import __version__ as carrot_version
@@ -38,7 +39,7 @@ class CommonDataModel(Logger):
 
     """
 
-    
+
     @classmethod
     def load(cls,inputs,**kwargs):
         default_kwargs = {'save_files':False,'do_mask_person_id':False,'format_level':0}
@@ -52,7 +53,7 @@ class CommonDataModel(Logger):
         cdm = cls(**kwargs)
         cdm.create_and_add_objects(rules)
         return cdm
-    
+
 
     def __init__(self, name=None, omop_version='5.3.1',
                  outputs = None,
@@ -64,7 +65,7 @@ class CommonDataModel(Logger):
                  drop_duplicates=True,
                  automatically_fill_missing_columns=True):
         """
-        CommonDataModel class initialisation 
+        CommonDataModel class initialisation
         Args:
             name (str): Give a name for the class to appear in the logging
             output_folder (str): Path of where the output tsv/csv files should be written to.
@@ -72,12 +73,13 @@ class CommonDataModel(Logger):
                                  called 'output_data'.
             inputs (dict or DataCollection): inputs can be a dictionary mapping file names to pandas dataframes,
                                         or can be a DataCollection object
-            use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process. 
+            use_profiler (bool): Turn on/off profiling of the CPU/Memory of running the current process.
                                  The default is set to false.
         """
         self.profiler = None
+        self.metrics = Metrics()
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
-            
+
         self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {carrot_version}")
 
         self.omop_version = omop_version
@@ -85,7 +87,7 @@ class CommonDataModel(Logger):
         self.drop_duplicates = drop_duplicates
         self.do_mask_person_id = do_mask_person_id
         self.execution_order = None
-        
+
         if format_level == None:
             format_level = 1
         try:
@@ -93,7 +95,7 @@ class CommonDataModel(Logger):
         except ValueError:
             self.logger.error(f"You as specifying format_level='{format_level}' -- this should be an integer!")
             raise ValueError("format_level not set as an int ")
-        
+
         self.format_level = FormatterLevel(format_level)
         self.profiler = None
 
@@ -120,7 +122,7 @@ class CommonDataModel(Logger):
             self.inputs = inputs
         elif not hasattr(self,'inputs'):
             self.inputs = None
-            
+
         #register opereation tools
         self.tools = OperationTools()
 
@@ -162,7 +164,7 @@ class CommonDataModel(Logger):
         self.__objects = {}
         #check if objects have already been registered with this class
         #via the decorator methods
-                
+
         registered_objects = [
             getattr(self,name)
             for name in dir(self)
@@ -178,7 +180,7 @@ class CommonDataModel(Logger):
             for name in dir(self)
             if isinstance(getattr(self,name),analysis)
         }
-                    
+
         #bookkeep some logs
         self.logs = {
             'meta':{
@@ -189,7 +191,7 @@ class CommonDataModel(Logger):
                 'total_data_processed':{}
             }
         }
-        
+
     def _load_inputs(self,inputs):
         for fname in inputs.keys():
             destination_table,_ = os.path.splitext(fname)
@@ -198,7 +200,7 @@ class CommonDataModel(Logger):
             except KeyError:
                 self.logger.warning(f"Not loading {fname}, this is not a valid CDM Table")
                 continue
-                
+
             df = obj.get_df(force_rebuild=False)
             self[destination_table] = df.set_index(df.columns[0])
 
@@ -214,8 +216,8 @@ class CommonDataModel(Logger):
             self.person_id_masker = None
             self.indexing_conf = None
 
-        
-        
+
+
     def close(self):
         """
         Class destructor:
@@ -224,8 +226,10 @@ class CommonDataModel(Logger):
 
 
         self.logger.info(json.dumps(self.logs['meta'],indent=6))
+        #self.logger.info(self.metrics.get_summary())
         if self.outputs:
             self.outputs.write_meta(self.logs)
+            self.outputs.write_tsv_summary(self.metrics.get_summary(), 'summary')
             self.outputs.finalise()
 
         if not hasattr(self,'profiler'):
@@ -238,7 +242,7 @@ class CommonDataModel(Logger):
             if not os.path.exists(f'{f_out}'):
                 self.logger.info(f'making output folder {f_out}')
                 os.makedirs(f'{f_out}')
-                
+
             date = self.logs['meta']['created_at']
             fname = f'{f_out}{os.path.sep}statistics_{date}.csv'
             df_profile.to_csv(fname)
@@ -275,8 +279,8 @@ class CommonDataModel(Logger):
         del self.__df_map
         self.__objects.clear()
         del self.__objects
-                
-        
+
+
     def __getitem__(self,key):
         """
         Ability lookup processed objects from the CDM
@@ -301,7 +305,7 @@ class CommonDataModel(Logger):
         Registration of a new dataframe for a new object
         Args:
             key (str) : name of the CDM table (e.g. "person")
-            obj (pandas.DataFrame) : dataframe to refer to 
+            obj (pandas.DataFrame) : dataframe to refer to
         """
         self.logger.debug(f"creating {obj} for {key}")
         self.__df_map[key] = obj
@@ -309,7 +313,7 @@ class CommonDataModel(Logger):
     def print(self):
         for name in self.keys():
             print (self[name].dropna(axis=1))
-        
+
     def add(self,obj):
         """
         Function to add a new CDM table (object) to the current model
@@ -318,13 +322,13 @@ class CommonDataModel(Logger):
         """
         if obj._type not in self.__objects:
             self.__objects[obj._type] = {}
-            
+
         if obj.name in self.__objects[obj._type].keys():
             raise Exception(f"Object called {obj.name} already exists")
 
         obj.cdm = self
         obj.format_level = self.format_level
-        
+
         self.__objects[obj._type][obj.name] = obj
         self.logger.info(f"Added {obj.name} of type {obj._type}")
 
@@ -345,37 +349,37 @@ class CommonDataModel(Logger):
                 obj = get_cdm_class(destination_table)()
                 #set the name of the object
                 obj.set_name(name)
-            
+
                 #Build a lambda function that will get executed during run time
                 #and will be able to apply these rules to the inputs that are loaded
                 #(this is useful when chunk)
                 obj.define = lambda x,rules=rules : carrot.tools.apply_rules(x,rules,inputs=self.inputs)
-                
+
                 #register this object with the CDM model, so it can be processed
                 self.add(obj)
 
-        
+
     def add_analysis(self,func,_id=None):
         if _id is None:
             _id = hex(id(func))
         self.__analyses[_id] = func
-       
+
     def get_analyses(self):
         return self.__analyses
     def get_analysis(self,key):
         return self.__analyses[key]
-        
+
     def run_analysis(self,f):
         return f(self)
-        
+
     def run_analyses(self,analyses=None,max_workers=4):
-            
+
         def msg(x):
             self.logger.info(f"finished with {x}")
             self.logger.debug(x.result())
 
         start = time()
-            
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
             for name,f in self.__analyses.items():
@@ -390,8 +394,8 @@ class CommonDataModel(Logger):
                 if all([f.done() for f in futures]):
                     break
                 sleep(1)
-                
-                
+
+
         results = {}
         for future in concurrent.futures.as_completed(futures):
             _id = futures[future]
@@ -403,7 +407,7 @@ class CommonDataModel(Logger):
 
     def find_one(self,config,cols=None,dropna=False):
         return self.filter(config,cols,dropna).sample(frac=1).iloc[0]
-        
+
     def find(self,config,cols=None,dropna=False):
         return self.filter(config,cols,dropna)
 
@@ -423,12 +427,12 @@ class CommonDataModel(Logger):
         for col,value in filters.items():
             if isinstance(value,dict):
                 for op_str,val in value.items():
-                    df = df[ops[op_str](df[col],val)]                        
+                    df = df[ops[op_str](df[col],val)]
             else:
                 df = df[df[col] == value]
         return df
 
-    
+
     def filter(self,config,cols=None,dropna=False):
         retval = copy.deepcopy(self)
         for table,spec in config.items():
@@ -439,7 +443,7 @@ class CommonDataModel(Logger):
                 df = df[df[col].apply(func)]
 
             retval[table] = df
-            
+
         if dropna:
             retval = retval.dropna(axis=1)
         if cols is not None:
@@ -448,10 +452,10 @@ class CommonDataModel(Logger):
             retval = retval[[col for col,keep in cols.items() if keep]]
             if index in retval.columns:
                 retval = retval.set_index(index)
-            
+
         return retval
 
-        
+
         # for obj in config:
         #     if isinstance(obj,str):
         #         df = self[obj].get_df()
@@ -471,11 +475,11 @@ class CommonDataModel(Logger):
         #     else:
         #         raise NotImplementedError("need to pass a json object to filter()")
 
-        
+
     def get_all_objects(self):
         return [ obj for collection in self.__objects.values() for obj in collection.values()]
 
-    
+
     def get_start_index(self,destination_table):
         self.logger.debug(f'getting start index for {destination_table}')
 
@@ -498,7 +502,7 @@ class CommonDataModel(Logger):
         else:
             for destination_table in self.__objects:
                 self.__objects[destination_table].clear()
-            
+
     def get_objects(self,destination_table=None):
         """
         For a given destination table:
@@ -507,13 +511,13 @@ class CommonDataModel(Logger):
         Args:
             destination_table (str) : name of a destination (CDM) table e.g. "person"
         Returns:
-            list : a list of destination table objects 
-                   e.g. [<person_0>, <person_1>] 
+            list : a list of destination table objects
+                   e.g. [<person_0>, <person_1>]
                    which would be objects for male and female mapping
         """
         if destination_table == None:
             return self.__objects
-        
+
         self.logger.debug(f"looking for {destination_table}")
         if destination_table not in self.__objects.keys():
             self.logger.error(f"Trying to obtain the table '{destination_table}', but cannot find any objects")
@@ -524,7 +528,7 @@ class CommonDataModel(Logger):
             for obj in self.__objects[destination_table].values()
         ]
 
-    
+
     def mask_person_id(self,df,destination_table):
         """
         Given a dataframe object, apply a masking map on the person_id, if one has been created
@@ -566,7 +570,7 @@ class CommonDataModel(Logger):
 
                     mode = 'w' if new else 'a'
                     self.outputs.write(f"person_ids",dfp,mode)
-                        
+
             #apply the masking
             if self.person_id_masker is None:
                 raise Exception(f"Person ID masking cannot be performed on"
@@ -587,7 +591,7 @@ class CommonDataModel(Logger):
                     self.logger.error("Either they are not in the original data, or while creating the person table, ")
                     self.logger.error("studies have been removed due to lack of required fields, such as birthdate.")
                     self.logger.error(f"{nafter}/{nbefore} were good, {ndiff} studies are removed.")
-            
+
         return df
 
     def count_objects(self):
@@ -616,18 +620,18 @@ class CommonDataModel(Logger):
 
     def objects(self):
         """
-        Method to retrieve the input objects to the CDM 
+        Method to retrieve the input objects to the CDM
         """
         return self.__objects
 
-                    
+
     def process(self,object_list=None,conserve_memory=False):
         """
         Process chunked data, processes as follows
         * While the chunking of is not yet finished
-        * Loop over all CDM tables (via execution order) 
+        * Loop over all CDM tables (via execution order)
           and process the table (see process_table), returning a dataframe
-        * Register the retrieve dataframe with the model  
+        * Register the retrieve dataframe with the model
         * For the current chunk slice, save the data/logs to files
         * Retrieve the next chunk of data
 
@@ -639,14 +643,13 @@ class CommonDataModel(Logger):
         for destination_table in self.execution_order:
             first = True
             i = 0
-            while True:                
+            while True:
                 df_generator = self.process_table(destination_table,object_list=object_list)
                 ntables = 0
                 nrows = 0
                 dfs = []
                 #print (self.drop_duplicates)
                 for j,obj in enumerate(df_generator):
-
                     df = obj.get_df()
                     ntables +=1
                     nrows += len(df)
@@ -674,7 +677,7 @@ class CommonDataModel(Logger):
                                 self.logger.error(f"Removed {ndiff} row(s) due to duplicates found when merging {destination_table}")
                                 self.logger.warning("Example duplicates...")
                                 self.logger.warning(df_temp.set_index(df_temp.columns[0]))
-                        
+
                         mode = None if first else 'a'
                         self.save_dataframe(destination_table,df,mode=mode)
                         first = False
@@ -684,22 +687,27 @@ class CommonDataModel(Logger):
                             df[col] = df[col].astype(float).astype(pd.Int64Dtype())
                     if df.index.name == 'index' or df.index.name is None:
                         df = df.set_index(df.columns[0])
-                    
+
                     self[destination_table] = df
 
 
                 self.logger.info(f'finalised {destination_table} on iteration {i} producing {nrows} rows from {ntables} tables')
-                
-                #move onto the next iteration                
+
+                #move onto the next iteration
                 i+=1
+
 
                 if self.inputs:
                     try:
+                        #make sure to reset the objects, clearing any existing dataframes
+                        [x.reset() for x in self.get_all_objects()]
                         self.inputs.next()
                     except StopIteration:
                         break
                 else:
                     break
+
+
 
             #if inputs are defined, and we havent just finished the last table,
             #reset the inputs
@@ -710,7 +718,7 @@ class CommonDataModel(Logger):
         #    index = self.get_start_index(destination_table)
         #    print (index)
 
-                
+
     def process_simult(self,object_list=None,conserve_memory=False):
         """
         process simulataneously
@@ -727,7 +735,7 @@ class CommonDataModel(Logger):
                 dfs = []
                 for j,obj in enumerate(df_generator):
                     df = obj.get_df()
-                        
+
                     ntables +=1
                     nrows += len(df)
                     if self.save_files:
@@ -742,9 +750,10 @@ class CommonDataModel(Logger):
                     #    df = None
                 if not conserve_memory:
                     self[destination_table] = pd.concat(dfs,ignore_index=True)
-                        
+
             if self.inputs:
                 try:
+                    [x.reset() for x in self.get_all_objects()]
                     self.inputs.next()
                 except StopIteration:
                     break
@@ -756,25 +765,25 @@ class CommonDataModel(Logger):
 
     def get_tables(self):
         return list(self.__objects.keys())
-    
+
     def get_execution_order(self):
         if not self.execution_order:
             self.execution_order = sorted(self.__objects.keys(), key=lambda x: x != 'person')
         return self.execution_order
-    
+
     def set_execution_order(self,order):
         self.execution_order = order
-            
+
     def process_table(self,destination_table,object_list=None):
         """
         Process a CDM (destination) table. The method proceeds as follows:
-        * Given a destination table name e.g. 'person' 
+        * Given a destination table name e.g. 'person'
         * Retrieve all objects belonging to the given CDM table (e.g. <person_0, person_1>)
         * Loop over each object
         * Retrieve a dataframe for that object given it's definition/rules (see get_df)
         * Concatenate all retrieve dataframes together by stacking on top of each other vertically
-        * Create new indexes for the primary column so the go from 1-N 
-        
+        * Create new indexes for the primary column so the go from 1-N
+
         Args:
             destination_table (str) : name of a destination table to process (e.g. 'person')
             object_list (list) : [optional] list of objects to process
@@ -784,16 +793,16 @@ class CommonDataModel(Logger):
         objects = self.get_objects(destination_table)
         if object_list:
             objects = [obj for obj in object_list if obj in objects]
-        
+
         nobjects = len(objects)
         extra = ""
         if nobjects>1:
             extra="s"
         self.logger.info(f"for {destination_table}: found {nobjects} object{extra}")
-        
+
         if len(objects) == 0:
             yield None
-        
+
         #execute them all
         dfs = []
         self.logger.info(f"working on {destination_table}")
@@ -803,7 +812,7 @@ class CommonDataModel(Logger):
             self.logs['meta']['total_data_processed'][destination_table] = 0
 
         nrows_processed = self.logs['meta']['total_data_processed'][destination_table]
-            
+
         for i,obj in enumerate(objects):
             self.logger.info(f"starting on {obj.name}")
 
@@ -811,10 +820,17 @@ class CommonDataModel(Logger):
             start_index += nrows_processed
 
             #force_rebuild=True,
+            # Why was this (force_rebuild=True) turned off/removed from the initial get_df?
+            # ---> this also explains the problem we observed
+            #     and why we need a reset when retrieving new input chunks
+            #     ( [x.reset() for x in self.get_all_objects()] )
+            #
+            # Answer: I think to save computational time if you load an existing CDM dataset
+            #         into the software (?)
             df = obj.get_df(start_index=start_index)
 
             self.logger.info(f"finished {obj.name} ({hex(id(df))}) "
-                             f"... {i+1}/{len(objects)} completed, {len(df)} rows") 
+                             f"... {i+1}/{len(objects)} completed, {len(df)} rows")
             if len(df) == 0:
                 self.logger.warning(f".. no outputs were found ")
                 continue
@@ -827,9 +843,10 @@ class CommonDataModel(Logger):
             self.logs['meta']['total_data_processed'][destination_table] = nrows_processed
             if destination_table not in self.logs:
                 self.logs[destination_table] = {}
-                
-            self.logs[destination_table][hex(id(df))] = obj._meta
-            
+
+            self.logs[destination_table][hex(id(df))] = copy.deepcopy(obj._meta)
+            self.metrics.add_data(destination_table, obj._meta)
+
             obj.set_df(df)
             yield obj
 
@@ -840,29 +857,29 @@ class CommonDataModel(Logger):
             self.outputs.write(table,df,mode)
         else:
             self.logger.info(f"called save_dateframe but outputs are not defined. save_files: {self.save_files}")
-            
+
     def set_person_id_map(self,person_id_map):
         self.person_id_masker = person_id_map
 
     def set_indexing_map(self,indexing):
         self.indexing_conf = indexing
-        
+
     def set_outfile_separator(self,sep):
         """
-        Set which separator to use, e.g. ',' or '\t' 
+        Set which separator to use, e.g. ',' or '\t'
 
         Args:
             sep (str): which separator to use when writing csv (tsv) files
         """
         self._outfile_separator = sep
-        
+
     def set_indexing(self,index_map,strict_check=False):
         """
-        Create indexes on input files which would allow rules to use data from 
+        Create indexes on input files which would allow rules to use data from
         different input tables.
 
         Args:
-            index_map (dict): a map between the filename and what should be the column used for indexing 
+            index_map (dict): a map between the filename and what should be the column used for indexing
 
         """
         if self.inputs == None:
@@ -876,5 +893,4 @@ class CommonDataModel(Logger):
             if index not in self.inputs[key].columns:
                 self.logger.error(f"trying to set index '{index}' on dataset '{key}', but this index is not in the columns! something really wrong!")
                 continue
-            self.inputs[key].index = self.inputs[key][index].rename('index') 
-
+            self.inputs[key].index = self.inputs[key][index].rename('index')
