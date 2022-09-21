@@ -229,7 +229,7 @@ class CommonDataModel(Logger):
         #self.logger.info(self.metrics.get_summary())
         if self.outputs:
             self.outputs.write_meta(self.logs)
-            self.outputs.write_tsv_summary(self.metrics.get_summary(), '.summary')
+            self.outputs.write_tsv_summary(self.metrics.get_summary(), 'summary')
             self.outputs.finalise()
 
         if not hasattr(self,'profiler'):
