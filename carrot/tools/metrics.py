@@ -35,7 +35,7 @@ class Metrics():
       self.datasummary[dkey][counttype] += int(count_block[counttype])
 
   def get_summary(self):
-    summary_str = "source\ttablename\tname\tcolumn name\tbefore\tafter content check\tPct reject content check\tafter date format check\tPct reject date format\n"
+    summary_str = "source\ttablename\tname\tcolumn name\tbefore\tafter content check\tpct reject content check\tafter date format check\tpct reject date format\n"
     for dkey in self.datasummary:
       #print(dkey)
       source, tablename, name, colname = dkey.split('.')
