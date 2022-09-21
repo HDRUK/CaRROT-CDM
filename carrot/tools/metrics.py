@@ -7,6 +7,8 @@ class Metrics():
     add_data(self, destination table, data increment)
     Apply the contents of a data increment to the stored self.datasummary
     """
+    for key in increment:
+      print("INCREMENT: {0} -> {1}".format(str(key), str(increment[key])))
     name = increment["name"]
     for datakey, dataitem in increment.items():
       if datakey == "valid_person_id":
