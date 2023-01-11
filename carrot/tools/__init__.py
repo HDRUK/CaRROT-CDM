@@ -9,7 +9,7 @@ import time
 from . import extract
 from .dag import make_dag,make_report_dag
 
-from . import bclink_helpers 
+from . import bclink_helpers
 
 from .file_helpers import (
     load_json,
@@ -40,12 +40,18 @@ from .rules_helpers import(
     load_from_file
 )
 
+from . import mappingrules
+
+from . import omopcdm
+
+from . import inputcolumndata
+
 _DEBUG = False
 
 def set_debug(value):
     global _DEBUG
     _DEBUG = value
-    
+
 def get_classes(format=False):
     retval = get_classes_from_tool(format=format)
     config_folder = os.environ.get('CARROT_CONFIG_FOLDER')
@@ -68,7 +74,7 @@ def get_classes(format=False):
             retval.update(defined_classes)
 
     return retval
-    
+
 def get_classes_from_tool(format=format):
     from carrot.cdm import classes
     _dir = os.path.dirname(classes.__file__)
@@ -83,7 +89,7 @@ def get_classes_from_tool(format=format):
             if os.path.isfile(link) == False:
                 os.unlink(path)
                 continue
-        
+
         module = __import__(mname,fromlist=[fname])
         defined_classes = {
             fname: {
@@ -100,4 +106,3 @@ def get_classes_from_tool(format=format):
         return json.dumps(retval,indent=6)
     else:
         return retval
-
