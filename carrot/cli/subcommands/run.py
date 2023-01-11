@@ -613,6 +613,7 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
     if os.path.isdir(input_dir[0]) == False:
         print("Not a directory {0}".format(input_dir[0]))
         sys.exit(1)
+
     starttime = time.time()
     omopcdm = tools.omopcdm.OmopCDM()
     columndata = tools.inputcolumndata.InputColumnData()
@@ -646,6 +647,7 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
     input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
     rejidcounts = {}
     rejdatecounts = {}
+
     for srcfilename in input_files:
         rejidcounts[srcfilename] = 0
         rejdatecounts[srcfilename] = 0
@@ -673,7 +675,7 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
                 datacols.append(colname)
         inputcolmap = omopcdm.get_column_map(hdrdata)
         print("--------------------------------------------------------------------------------")
-        print("Processing input: {0}".format(srcfilename))
+        print("Processing input: {0}, datacols = {1}".format(srcfilename, str(datacols)))
 
         for inputline in fh:
             indata = inputline.strip().split(",")
@@ -708,11 +710,19 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
 
         fh.close()
         nowtime= time.time()
-        print("TARGETS: {0}: in count {1}, out counts {2}, reject o/p count {3} after {4:.5f} secs".format(srcfilename, str(rcount), str(outcounts), str(rejcounts), (nowtime - starttime)))
+        print("INPUT file data : {0}: in count {1}, time since start {2:.5} secs".format(srcfilename, str(rcount), (nowtime - starttime)))
+        for outtablename, count in outcounts.items():
+            print("TARGET: {0}: o/p count {1}, reject o/p count {2}".format(outtablename, str(count), str(rejcounts[outtablename])))
 
     print("--------------------------------------------------------------------------------")
-    print("SOURCES: rejected id count {0}".format(str(rejidcounts)))
-    print("SOURCES: rejected date count {0}".format(str(rejdatecounts)))
+    print("Rejected id counts:")
+    for srcfilename, count in rejidcounts.items():
+        print("SOURCE: {0}, count {1}".format(srcfilename, str(count)))
+    print("Rejected date counts:")
+    for srcfilename, count in rejdatecounts.items():
+        print("SOURCE: {0}, count {1}".format(srcfilename, str(count)))
+
+    print("--------------------------------------------------------------------------------")
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
 
