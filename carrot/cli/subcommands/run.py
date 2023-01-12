@@ -704,7 +704,9 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
                                 outrecord[tgtcolmap[auto_num_col]] = str(record_numbers[tgtfile])
                             if (outrecord[tgtcolmap[pers_id_col]]) in person_lookup:
                                 outrecord[tgtcolmap[pers_id_col]] = person_lookup[outrecord[tgtcolmap[pers_id_col]]]
-                            fhd[tgtfile].write("\t".join(outrecord) + "\n")
+                                fhd[tgtfile].write("\t".join(outrecord) + "\n")
+                            else:
+                                rejidcounts[srcfilename] += 1
                     else:
                         rejcounts[tgtfile] += 1
 
