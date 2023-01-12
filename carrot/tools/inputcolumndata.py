@@ -12,7 +12,11 @@ class InputColumnData:
             "gs_appt_events.csv": "appt",
             "SMR01_Demographics.csv": "dob",
             "SMR01_Condition.csv": "ADMISSION_DATE",
-            "SMR01_Operations.csv": "DATE_OPERATION"
+            "SMR01_Operations.csv": "DATE_OPERATION",
+            "Serology.csv": "Date",
+            "Vaccinations.csv": "date_of_vaccination",
+            "GP_Records.csv": "date_of_visit",
+            "Demographics.csv": "Age"
         }
         self.id_columns = {
             "gs_demog.csv": "id",
@@ -25,7 +29,11 @@ class InputColumnData:
             "gs_appt_events.csv": "id",
             "SMR01_Demographics.csv": "ENCRYPTED_UPI",
             "SMR01_Condition.csv": "ENCRYPTED_UPI",
-            "SMR01_Operations.csv": "ENCRYPTED_UPI"
+            "SMR01_Operations.csv": "ENCRYPTED_UPI",
+            "Serology.csv": "ID",
+            "Vaccinations.csv": "ID",
+            "GP_Records.csv": "ID",
+            "Demographics.csv": "ID"
         }
 
     def is_data_column(self, colname, filename):

@@ -751,7 +751,7 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                 tgtrecords.append(tgtarray)
         elif srckey in rulesmap:
             build_records = True
-            for out_data_elem in rulesmap[srcfullkey]:
+            for out_data_elem in rulesmap[srckey]:
                 tgtarray = [" "]*len(tgtcolmap)
                 for infield, outfield_list in out_data_elem.items():
                     for output_col_data in outfield_list:
