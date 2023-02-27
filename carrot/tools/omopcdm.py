@@ -37,7 +37,19 @@ class OmopCDM:
                                               "visit_end_date", "visit_end_datetime", "visit_type_concept_id", "provider_id", "care_site_id",
                                               "visit_source_value", "visit_source_concept_id", "admitting_source_concept_id", "admitting_source_value",
                                               "discharge_to_concept_id", "discharge_to_source_value", "preceding_visit_occurrence_id"]
-                        }
+        }
+        self.required_columns = {
+                         "condition_occurrence": ["person_id", "condition_concept_id", "condition_start_datetime"],
+                         "death": ["person_id", "death_type_concept_id"],
+                         "drug_exposure": ["drug_exposure_id", "person_id", "drug_concept_id", "drug_exposure_start_datetime"],
+                         "measurement": ["measurement_id", "person_id", "measurement_concept_id", "measurement_datetime"],
+                         "observation": ["observation_id", "person_id", "observation_concept_id", "observation_datetime"],
+                         "person": ["person_id", "gender_concept_id", "birth_datetime"],
+                         "procedure_occurrence": ["procedure_occurrence_id", "person_id", "procedure_concept_id", "procedure_datetime"],
+                         "specimen": ["specimen_id", "person_id", "specimen_concept_id", "specimen_datetime"],
+                         "visit_occurrence": ["visit_occurrence_id", "person_id", "visit_concept_id", "visit_start_date",
+                                              "visit_end_date", "visit_type_concept_id"]
+        }
         self.date_column_data = {
                 "condition_occurrence": {"condition_start_datetime": "condition_start_date", "condition_end_datetime": "condition_end_date"},
                 "death": {"death_datetime": "death_date"},
@@ -97,6 +109,15 @@ class OmopCDM:
         if tablename in self.all_columns:
             return self.all_columns[tablename]
         return None
+
+    def is_omop_data_field(self, tablename, fieldname):
+        if fieldname in self.get_omop_date_column_data(tablename):
+            return False
+        if fieldname in self.get_omop_datetime_fields(tablename):
+            return False
+        if fieldname in self.get_omop_person_id_field(tablename):
+            return False
+        return True
 
     def get_omop_date_column_data(self, tablename):
         if tablename in self.date_column_data:

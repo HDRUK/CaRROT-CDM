@@ -1,6 +1,7 @@
 class Metrics():
   def __init__(self):
     self.datasummary={}
+    self.allcounts={}
 
   def add_data(self, desttablename, increment):
     """

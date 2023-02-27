@@ -603,10 +603,14 @@ def map(ctx,rules,inputs,format_level,
 @click.option("--person-file",
               required=True,
               help="File containing person_ids in the first column")
+@click.option("--saved-person-id-filename",
+              default='person_ids.tsv',
+              required=False,
+              help="Person id file used to save state between runs")
 @click.argument("input-dir",
                 required=False,
                 nargs=-1)
-def mapstream(rules, output_folder, write_mode, person_file, input_dir):
+def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_filename, input_dir):
     """
     Map to output using input streams
     """
@@ -616,7 +620,6 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
 
     starttime = time.time()
     omopcdm = tools.omopcdm.OmopCDM()
-    columndata = tools.inputcolumndata.InputColumnData()
     mappingrules = tools.mappingrules.MappingRules(rules)
     nowtime = time.time()
     print("--------------------------------------------------------------------------------")
@@ -631,7 +634,7 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
 
     try:
         fhp = open(person_file, mode="r")
-        person_lookup = load_person_ids(fhp)
+        person_lookup = load_person_ids(fhp, mappingrules)
         fhp.close()
         for tgtfile in output_files:
             fhd[tgtfile] = open(output_folder + "/" + tgtfile + ".tsv", mode=write_mode)
@@ -647,10 +650,12 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
     input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
     rejidcounts = {}
     rejdatecounts = {}
+    src_tgt_counts = {}
 
     for srcfilename in input_files:
         rejidcounts[srcfilename] = 0
         rejdatecounts[srcfilename] = 0
+
 
     for srcfilename in input_files:
         rcount = 0
@@ -666,33 +671,29 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
         for tgtfile in tgtfiles:
             outcounts[tgtfile] = 0
             rejcounts[tgtfile] = 0
-        datacols = []
+        datacolsall = []
         hdrdata = fh.readline().strip().split(",")
-        id_column = columndata.get_id_column(srcfilename)
-        date_column = columndata.get_date_column(srcfilename)
+        dflist = mappingrules.get_infile_data_fields(srcfilename)
         for colname in hdrdata:
-            if columndata.is_data_column(colname, srcfilename):
-                datacols.append(colname)
+            datacolsall.append(colname)
         inputcolmap = omopcdm.get_column_map(hdrdata)
         print("--------------------------------------------------------------------------------")
-        print("Processing input: {0}, datacols = {1}".format(srcfilename, str(datacols)))
+        print("Processing input: {0}".format(srcfilename))
+#        print("Processing input: {0}, All input cols = {1}, Data cols = {2}".format(srcfilename, str(datacolsall), str(dflist)))
 
         for inputline in fh:
             indata = inputline.strip().split(",")
             rcount += 1
-            if id_column != None:
-                if not valid_value(indata[inputcolmap[id_column]]):
-                    rejidcounts[srcfilename] += 1
-                    continue
-            if date_column != None:
-                if not valid_value(indata[inputcolmap[date_column]]):
-                    rejdatecounts[srcfilename] += 1
-                    continue
             for tgtfile in tgtfiles:
                 tgtcolmap = tgtcolmaps[tgtfile]
+                count_key = srcfilename + "~" + tgtfile
                 date_col_data = omopcdm.get_omop_date_column_data(tgtfile)
                 auto_num_col = omopcdm.get_omop_auto_number_field(tgtfile)
                 pers_id_col = omopcdm.get_omop_person_id_field(tgtfile)
+
+                datacols = datacolsall
+                if tgtfile in dflist:
+                    datacols = dflist[tgtfile]
 
                 for datacol in datacols:
                     built_records, outrecords = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data)
@@ -714,15 +715,16 @@ def mapstream(rules, output_folder, write_mode, person_file, input_dir):
         nowtime= time.time()
         print("INPUT file data : {0}: in count {1}, time since start {2:.5} secs".format(srcfilename, str(rcount), (nowtime - starttime)))
         for outtablename, count in outcounts.items():
-            print("TARGET: {0}: o/p count {1}, reject o/p count {2}".format(outtablename, str(count), str(rejcounts[outtablename])))
+            print("TARGET: {0}: o/p by field count {1}, reject o/p by field count {2}".format(outtablename, str(count), str(rejcounts[outtablename])))
 
     print("--------------------------------------------------------------------------------")
-    print("Rejected id counts:")
+    print("Rejected input records due to unmatched person_id counts:")
     for srcfilename, count in rejidcounts.items():
-        print("SOURCE: {0}, count {1}".format(srcfilename, str(count)))
-    print("Rejected date counts:")
+        print("{0},{1}".format(srcfilename, str(count)))
+    print("--------------------------------------------------------------------------------")
+    print("Rejected input records due to invalid date counts:")
     for srcfilename, count in rejdatecounts.items():
-        print("SOURCE: {0}, count {1}".format(srcfilename, str(count)))
+        print("{0}, count {1}".format(srcfilename, str(count)))
 
     print("--------------------------------------------------------------------------------")
     nowtime = time.time()
@@ -733,57 +735,81 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
     tgtrecords = []
 
     if valid_value(str(srcdata[srccolmap[srcfield]])):
-        # TODO, assess for possible elimination of repeated code
         srcfullkey = srcfilename + "~" + srcfield + "~" + str(srcdata[srccolmap[srcfield]]) + "~" + tgtfilename
         srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
+        dictkeys = []
         if srcfullkey in rulesmap:
             build_records = True
-            for out_data_elem in rulesmap[srcfullkey]:
-                tgtarray = [" "]*len(tgtcolmap)
-                for infield, outfield_list in out_data_elem.items():
-                    for output_col_data in outfield_list:
-                        if "~" in output_col_data:
-                            outcol, term = output_col_data.split("~")
-                            tgtarray[tgtcolmap[outcol]] = term
-                        else:
-                            #print("\t{0} -> {1}".format(infield, output_col_data))
-                            tgtarray[tgtcolmap[output_col_data]] = srcdata[srccolmap[infield]]
-                        if output_col_data in date_col_data:
-                            tgtarray[tgtcolmap[date_col_data[output_col_data]]] = srcdata[srccolmap[infield]].split(" ")[0]
-                tgtrecords.append(tgtarray)
-        elif srckey in rulesmap:
+            dictkeys.append(srcfullkey)
+        if srckey in rulesmap:
             build_records = True
-            for out_data_elem in rulesmap[srckey]:
-                tgtarray = [" "]*len(tgtcolmap)
-                for infield, outfield_list in out_data_elem.items():
-                    for output_col_data in outfield_list:
-                        if "~" in output_col_data:
-                            outcol, term = output_col_data.split("~")
-                            tgtarray[tgtcolmap[outcol]] = term
-                        else:
-                            tgtarray[tgtcolmap[output_col_data]] = srcdata[srccolmap[infield]]
-                        if output_col_data in date_col_data:
-                            tgtarray[tgtcolmap[date_col_data[output_col_data]]] = srcdata[srccolmap[infield]].split(" ")[0]
-                tgtrecords.append(tgtarray)
-
+            dictkeys.append(srckey)
+        if build_records == True:
+            for dictkey in dictkeys:
+                for out_data_elem in rulesmap[dictkey]:
+                    valid_data_elem = True
+                    tgtarray = [" "]*len(tgtcolmap)
+                    for infield, outfield_list in out_data_elem.items():
+                        for output_col_data in outfield_list:
+                            if "~" in output_col_data:
+                                outcol, term = output_col_data.split("~")
+                                tgtarray[tgtcolmap[outcol]] = term
+                            else:
+                                tgtarray[tgtcolmap[output_col_data]] = srcdata[srccolmap[infield]]
+                            if output_col_data in date_col_data:
+                                if valid_date_value(srcdata[srccolmap[infield]].split(" ")[0]):
+                                    tgtarray[tgtcolmap[date_col_data[output_col_data]]] = srcdata[srccolmap[infield]].split(" ")[0]
+                                else:
+                                    valid_data_elem = False
+                    if valid_data_elem == True:
+                        tgtrecords.append(tgtarray)
     return build_records, tgtrecords
 
 def valid_value(item):
     """
     Check if an item is non blank (null)
     """
-    if item.strip(" ") == "":
+    if item.strip() == "":
         return(False)
     return(True)
 
-def load_person_ids(fh, person_col=0, delim=",", remap=True):
+def valid_date_value(item):
+    """
+    Check if a date item is non null and parses (crudely)
+    """
+    if item.strip() == "":
+        return(False)
+    dparts = item.split("-")
+    if len(dparts) < 3:
+        return(False)
+    if dparts[0] == "" or dparts[1] == "" or dparts[2] == "":
+        return(False)
+    return(True)
+
+def load_person_ids(fh, mappingrules, delim=",", remap=True):
     person_ids = {}
+    person_columns = {}
+    person_col_number = 0
     person_number = 1
 
-    personhdr = fh.readline()
+    phdr = fh.readline()
+    personhdr = phdr.strip().split(delim)
+    print(personhdr)
+
+    # Make a dictionary of column names vs their positions
+    for col in personhdr:
+        person_columns[col] = person_col_number
+        person_col_number += 1
+
+    birth_datetime_source, person_id_source = mappingrules.get_person_source_field_info("person")
+    person_col = 0
 
     for line in fh:
         persondata = line.strip().split(delim)
+        if not valid_value(persondata[person_columns[person_id_source]]):
+            continue
+        if not valid_date_value(persondata[person_columns[birth_datetime_source]]):
+            continue
         person_ids[persondata[person_col]] = str(person_number)
         person_number += 1
 

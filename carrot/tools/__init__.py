@@ -44,8 +44,6 @@ from . import mappingrules
 
 from . import omopcdm
 
-from . import inputcolumndata
-
 _DEBUG = False
 
 def set_debug(value):

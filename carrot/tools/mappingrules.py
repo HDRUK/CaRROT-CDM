@@ -7,6 +7,8 @@ class MappingRules:
     def __init__(self, rulesfilepath):
         self.rules_data = self.load_json(rulesfilepath)
         self.omopcdm = OmopCDM()
+        self.parsed_rules = {}
+        self.outfile_names = {}
 
     def load_json(self, f_in):
         """
@@ -28,10 +30,49 @@ class MappingRules:
 
         return file_list
 
+    def get_infile_data_fields(self, infilename):
+        data_fields_lists = {}
+
+        outfilenames, outdata = self.parse_rules_src_to_tgt(infilename)
+
+        for outfilename in outfilenames:
+            data_fields_lists[outfilename] = []
+
+        for key, outfield_data in outdata.items():
+            keydata = key.split("~")
+            outfile = keydata[-1]
+            for outfield_elem in outfield_data:
+                for infield, outfields in outfield_elem.items():
+                    for outfield in outfields:
+                        outfielddata = outfield.split("~")
+                        if self.omopcdm.is_omop_data_field(outfile, outfielddata[0]):
+                            if infield not in data_fields_lists[outfile]:
+                                data_fields_lists[outfile].append(infield)
+
+        return data_fields_lists
+
+    def get_person_source_field_info(self, tgtfilename):
+        """
+        Specific discovery of input data field names for 'person' in these rules
+        """
+        birth_datetime_source = None
+        person_id_source = None
+        if tgtfilename in self.rules_data["cdm"]:
+            source_rules_data = self.rules_data["cdm"][tgtfilename]
+            for rule_name, rule_fields in source_rules_data.items():
+                if "birth_datetime" in rule_fields:
+                    birth_datetime_source = rule_fields["birth_datetime"]["source_field"]
+                if "person_id" in rule_fields:
+                    person_id_source = rule_fields["person_id"]["source_field"]
+
+        return birth_datetime_source, person_id_source
+
     def parse_rules_src_to_tgt(self, infilename):
         """
         Parse rules to produce a map of source to target data for a given input file
         """
+        if infilename in self.outfile_names and infilename in self.parsed_rules:
+            return self.outfile_names[infilename], self.parsed_rules[infilename]
         outfilenames = []
         outdata = {}
 
@@ -42,12 +83,17 @@ class MappingRules:
                     if key not in outdata:
                         outdata[key] = []
                     outdata[key].append(data)
-            if outfilename not in outfilenames:
-                outfilenames.append(outfilename)
+                    if outfilename not in outfilenames:
+                        outfilenames.append(outfilename)
 
+        self.parsed_rules[infilename] = outdata
+        self.outfile_names[infilename] = outfilenames
         return outfilenames, outdata
 
     def process_rules(self, infilename, outfilename, rules):
+        """
+        Process rules for an infile, outfile combination
+        """
         outkey = ""
         data = {}
         plain_key = ""
