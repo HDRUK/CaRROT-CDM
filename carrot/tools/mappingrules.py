@@ -4,9 +4,9 @@ from .omopcdm import OmopCDM
 
 class MappingRules:
 
-    def __init__(self, rulesfilepath):
+    def __init__(self, rulesfilepath, omopcfgfilepath):
         self.rules_data = self.load_json(rulesfilepath)
-        self.omopcdm = OmopCDM()
+        self.omopcdm = OmopCDM(omopcfgfilepath)
         self.parsed_rules = {}
         self.outfile_names = {}
 

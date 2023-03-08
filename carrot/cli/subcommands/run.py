@@ -1,6 +1,7 @@
 import pandas as pd
 import inspect
 import os, time
+import datetime
 import fnmatch
 import sys
 import click
@@ -603,6 +604,9 @@ def map(ctx,rules,inputs,format_level,
 @click.option("--person-file",
               required=True,
               help="File containing person_ids in the first column")
+@click.option("--omop-config",
+              required=True,
+              help="File containing json config")
 @click.option("--saved-person-id-filename",
               default='person_ids.tsv',
               required=False,
@@ -610,7 +614,7 @@ def map(ctx,rules,inputs,format_level,
 @click.argument("input-dir",
                 required=False,
                 nargs=-1)
-def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_filename, input_dir):
+def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_person_id_filename, input_dir):
     """
     Map to output using input streams
     """
@@ -619,8 +623,8 @@ def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_fil
         sys.exit(1)
 
     starttime = time.time()
-    omopcdm = tools.omopcdm.OmopCDM()
-    mappingrules = tools.mappingrules.MappingRules(rules)
+    omopcdm = tools.omopcdm.OmopCDM(omop_config)
+    mappingrules = tools.mappingrules.MappingRules(rules, omop_config)
     nowtime = time.time()
     print("--------------------------------------------------------------------------------")
     print("Loaded mapping rules from: {0} after {1:.5f} secs".format(rules, (nowtime - starttime)))
@@ -633,9 +637,15 @@ def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_fil
     tgtcolmaps = {}
 
     try:
+        # TODO: add in person_ids.tsv existence testing and reload
         fhp = open(person_file, mode="r")
         person_lookup = load_person_ids(fhp, mappingrules)
         fhp.close()
+        fhpout = open(output_folder + "/person_ids.tsv", mode="w")
+        fhpout.write("TARGET_SUBJECT\tSOURCE_SUBJECT\n")
+        for person_id, person_assigned_id in person_lookup.items():
+            fhpout.write("{0}\t{1}\n".format(str(person_id), str(person_assigned_id)))
+        fhpout.close()
         for tgtfile in output_files:
             fhd[tgtfile] = open(output_folder + "/" + tgtfile + ".tsv", mode=write_mode)
             if write_mode == 'w':
@@ -687,7 +697,8 @@ def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_fil
             for tgtfile in tgtfiles:
                 tgtcolmap = tgtcolmaps[tgtfile]
                 count_key = srcfilename + "~" + tgtfile
-                date_col_data = omopcdm.get_omop_date_column_data(tgtfile)
+                date_col_data = omopcdm.get_omop_date_fields(tgtfile)
+                date_component_data = omopcdm.get_omop_date_field_components(tgtfile)
                 auto_num_col = omopcdm.get_omop_auto_number_field(tgtfile)
                 pers_id_col = omopcdm.get_omop_person_id_field(tgtfile)
 
@@ -696,7 +707,7 @@ def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_fil
                     datacols = dflist[tgtfile]
 
                 for datacol in datacols:
-                    built_records, outrecords = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data)
+                    built_records, outrecords = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data, date_component_data)
                     if built_records == True:
                         for outrecord in outrecords:
                             outcounts[tgtfile] += 1
@@ -730,7 +741,7 @@ def mapstream(rules, output_folder, write_mode, person_file, saved_person_id_fil
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
 
-def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data):
+def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data):
     build_records = False
     tgtrecords = []
 
@@ -756,11 +767,27 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                                 tgtarray[tgtcolmap[outcol]] = term
                             else:
                                 tgtarray[tgtcolmap[output_col_data]] = srcdata[srccolmap[infield]]
-                            if output_col_data in date_col_data:
-                                if valid_date_value(srcdata[srccolmap[infield]].split(" ")[0]):
-                                    tgtarray[tgtcolmap[date_col_data[output_col_data]]] = srcdata[srccolmap[infield]].split(" ")[0]
+                            if output_col_data in date_component_data:
+                                strdate = srcdata[srccolmap[infield]].split(" ")[0]
+                                dt = get_datetime_value(strdate)
+                                if dt != None:
+                                    tgtarray[tgtcolmap["year_of_birth"]] = str(dt.year)
+                                    tgtarray[tgtcolmap["month_of_birth"]] = str(dt.month)
+                                    tgtarray[tgtcolmap["day_of_birth"]] = str(dt.day)
+                                    fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
+                                    tgtarray[tgtcolmap[output_col_data]] = fulldate
                                 else:
                                     valid_data_elem = False
+                            elif output_col_data in date_col_data:
+                                if valid_date_value(srcdata[srccolmap[infield]].split(" ")[0]):
+                                    strdate = srcdata[srccolmap[infield]].split(" ")[0]
+                                    dt = get_datetime_value(strdate)
+                                    fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
+                                    tgtarray[tgtcolmap[output_col_data]] = fulldate
+                                    tgtarray[tgtcolmap[date_col_data[output_col_data]]] = fulldate
+                                else:
+                                    valid_data_elem = False
+
                     if valid_data_elem == True:
                         tgtrecords.append(tgtarray)
     return build_records, tgtrecords
@@ -775,22 +802,99 @@ def valid_value(item):
 
 def valid_date_value(item):
     """
-    Check if a date item is non null and parses (crudely)
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
+    or dd/mm/yyyy or mm/dd/yyyy
     """
     if item.strip() == "":
         return(False)
-    dparts = item.split("-")
-    if len(dparts) < 3:
-        return(False)
-    if dparts[0] == "" or dparts[1] == "" or dparts[2] == "":
+    if not valid_iso_date(item) and not valid_reverse_iso_date(item) and not valid_uk_date(item):
+        print("Bad date : {0}".format(item))
         return(False)
     return(True)
 
-def load_person_ids(fh, mappingrules, delim=",", remap=True):
+def valid_date_value(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
+    or dd/mm/yyyy or mm/dd/yyyy
+    """
+    if item.strip() == "":
+        return(False)
+    if not valid_iso_date(item) and not valid_reverse_iso_date(item) and not valid_uk_date(item):
+        print("Bad date : {0}".format(item))
+        return(False)
+    return(True)
+
+def get_datetime_value(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
+    or dd/mm/yyyy or mm/dd/yyyy
+    """
+    dt = None
+    # Does the date parse as an ISO date?
+    try:
+        dt = datetime.datetime.strptime(item, "%Y-%m-%d")
+    except ValueError:
+        pass
+    if dt != None:
+      return(dt)
+
+    # Does the date parse as a reverse ISO date?
+    try:
+        dt = datetime.datetime.strptime(item, "%d-%m-%Y")
+    except ValueError:
+        pass
+
+    if dt != None:
+      return(dt)
+
+    # Does the date parse as a UK old-style date?
+    try:
+        dt = datetime.datetime.strptime(item, "%d/%m/%Y")
+    except ValueError:
+        pass
+
+    if dt != None:
+      return(dt)
+
+    return None
+
+def valid_iso_date(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD)
+    """
+    try:
+        datetime.datetime.strptime(item, "%Y-%m-%d")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def valid_reverse_iso_date(item):
+    """
+    Check if a date item is non null and parses as reverse ISO (DD-MM-YYYY)
+    """
+    try:
+        datetime.datetime.strptime(item, "%d-%m-%Y")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def valid_uk_date(item):
+    """
+    Check if a date item is non null and parses as UK format (DD/MM/YYYY)
+    """
+    try:
+        datetime.datetime.strptime(item, "%d/%m/%Y")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def load_person_ids(fh, mappingrules, person_number=1, delim=","):
     person_ids = {}
     person_columns = {}
-    person_col_number = 0
-    person_number = 1
+    person_col_in_hdr_number = 0
 
     phdr = fh.readline()
     personhdr = phdr.strip().split(delim)
@@ -798,10 +902,11 @@ def load_person_ids(fh, mappingrules, delim=",", remap=True):
 
     # Make a dictionary of column names vs their positions
     for col in personhdr:
-        person_columns[col] = person_col_number
-        person_col_number += 1
+        person_columns[col] = person_col_in_hdr_number
+        person_col_in_hdr_number += 1
 
     birth_datetime_source, person_id_source = mappingrules.get_person_source_field_info("person")
+    print("Load Person Data {0}, {1}".format(birth_datetime_source, person_id_source))
     person_col = 0
 
     for line in fh:
@@ -810,9 +915,12 @@ def load_person_ids(fh, mappingrules, delim=",", remap=True):
             continue
         if not valid_date_value(persondata[person_columns[birth_datetime_source]]):
             continue
-        person_ids[persondata[person_col]] = str(person_number)
-        person_number += 1
-
+        if persondata[person_col] not in person_ids:
+            #print(persondata[person_col])
+            #print(person_number)
+            person_ids[persondata[person_col]] = str(person_number)
+            person_number += 1
+    #print(len(person_ids))
     return person_ids
 
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
