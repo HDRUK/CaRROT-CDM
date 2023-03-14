@@ -771,9 +771,13 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                                 strdate = srcdata[srccolmap[infield]].split(" ")[0]
                                 dt = get_datetime_value(strdate)
                                 if dt != None:
-                                    tgtarray[tgtcolmap["year_of_birth"]] = str(dt.year)
-                                    tgtarray[tgtcolmap["month_of_birth"]] = str(dt.month)
-                                    tgtarray[tgtcolmap["day_of_birth"]] = str(dt.day)
+                                    year_field = date_component_data[output_col_data]["year"]
+                                    month_field = date_component_data[output_col_data]["month"]
+                                    day_field = date_component_data[output_col_data]["day"]
+                                    #print("DATE Fieldnames {0} {1} {2}".format(year_field, month_field, day_field))
+                                    tgtarray[tgtcolmap[year_field]] = str(dt.year)
+                                    tgtarray[tgtcolmap[month_field]] = str(dt.month)
+                                    tgtarray[tgtcolmap[day_field]] = str(dt.day)
                                     fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
                                     tgtarray[tgtcolmap[output_col_data]] = fulldate
                                 else:

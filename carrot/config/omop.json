@@ -48,7 +48,7 @@
                                      "visit_source_value", "visit_source_concept_id", "admitting_source_concept_id", "admitting_source_value",
                                      "discharge_to_concept_id", "discharge_to_source_value", "preceding_visit_occurrence_id"]
         },
-		"date_fields": {
+	"date_fields": {
                 "condition_occurrence": {"condition_start_datetime": "condition_start_date", "condition_end_datetime": "condition_end_date"},
                 "death": {"death_datetime": "death_date"},
                 "drug_exposure": {"drug_exposure_start_datetime": "drug_exposure_start_date", "drug_exposure_end_datetime": "drug_exposure_end_date"},
@@ -57,10 +57,10 @@
                 "procedure_occurrence": {"procedure_datetime": "procedure_date"},
                 "specimen": {"specimen_datetime": "specimen_date"},
                 "visit_occurrence": {"visit_start_datetime": "visit_start_date", "visit_end_datetime": "visit_end_date"}
-		},
-		"date_field_components": {
+	},
+	"date_field_components": {
                 "person": {"birth_datetime": {"year":"year_of_birth", "month":"month_of_birth", "day":"day_of_birth"}}
-		},
+	},
         "datetime_fields": {
                 "condition_occurrence": ["condition_start_datetime", "condition_end_datetime"],
                 "death": ["death_datetime"],
@@ -71,8 +71,8 @@
                 "procedure_occurrence": ["procedure_datetime"],
                 "specimen": ["specimen_datetime"],
                 "visit_occurrence": ["visit_start_datetime", "visit_end_datetime"]
-       },
-       "person_id_field": {
+       	},
+       	"person_id_field": {
                 "condition_occurrence": "person_id",
                 "death": "person_id",
                 "drug_exposure": "person_id",
@@ -82,8 +82,8 @@
                 "procedure_occurrence": "person_id",
                 "specimen": "person_id",
                 "visit_occurrence": "person_id"
-       },
-       "auto_number_field": {
+       	},
+       	"auto_number_field": {
                 "condition_occurrence": "condition_occurrence_id",
                 "death": "death_id",
                 "drug_exposure": "drug_exposure_id",
