@@ -623,6 +623,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         sys.exit(1)
 
     starttime = time.time()
+    metrics = tools.metrics.Metrics()
     omopcdm = tools.omopcdm.OmopCDM(omop_config)
     mappingrules = tools.mappingrules.MappingRules(rules, omop_config)
     nowtime = time.time()
@@ -639,7 +640,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     try:
         # TODO: add in person_ids.tsv existence testing and reload
         fhp = open(person_file, mode="r")
-        person_lookup = load_person_ids(fhp, mappingrules)
+        person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules)
         fhp.close()
         fhpout = open(output_folder + "/person_ids.tsv", mode="w")
         fhpout.write("TARGET_SUBJECT\tSOURCE_SUBJECT\n")
@@ -657,6 +658,8 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         print("I/O error({0}): {1}".format(e.errno, e.strerror))
         exit()
 
+    print("person_id stats: total loaded {0}, reject count {1}".format(len(person_lookup), rejected_person_count))
+
     input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
     rejidcounts = {}
     rejdatecounts = {}
@@ -668,9 +671,10 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
 
     for srcfilename in input_files:
-        rcount = 0
         outcounts = {}
         rejcounts = {}
+        rcount = 0
+
         try:
             fh = open(input_dir[0] + "/" + srcfilename, mode='r')
         except IOError as e:
@@ -693,6 +697,9 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
         for inputline in fh:
             indata = inputline.strip().split(",")
+            key = srcfilename + "~~"
+            metrics.increment_key_count(key, "input_count")
+
             rcount += 1
             for tgtfile in tgtfiles:
                 tgtcolmap = tgtcolmaps[tgtfile]
@@ -707,20 +714,21 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
                     datacols = dflist[tgtfile]
 
                 for datacol in datacols:
-                    built_records, outrecords = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data, date_component_data)
+                    built_records, outrecords, metrics = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data, date_component_data, metrics)
                     if built_records == True:
                         for outrecord in outrecords:
-                            outcounts[tgtfile] += 1
-                            record_numbers[tgtfile] += 1
                             if auto_num_col != None:
                                 outrecord[tgtcolmap[auto_num_col]] = str(record_numbers[tgtfile])
                             if (outrecord[tgtcolmap[pers_id_col]]) in person_lookup:
                                 outrecord[tgtcolmap[pers_id_col]] = person_lookup[outrecord[tgtcolmap[pers_id_col]]]
+                                outcounts[tgtfile] += 1
+                                key = srcfilename + "~~" + tgtfile
+                                metrics.increment_key_count(key, "output_count")
                                 fhd[tgtfile].write("\t".join(outrecord) + "\n")
                             else:
+                                key = srcfilename + "~~" + tgtfile
+                                metrics.increment_key_count(key, "invalid_person_ids")
                                 rejidcounts[srcfilename] += 1
-                    else:
-                        rejcounts[tgtfile] += 1
 
         fh.close()
         nowtime= time.time()
@@ -729,25 +737,33 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
             print("TARGET: {0}: o/p by field count {1}, reject o/p by field count {2}".format(outtablename, str(count), str(rejcounts[outtablename])))
 
     print("--------------------------------------------------------------------------------")
-    print("Rejected input records due to unmatched person_id counts:")
-    for srcfilename, count in rejidcounts.items():
-        print("{0},{1}".format(srcfilename, str(count)))
-    print("--------------------------------------------------------------------------------")
-    print("Rejected input records due to invalid date counts:")
-    for srcfilename, count in rejdatecounts.items():
-        print("{0}, count {1}".format(srcfilename, str(count)))
+    data_summary = metrics.get_mapstream_summary()
+    try:
+        dsfh = open(output_folder + "/summary.tsv", mode="w")
+        dsfh.write(data_summary)
+        dsfh.close()
+    except IOError as e:
+        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        print("Unable to write summary.tsv")
+    #print("Rejected input records due to unmatched person_id counts:")
+    #for srcfilename, count in rejidcounts.items():
+    #    print("{0},{1}".format(srcfilename, str(count)))
+    #print("--------------------------------------------------------------------------------")
+    #print("Rejected input records due to invalid date counts:")
+    #for srcfilename, count in rejdatecounts.items():
+    #    print("{0}, count {1}".format(srcfilename, str(count)))
 
-    print("--------------------------------------------------------------------------------")
+    #print("--------------------------------------------------------------------------------")
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
 
-def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data):
+def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data, metrics):
     build_records = False
     tgtrecords = []
 
+    srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
     if valid_value(str(srcdata[srccolmap[srcfield]])):
         srcfullkey = srcfilename + "~" + srcfield + "~" + str(srcdata[srccolmap[srcfield]]) + "~" + tgtfilename
-        srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
         dictkeys = []
         if srcfullkey in rulesmap:
             build_records = True
@@ -781,6 +797,7 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                                     fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
                                     tgtarray[tgtcolmap[output_col_data]] = fulldate
                                 else:
+                                    metrics.increment_key_count(srckey, "invalid_date_fields")
                                     valid_data_elem = False
                             elif output_col_data in date_col_data:
                                 if valid_date_value(srcdata[srccolmap[infield]].split(" ")[0]):
@@ -790,11 +807,15 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                                     tgtarray[tgtcolmap[output_col_data]] = fulldate
                                     tgtarray[tgtcolmap[date_col_data[output_col_data]]] = fulldate
                                 else:
+                                    metrics.increment_key_count(srckey, "invalid_date_fields")
                                     valid_data_elem = False
-
                     if valid_data_elem == True:
                         tgtrecords.append(tgtarray)
-    return build_records, tgtrecords
+    else:
+        metrics.increment_key_count(srckey, "invalid_source_fields")
+
+
+    return build_records, tgtrecords, metrics
 
 def valid_value(item):
     """
@@ -812,19 +833,7 @@ def valid_date_value(item):
     if item.strip() == "":
         return(False)
     if not valid_iso_date(item) and not valid_reverse_iso_date(item) and not valid_uk_date(item):
-        print("Bad date : {0}".format(item))
-        return(False)
-    return(True)
-
-def valid_date_value(item):
-    """
-    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
-    or dd/mm/yyyy or mm/dd/yyyy
-    """
-    if item.strip() == "":
-        return(False)
-    if not valid_iso_date(item) and not valid_reverse_iso_date(item) and not valid_uk_date(item):
-        print("Bad date : {0}".format(item))
+        #print("Bad date : {0}".format(item))
         return(False)
     return(True)
 
@@ -899,6 +908,7 @@ def load_person_ids(fh, mappingrules, person_number=1, delim=","):
     person_ids = {}
     person_columns = {}
     person_col_in_hdr_number = 0
+    reject_count = 0
 
     phdr = fh.readline()
     personhdr = phdr.strip().split(delim)
@@ -916,16 +926,16 @@ def load_person_ids(fh, mappingrules, person_number=1, delim=","):
     for line in fh:
         persondata = line.strip().split(delim)
         if not valid_value(persondata[person_columns[person_id_source]]):
+            reject_count += 1
             continue
         if not valid_date_value(persondata[person_columns[birth_datetime_source]]):
+            reject_count += 1
             continue
         if persondata[person_col] not in person_ids:
-            #print(persondata[person_col])
-            #print(person_number)
             person_ids[persondata[person_col]] = str(person_number)
             person_number += 1
-    #print(len(person_ids))
-    return person_ids
+
+    return person_ids, reject_count
 
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",
