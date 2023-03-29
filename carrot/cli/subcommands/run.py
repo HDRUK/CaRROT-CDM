@@ -606,15 +606,19 @@ def map(ctx,rules,inputs,format_level,
               help="File containing person_ids in the first column")
 @click.option("--omop-config",
               required=True,
-              help="File containing json config")
+              help="File containing json configfor omop outputs")
 @click.option("--saved-person-id-filename",
               default='person_ids.tsv',
               required=False,
               help="Person id file used to save state between runs")
+@click.option("--use-input-person-ids",
+              required=True,
+              default='No',
+              help="Use person ids as input without generating new integers")
 @click.argument("input-dir",
                 required=False,
                 nargs=-1)
-def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_person_id_filename, input_dir):
+def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_person_id_filename, use_input_person_ids, input_dir):
     """
     Map to output using input streams
     """
@@ -627,6 +631,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     omopcdm = tools.omopcdm.OmopCDM(omop_config)
     mappingrules = tools.mappingrules.MappingRules(rules, omop_config)
     nowtime = time.time()
+
     print("--------------------------------------------------------------------------------")
     print("Loaded mapping rules from: {0} after {1:.5f} secs".format(rules, (nowtime - starttime)))
     output_files = mappingrules.get_all_outfile_names()
@@ -640,7 +645,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     try:
         # TODO: add in person_ids.tsv existence testing and reload
         fhp = open(person_file, mode="r")
-        person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules)
+        person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules, use_input_person_ids)
         fhp.close()
         fhpout = open(output_folder + "/person_ids.tsv", mode="w")
         fhpout.write("TARGET_SUBJECT\tSOURCE_SUBJECT\n")
@@ -739,7 +744,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     print("--------------------------------------------------------------------------------")
     data_summary = metrics.get_mapstream_summary()
     try:
-        dsfh = open(output_folder + "/summary.tsv", mode="w")
+        dsfh = open(output_folder + "/summary_mapstream.tsv", mode="w")
         dsfh.write(data_summary)
         dsfh.close()
     except IOError as e:
@@ -904,7 +909,7 @@ def valid_uk_date(item):
 
     return(True)
 
-def load_person_ids(fh, mappingrules, person_number=1, delim=","):
+def load_person_ids(fh, mappingrules, use_input_person_ids, person_number=1, delim=","):
     person_ids = {}
     person_columns = {}
     person_col_in_hdr_number = 0
@@ -932,8 +937,11 @@ def load_person_ids(fh, mappingrules, person_number=1, delim=","):
             reject_count += 1
             continue
         if persondata[person_col] not in person_ids:
-            person_ids[persondata[person_col]] = str(person_number)
-            person_number += 1
+            if use_input_person_ids == "No":
+                person_ids[persondata[person_col]] = str(person_number)
+                person_number += 1
+            else:
+                person_ids[persondata[person_col]] = str(persondata[person_col])
 
     return person_ids, reject_count
 
