@@ -679,7 +679,7 @@ class CommonDataModel(Logger):
                         first = False
 
                     for col in df.columns:
-                        if col.endswith("_id"):
+                        if col.endswith("_id") and self.do_mask_person_id:
                             df[col] = df[col].astype(float).astype(pd.Int64Dtype())
                     if df.index.name == 'index' or df.index.name is None:
                         df = df.set_index(df.columns[0])
@@ -696,7 +696,7 @@ class CommonDataModel(Logger):
                 if self.inputs:
                     try:
                         #make sure to reset the objects, clearing any existing dataframes
-                        [x.reset() for x in self.get_all_objects()]
+                        #[x.reset() for x in self.get_all_objects()]
                         self.inputs.next()
                     except StopIteration:
                         break
@@ -845,6 +845,7 @@ class CommonDataModel(Logger):
             obj.set_df(df)
             yield obj
 
+                
     def save_dataframe(self,table,df=None,mode=None):
         if self.outputs:
             _id = hex(id(df))

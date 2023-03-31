@@ -109,9 +109,9 @@ class DataFormatter(collections.OrderedDict,Logger):
         self['Text50']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:50])
         self['Text60']  = lambda x : x.fillna('').astype(str).apply(lambda x: x[:60])
 
-        self['Timestamp'] = lambda x : pd.to_datetime(x,errors=errors)\
+        self['Timestamp'] = lambda x : pd.to_datetime(x,errors=errors,dayfirst=True)\
                                         .dt.strftime('%Y-%m-%d %H:%M:%S.%f')
-        self['Date'] = lambda x : pd.to_datetime(x,errors=errors).dt.date
+        self['Date'] = lambda x : pd.to_datetime(x,errors=errors,dayfirst=True).dt.date
 
 
 class DestinationField(object):
