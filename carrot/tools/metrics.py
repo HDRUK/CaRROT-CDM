@@ -79,12 +79,13 @@ class Metrics():
         return self.datasummary
 
     def get_mapstream_summary(self):
-        summary_str = "source\tsource field\ttablename\tincount\tinvalid persid\tinvalid date\tinvalid source\toutcount\n"
+        summary_str = "source\ttarget\tsource field\tincount\tinvalid persid\tinvalid date\tinvalid source\toutcount\n"
 
-        for dkey, dvalue in self.datasummary.items():
+        for dkey in sorted(self.datasummary):
             source, fieldname, tablename = dkey.split('~')
             source = self.get_prefix(source)
             input_count = ""
+            dvalue = self.datasummary[dkey]
             if "input_count" in dvalue:
                 input_count = str(dvalue["input_count"])
             invalid_person_ids = ""
@@ -100,6 +101,6 @@ class Metrics():
             if "output_count" in dvalue:
                 output_count = str(dvalue["output_count"])
 
-            summary_str += source + "\t" + fieldname + "\t" + tablename + "\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_source_fields + "\t" + invalid_date_fields + "\t" + output_count + "\n"
+            summary_str += source + "\t" + fieldname + "\t" + tablename + "\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_date_fields + "\t" + invalid_source_fields + "\t" + output_count + "\n"
 
         return summary_str

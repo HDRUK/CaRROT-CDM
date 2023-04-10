@@ -10,6 +10,7 @@ import yaml
 import glob
 import copy
 import subprocess
+import cProfile, pstats
 import carrot
 import carrot.tools as tools
 
@@ -622,6 +623,8 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     """
     Map to output using input streams
     """
+    profiler = cProfile.Profile()
+    profiler.enable()
     if os.path.isdir(input_dir[0]) == False:
         print("Not a directory {0}".format(input_dir[0]))
         sys.exit(1)
@@ -687,6 +690,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
             exit()
 
         tgtfiles, src_to_tgt = mappingrules.parse_rules_src_to_tgt(srcfilename)
+        infile_datetime_source, infile_person_id_source = mappingrules.get_infile_date_person_id(srcfilename)
         for tgtfile in tgtfiles:
             outcounts[tgtfile] = 0
             rejcounts[tgtfile] = 0
@@ -696,16 +700,26 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         for colname in hdrdata:
             datacolsall.append(colname)
         inputcolmap = omopcdm.get_column_map(hdrdata)
+        pers_id_col = inputcolmap[infile_person_id_source]
+        datetime_col = inputcolmap[infile_datetime_source]
         print("--------------------------------------------------------------------------------")
         print("Processing input: {0}".format(srcfilename))
 #        print("Processing input: {0}, All input cols = {1}, Data cols = {2}".format(srcfilename, str(datacolsall), str(dflist)))
 
         for inputline in fh:
             indata = inputline.strip().split(",")
-            key = srcfilename + "~~"
+            key = srcfilename + "~all~all"
             metrics.increment_key_count(key, "input_count")
-
             rcount += 1
+            strdate = indata[datetime_col].split(" ")[0]
+            fulldate = parse_date(strdate)
+            if fulldate != None:
+                #fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
+                indata[datetime_col] = fulldate
+            else:
+                metrics.increment_key_count(key, "invalid_date_fields")
+                continue
+
             for tgtfile in tgtfiles:
                 tgtcolmap = tgtcolmaps[tgtfile]
                 count_key = srcfilename + "~" + tgtfile
@@ -727,19 +741,24 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
                             if (outrecord[tgtcolmap[pers_id_col]]) in person_lookup:
                                 outrecord[tgtcolmap[pers_id_col]] = person_lookup[outrecord[tgtcolmap[pers_id_col]]]
                                 outcounts[tgtfile] += 1
-                                key = srcfilename + "~~" + tgtfile
+                                key = srcfilename + "~all~all"
+                                metrics.increment_key_count(key, "output_count")
+                                key = srcfilename + "~" + tgtfile + "~all"
+                                metrics.increment_key_count(key, "output_count")
+                                key = srcfilename + "~" + tgtfile + "~" + datacol
                                 metrics.increment_key_count(key, "output_count")
                                 fhd[tgtfile].write("\t".join(outrecord) + "\n")
                             else:
-                                key = srcfilename + "~~" + tgtfile
+                                key = srcfilename + "~" + tgtfile + "~all"
                                 metrics.increment_key_count(key, "invalid_person_ids")
                                 rejidcounts[srcfilename] += 1
 
         fh.close()
+
         nowtime= time.time()
-        print("INPUT file data : {0}: in count {1}, time since start {2:.5} secs".format(srcfilename, str(rcount), (nowtime - starttime)))
+        print("INPUT file data : {0}: input count {1}, time since start {2:.5} secs".format(srcfilename, str(rcount), (nowtime - starttime)))
         for outtablename, count in outcounts.items():
-            print("TARGET: {0}: o/p by field count {1}, reject o/p by field count {2}".format(outtablename, str(count), str(rejcounts[outtablename])))
+            print("TARGET: {0}: output count {1}".format(outtablename, str(count)))
 
     print("--------------------------------------------------------------------------------")
     data_summary = metrics.get_mapstream_summary()
@@ -750,23 +769,19 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     except IOError as e:
         print("I/O error({0}): {1}".format(e.errno, e.strerror))
         print("Unable to write summary.tsv")
-    #print("Rejected input records due to unmatched person_id counts:")
-    #for srcfilename, count in rejidcounts.items():
-    #    print("{0},{1}".format(srcfilename, str(count)))
-    #print("--------------------------------------------------------------------------------")
-    #print("Rejected input records due to invalid date counts:")
-    #for srcfilename, count in rejdatecounts.items():
-    #    print("{0}, count {1}".format(srcfilename, str(count)))
 
-    #print("--------------------------------------------------------------------------------")
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('ncalls')
+    stats.print_stats()
 
 def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data, metrics):
     build_records = False
     tgtrecords = []
 
     srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
+    summarykey = srcfilename + "~" + tgtfilename + "~" + srcfield
     if valid_value(str(srcdata[srccolmap[srcfield]])):
         srcfullkey = srcfilename + "~" + srcfield + "~" + str(srcdata[srccolmap[srcfield]]) + "~" + tgtfilename
         dictkeys = []
@@ -802,22 +817,16 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
                                     fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
                                     tgtarray[tgtcolmap[output_col_data]] = fulldate
                                 else:
-                                    metrics.increment_key_count(srckey, "invalid_date_fields")
+                                    metrics.increment_key_count(summarykey, "invalid_date_fields")
                                     valid_data_elem = False
                             elif output_col_data in date_col_data:
-                                if valid_date_value(srcdata[srccolmap[infield]].split(" ")[0]):
-                                    strdate = srcdata[srccolmap[infield]].split(" ")[0]
-                                    dt = get_datetime_value(strdate)
-                                    fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
-                                    tgtarray[tgtcolmap[output_col_data]] = fulldate
-                                    tgtarray[tgtcolmap[date_col_data[output_col_data]]] = fulldate
-                                else:
-                                    metrics.increment_key_count(srckey, "invalid_date_fields")
-                                    valid_data_elem = False
+                                fulldate = srcdata[srccolmap[infield]]
+                                tgtarray[tgtcolmap[output_col_data]] = fulldate
+                                tgtarray[tgtcolmap[date_col_data[output_col_data]]] = fulldate
                     if valid_data_elem == True:
                         tgtrecords.append(tgtarray)
     else:
-        metrics.increment_key_count(srckey, "invalid_source_fields")
+        metrics.increment_key_count(summarykey, "invalid_source_fields")
 
 
     return build_records, tgtrecords, metrics
@@ -875,6 +884,20 @@ def get_datetime_value(item):
       return(dt)
 
     return None
+
+def parse_date(item):
+    """
+    Crude hand-coded check on date format
+    """
+    datedata = item.split("-")
+    if len(datedata) != 3:
+        datedata = item.split("/")
+    if len(datedata) != 3:
+        return None
+    if len(datedata[2]) == 4:
+        return("{0}-{1}-{2}".format(datedata[2], datedata[1], datedata[0]))
+    return("{0}-{1}-{2}".format(datedata[0], datedata[1], datedata[2]))
+
 
 def valid_iso_date(item):
     """
