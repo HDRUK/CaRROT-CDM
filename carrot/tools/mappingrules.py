@@ -4,9 +4,9 @@ from .omopcdm import OmopCDM
 
 class MappingRules:
 
-    def __init__(self, rulesfilepath):
+    def __init__(self, rulesfilepath, omopcfgfilepath):
         self.rules_data = self.load_json(rulesfilepath)
-        self.omopcdm = OmopCDM()
+        self.omopcdm = OmopCDM(omopcfgfilepath)
         self.parsed_rules = {}
         self.outfile_names = {}
 
@@ -50,6 +50,25 @@ class MappingRules:
                                 data_fields_lists[outfile].append(infield)
 
         return data_fields_lists
+
+    def get_infile_date_person_id(self, infilename):
+        outfilenames, outdata = self.parse_rules_src_to_tgt(infilename)
+        datetime_source = ""
+        person_id_source = ""
+
+        for key, outfield_data in outdata.items():
+            keydata = key.split("~")
+            outfile = keydata[-1]
+            for outfield_elem in outfield_data:
+                for infield, outfield_list in outfield_elem.items():
+                    #print("{0}, {1}, {2}".format(outfile, infield, str(outfield_list)))
+                    for outfield in outfield_list:
+                        if outfield in self.omopcdm.get_omop_datetime_fields(outfile):
+                            datetime_source = infield
+                        if outfield == self.omopcdm.get_omop_person_id_field(outfile):
+                            person_id_source = infield
+
+        return datetime_source, person_id_source
 
     def get_person_source_field_info(self, tgtfilename):
         """
