@@ -623,8 +623,8 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
     """
     Map to output using input streams
     """
-    profiler = cProfile.Profile()
-    profiler.enable()
+    #profiler = cProfile.Profile()
+    #profiler.enable()
     if os.path.isdir(input_dir[0]) == False:
         print("Not a directory {0}".format(input_dir[0]))
         sys.exit(1)
@@ -651,7 +651,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules, use_input_person_ids)
         fhp.close()
         fhpout = open(output_folder + "/person_ids.tsv", mode="w")
-        fhpout.write("TARGET_SUBJECT\tSOURCE_SUBJECT\n")
+        fhpout.write("SOURCE_SUBJECT\tTARGET_SUBJECT\n")
         for person_id, person_assigned_id in person_lookup.items():
             fhpout.write("{0}\t{1}\n".format(str(person_id), str(person_assigned_id)))
         fhpout.close()
@@ -743,6 +743,8 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
                                 outcounts[tgtfile] += 1
                                 key = srcfilename + "~all~all"
                                 metrics.increment_key_count(key, "output_count")
+                                key = "all~" + tgtfile + "~all"
+                                metrics.increment_key_count(key, "output_count")
                                 key = srcfilename + "~" + tgtfile + "~all"
                                 metrics.increment_key_count(key, "output_count")
                                 key = srcfilename + "~" + tgtfile + "~" + datacol
@@ -772,9 +774,9 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('ncalls')
-    stats.print_stats()
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('ncalls')
+    #stats.print_stats()
 
 def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data, metrics):
     build_records = False
@@ -960,7 +962,7 @@ def load_person_ids(fh, mappingrules, use_input_person_ids, person_number=1, del
             reject_count += 1
             continue
         if persondata[person_col] not in person_ids:
-            if use_input_person_ids == "No":
+            if use_input_person_ids == "N":
                 person_ids[persondata[person_col]] = str(person_number)
                 person_number += 1
             else:
