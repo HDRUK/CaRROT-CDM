@@ -1,4 +1,5 @@
 import pandas as pd
+import csv
 import inspect
 import os, time
 import datetime
@@ -685,6 +686,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
         try:
             fh = open(input_dir[0] + "/" + srcfilename, mode='r')
+            csvr = csv.reader(fh)
         except IOError as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
             exit()
@@ -695,7 +697,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
             outcounts[tgtfile] = 0
             rejcounts[tgtfile] = 0
         datacolsall = []
-        hdrdata = fh.readline().strip().split(",")
+        hdrdata = next(csvr)
         dflist = mappingrules.get_infile_data_fields(srcfilename)
         for colname in hdrdata:
             datacolsall.append(colname)
@@ -706,8 +708,8 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         print("Processing input: {0}".format(srcfilename))
 #        print("Processing input: {0}, All input cols = {1}, Data cols = {2}".format(srcfilename, str(datacolsall), str(dflist)))
 
-        for inputline in fh:
-            indata = inputline.strip().split(",")
+        for indata in csvr:
+            #indata = inputline.strip().split(",")
             key = srcfilename + "~all~all"
             metrics.increment_key_count(key, "input_count")
             rcount += 1
@@ -738,6 +740,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
                         for outrecord in outrecords:
                             if auto_num_col != None:
                                 outrecord[tgtcolmap[auto_num_col]] = str(record_numbers[tgtfile])
+                                record_numbers[tgtfile] += 1
                             if (outrecord[tgtcolmap[pers_id_col]]) in person_lookup:
                                 outrecord[tgtcolmap[pers_id_col]] = person_lookup[outrecord[tgtcolmap[pers_id_col]]]
                                 outcounts[tgtfile] += 1
