@@ -1,6 +1,9 @@
 import pandas as pd
+import csv
 import inspect
-import os
+import os, time
+import datetime
+import fnmatch
 import sys
 import click
 import json
@@ -8,6 +11,7 @@ import yaml
 import glob
 import copy
 import subprocess
+import cProfile, pstats
 import carrot
 import carrot.tools as tools
 
@@ -44,8 +48,8 @@ def register_class(pyconfig):
         raise NotImplementedError(f"You're trying to register the file {pyconfig} which isnt a .py file")
     tools.extract.register_class(pyconfig)
 
-    
-    
+
+
 @click.command(help="List all the python classes there are available to run")
 def list_classes():
     print (json.dumps(tools.get_classes(),indent=6))
@@ -83,17 +87,17 @@ def test(ctx):
 def transform(inputs,config,number_of_rows_per_chunk,output_folder):
 
     logger = tools.logger.Logger("transform")
-    
+
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+
     if os.path.isfile(config):
         config = json.load(open(config))
     else:
         config = json.loads(config)
 
     logger.info(json.dumps(config,indent=6))
-        
+
     inputs = {
         os.path.basename(x):x
         for x in inputs
@@ -105,14 +109,14 @@ def transform(inputs,config,number_of_rows_per_chunk,output_folder):
     header=True
     mode='w'
 
-    i = 0 
+    i = 0
     while True:
         if i > 0:
             mode = 'a'
             header=False
         i+=1
         for fname,rules in config.items():
-            logger.info(f"Working on {fname}") 
+            logger.info(f"Working on {fname}")
             df = input_data[fname]
             for colname,operations in rules.items():
                 series = df[colname]
@@ -144,7 +148,7 @@ def format(inputs,number_of_rows_per_chunk,output_folder):
     if len(types) > 1:
         raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
     types = types[0]
-    
+
     inputs = {
         os.path.basename(x):x
         for x in inputs
@@ -175,7 +179,7 @@ def merge(inputs,output_folder):
     if len(types) > 1:
         raise Exception(f"Running with mixed input files '{types}'. Only input tsv or csv files.")
     types = types[0]
-    
+
     inputs = {
         os.path.basename(x):x
         for x in inputs
@@ -186,7 +190,7 @@ def merge(inputs,output_folder):
         inputs = tools.load_tsv(inputs)#,chunksize=number_of_rows_per_chunk)
 
     outputs = carrot.tools.create_csv_store(output_folder=output_folder,sep='\t',write_mode='w',write_separate=False)
-        
+
     cdm = carrot.cdm.CommonDataModel.from_existing(inputs=inputs,
                                                       do_mask_person_id=False,
                                                       drop_duplicates=True,
@@ -210,7 +214,7 @@ def load(inputs,config):
         outputs.load(fname,destination_table)
 
     outputs.finalise()
-    
+
 @click.command()
 @click.option("--input",
               required=True,
@@ -284,12 +288,12 @@ def analysis(ctx,analysis_file,analysis_name):
 def ___analysis(ctx,config,analysis_names,max_workers,batch):
     """
     Use this command to run analyses on input data (in the CDM format) given a configuration yaml file
-    """    
+    """
     from importlib import import_module
     fname = config
-    stream = open(config) 
+    stream = open(config)
     config = yaml.safe_load(stream)
-    
+
     inputs = config['cdm']
     inputs = carrot.tools.load_tsv(config['cdm'],
                                       dtype=None)
@@ -299,7 +303,7 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
     analyses = config['analyses']
 
     jobscript = config['condor']['jobscript']
-    
+
 
     if analysis_names:
         temp = copy.copy(analyses)
@@ -316,7 +320,7 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
                 commands.remove('--batch')
                 commands.remove('condor')
                 commands.extend(['--analysis-name',name])
-                
+
                 f = _condor(name=name,commands=commands,jobscript=jobscript)
             else:
                 raise NotImplementedError(f"{batch} mode for --batch not a thing")
@@ -324,11 +328,11 @@ def ___analysis(ctx,config,analysis_names,max_workers,batch):
             func = import_module(analysis)
             f = func.create_analysis(cohort)
         cdm.add_analysis(f)
-    
+
     results = cdm.run_analyses(max_workers=max_workers)
 
-    
-        
+
+
 @click.command()
 @click.option("--rules",
               required=True,
@@ -432,7 +436,7 @@ def map(ctx,rules,inputs,format_level,
         pass
     else:
         carrot.params['log_file'] = log_file
-        
+
     #load the json loads
     if type(rules) == dict:
         config = rules
@@ -446,7 +450,7 @@ def map(ctx,rules,inputs,format_level,
     if objects:
         objects = list(set(objects))
         config = carrot.tools.filter_rules_by_object_names(config,objects)
-        
+
     if max_rules:
         i = 0
         n = max_rules
@@ -462,7 +466,7 @@ def map(ctx,rules,inputs,format_level,
                         new[destination_table] = {}
                     new[destination_table][name] = _rules
                     i+=1
-            
+
         config['cdm'] = new
 
     name = config['metadata']['dataset']
@@ -478,8 +482,8 @@ def map(ctx,rules,inputs,format_level,
             except pd.errors.EmptyDataError:
                 indexing_conf = None
                 pass
-                
-    
+
+
     #automatically calculate the ideal chunksize
     if number_of_rows_per_chunk == 'auto':
         #get the fields that are going to be used/loaded
@@ -490,7 +494,7 @@ def map(ctx,rules,inputs,format_level,
         max_n_used_fields = max(n_used_fields)
         #get the number of files used
         n_files = len(n_used_fields)
-        
+
         # If there is one dataset and one column being used, the max loaded to memory
         #   is 2million rows (this is fairly arbitrary)
         #   it is an approximation assuming the data in the values is relatively small
@@ -503,11 +507,11 @@ def map(ctx,rules,inputs,format_level,
             number_of_rows_per_chunk = int(number_of_rows_per_chunk)
         except ValueError:
             raise ValueError(f"number_of_rows_per_chunk must be an Integer or 'auto', you inputted '{number_of_rows_per_chunk}'")
-        
+
         #turn off chunking if 0 or negative chunksizes are given
         if number_of_rows_per_chunk <= 0 :
             number_of_rows_per_chunk = None
-    
+
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(carrot.__file__)
@@ -522,12 +526,12 @@ def map(ctx,rules,inputs,format_level,
         inputs = new_inputs
 
     inputs = list(inputs)
-    
+
     for x in inputs:
         if os.path.isdir(x):
             inputs.remove(x)
             inputs.extend(glob.glob(f'{x}{os.path.sep}*.csv'))
-        
+
     #convert the list into a map between the filename and the full path
     inputs = {
         os.path.basename(x):x
@@ -547,7 +551,7 @@ def map(ctx,rules,inputs,format_level,
 
     #do something with
     #person_id_map
-        
+
     if isinstance(output_database,dict):
         if 'bclink' in output_database:
             outputs = carrot.tools.create_bclink_store(bclink_settings=output_database['bclink'],
@@ -556,7 +560,7 @@ def map(ctx,rules,inputs,format_level,
                                                           write_separate=split_outputs,
                                                           write_mode=write_mode)
         else:
-            raise NotImplementedError(f"dont know how to configure outputs... {output_database}")   
+            raise NotImplementedError(f"dont know how to configure outputs... {output_database}")
     elif output_database == None:
         outputs = carrot.tools.create_csv_store(output_folder=output_folder,
                                                    sep=csv_separator,
@@ -588,7 +592,387 @@ def map(ctx,rules,inputs,format_level,
         ctx.invoke(merge,
                    inputs=glob.glob(f"{output_folder}{os.path.sep}*"),
                    output_folder=output_folder)
-    
+@click.command()
+@click.option("--rules",
+              required=True,
+              help="json file containing mapping rules")
+@click.option("--output-folder",
+              default=None,
+              help="define the output folder for tsv files")
+@click.option("--write-mode",
+              default='w',
+              type=click.Choice(['w','a']),
+              help="force write-mode on output files")
+@click.option("--person-file",
+              required=True,
+              help="File containing person_ids in the first column")
+@click.option("--omop-config",
+              required=True,
+              help="File containing json configfor omop outputs")
+@click.option("--saved-person-id-filename",
+              default='person_ids.tsv',
+              required=False,
+              help="Person id file used to save state between runs")
+@click.option("--use-input-person-ids",
+              required=True,
+              default='No',
+              help="Use person ids as input without generating new integers")
+@click.argument("input-dir",
+                required=False,
+                nargs=-1)
+def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_person_id_filename, use_input_person_ids, input_dir):
+    """
+    Map to output using input streams
+    """
+    #profiler = cProfile.Profile()
+    #profiler.enable()
+    if os.path.isdir(input_dir[0]) == False:
+        print("Not a directory {0}".format(input_dir[0]))
+        sys.exit(1)
+
+    starttime = time.time()
+    metrics = tools.metrics.Metrics()
+    omopcdm = tools.omopcdm.OmopCDM(omop_config)
+    mappingrules = tools.mappingrules.MappingRules(rules, omop_config)
+    nowtime = time.time()
+
+    print("--------------------------------------------------------------------------------")
+    print("Loaded mapping rules from: {0} after {1:.5f} secs".format(rules, (nowtime - starttime)))
+    output_files = mappingrules.get_all_outfile_names()
+    record_numbers = {}
+    for output_file in output_files:
+        record_numbers[output_file] = 0
+
+    fhd = {}
+    tgtcolmaps = {}
+
+    try:
+        # TODO: add in person_ids.tsv existence testing and reload
+        fhp = open(person_file, mode="r")
+        person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules, use_input_person_ids)
+        fhp.close()
+        fhpout = open(output_folder + "/person_ids.tsv", mode="w")
+        fhpout.write("SOURCE_SUBJECT\tTARGET_SUBJECT\n")
+        for person_id, person_assigned_id in person_lookup.items():
+            fhpout.write("{0}\t{1}\n".format(str(person_id), str(person_assigned_id)))
+        fhpout.close()
+        for tgtfile in output_files:
+            fhd[tgtfile] = open(output_folder + "/" + tgtfile + ".tsv", mode=write_mode)
+            if write_mode == 'w':
+                outhdr = omopcdm.get_omop_column_list(tgtfile)
+                fhd[tgtfile].write("\t".join(outhdr) + "\n")
+            tgtcolmaps[tgtfile] = omopcdm.get_omop_column_map(tgtfile)
+
+    except IOError as e:
+        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        exit()
+
+    print("person_id stats: total loaded {0}, reject count {1}".format(len(person_lookup), rejected_person_count))
+
+    input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
+    rejidcounts = {}
+    rejdatecounts = {}
+    src_tgt_counts = {}
+
+    for srcfilename in input_files:
+        rejidcounts[srcfilename] = 0
+        rejdatecounts[srcfilename] = 0
+
+
+    for srcfilename in input_files:
+        outcounts = {}
+        rejcounts = {}
+        rcount = 0
+
+        try:
+            fh = open(input_dir[0] + "/" + srcfilename, mode='r')
+            csvr = csv.reader(fh)
+        except IOError as e:
+            print("I/O error({0}): {1}".format(e.errno, e.strerror))
+            exit()
+
+        tgtfiles, src_to_tgt = mappingrules.parse_rules_src_to_tgt(srcfilename)
+        infile_datetime_source, infile_person_id_source = mappingrules.get_infile_date_person_id(srcfilename)
+        for tgtfile in tgtfiles:
+            outcounts[tgtfile] = 0
+            rejcounts[tgtfile] = 0
+        datacolsall = []
+        hdrdata = next(csvr)
+        dflist = mappingrules.get_infile_data_fields(srcfilename)
+        for colname in hdrdata:
+            datacolsall.append(colname)
+        inputcolmap = omopcdm.get_column_map(hdrdata)
+        pers_id_col = inputcolmap[infile_person_id_source]
+        datetime_col = inputcolmap[infile_datetime_source]
+        print("--------------------------------------------------------------------------------")
+        print("Processing input: {0}".format(srcfilename))
+#        print("Processing input: {0}, All input cols = {1}, Data cols = {2}".format(srcfilename, str(datacolsall), str(dflist)))
+
+        for indata in csvr:
+            #indata = inputline.strip().split(",")
+            key = srcfilename + "~all~all"
+            metrics.increment_key_count(key, "input_count")
+            rcount += 1
+            strdate = indata[datetime_col].split(" ")[0]
+            fulldate = parse_date(strdate)
+            if fulldate != None:
+                #fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
+                indata[datetime_col] = fulldate
+            else:
+                metrics.increment_key_count(key, "invalid_date_fields")
+                continue
+
+            for tgtfile in tgtfiles:
+                tgtcolmap = tgtcolmaps[tgtfile]
+                count_key = srcfilename + "~" + tgtfile
+                date_col_data = omopcdm.get_omop_date_fields(tgtfile)
+                date_component_data = omopcdm.get_omop_date_field_components(tgtfile)
+                auto_num_col = omopcdm.get_omop_auto_number_field(tgtfile)
+                pers_id_col = omopcdm.get_omop_person_id_field(tgtfile)
+
+                datacols = datacolsall
+                if tgtfile in dflist:
+                    datacols = dflist[tgtfile]
+
+                for datacol in datacols:
+                    built_records, outrecords, metrics = get_target_records(tgtfile, tgtcolmap, src_to_tgt, datacol, indata, inputcolmap, srcfilename, date_col_data, date_component_data, metrics)
+                    if built_records == True:
+                        for outrecord in outrecords:
+                            if auto_num_col != None:
+                                outrecord[tgtcolmap[auto_num_col]] = str(record_numbers[tgtfile])
+                                record_numbers[tgtfile] += 1
+                            if (outrecord[tgtcolmap[pers_id_col]]) in person_lookup:
+                                outrecord[tgtcolmap[pers_id_col]] = person_lookup[outrecord[tgtcolmap[pers_id_col]]]
+                                outcounts[tgtfile] += 1
+                                key = srcfilename + "~all~all"
+                                metrics.increment_key_count(key, "output_count")
+                                key = "all~" + tgtfile + "~all"
+                                metrics.increment_key_count(key, "output_count")
+                                key = srcfilename + "~" + tgtfile + "~all"
+                                metrics.increment_key_count(key, "output_count")
+                                key = srcfilename + "~" + tgtfile + "~" + datacol
+                                metrics.increment_key_count(key, "output_count")
+                                fhd[tgtfile].write("\t".join(outrecord) + "\n")
+                            else:
+                                key = srcfilename + "~" + tgtfile + "~all"
+                                metrics.increment_key_count(key, "invalid_person_ids")
+                                rejidcounts[srcfilename] += 1
+
+        fh.close()
+
+        nowtime= time.time()
+        print("INPUT file data : {0}: input count {1}, time since start {2:.5} secs".format(srcfilename, str(rcount), (nowtime - starttime)))
+        for outtablename, count in outcounts.items():
+            print("TARGET: {0}: output count {1}".format(outtablename, str(count)))
+
+    print("--------------------------------------------------------------------------------")
+    data_summary = metrics.get_mapstream_summary()
+    try:
+        dsfh = open(output_folder + "/summary_mapstream.tsv", mode="w")
+        dsfh.write(data_summary)
+        dsfh.close()
+    except IOError as e:
+        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        print("Unable to write summary.tsv")
+
+    nowtime = time.time()
+    print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('ncalls')
+    #stats.print_stats()
+
+def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srccolmap, srcfilename, date_col_data, date_component_data, metrics):
+    build_records = False
+    tgtrecords = []
+
+    srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
+    summarykey = srcfilename + "~" + tgtfilename + "~" + srcfield
+    if valid_value(str(srcdata[srccolmap[srcfield]])):
+        srcfullkey = srcfilename + "~" + srcfield + "~" + str(srcdata[srccolmap[srcfield]]) + "~" + tgtfilename
+        dictkeys = []
+        if srcfullkey in rulesmap:
+            build_records = True
+            dictkeys.append(srcfullkey)
+        if srckey in rulesmap:
+            build_records = True
+            dictkeys.append(srckey)
+        if build_records == True:
+            for dictkey in dictkeys:
+                for out_data_elem in rulesmap[dictkey]:
+                    valid_data_elem = True
+                    tgtarray = [" "]*len(tgtcolmap)
+                    for infield, outfield_list in out_data_elem.items():
+                        for output_col_data in outfield_list:
+                            if "~" in output_col_data:
+                                outcol, term = output_col_data.split("~")
+                                tgtarray[tgtcolmap[outcol]] = term
+                            else:
+                                tgtarray[tgtcolmap[output_col_data]] = srcdata[srccolmap[infield]]
+                            if output_col_data in date_component_data:
+                                strdate = srcdata[srccolmap[infield]].split(" ")[0]
+                                dt = get_datetime_value(strdate)
+                                if dt != None:
+                                    year_field = date_component_data[output_col_data]["year"]
+                                    month_field = date_component_data[output_col_data]["month"]
+                                    day_field = date_component_data[output_col_data]["day"]
+                                    #print("DATE Fieldnames {0} {1} {2}".format(year_field, month_field, day_field))
+                                    tgtarray[tgtcolmap[year_field]] = str(dt.year)
+                                    tgtarray[tgtcolmap[month_field]] = str(dt.month)
+                                    tgtarray[tgtcolmap[day_field]] = str(dt.day)
+                                    fulldate = "{0}-{1:02}-{2:02}".format(dt.year, dt.month, dt.day)
+                                    tgtarray[tgtcolmap[output_col_data]] = fulldate
+                                else:
+                                    metrics.increment_key_count(summarykey, "invalid_date_fields")
+                                    valid_data_elem = False
+                            elif output_col_data in date_col_data:
+                                fulldate = srcdata[srccolmap[infield]]
+                                tgtarray[tgtcolmap[output_col_data]] = fulldate
+                                tgtarray[tgtcolmap[date_col_data[output_col_data]]] = fulldate
+                    if valid_data_elem == True:
+                        tgtrecords.append(tgtarray)
+    else:
+        metrics.increment_key_count(summarykey, "invalid_source_fields")
+
+
+    return build_records, tgtrecords, metrics
+
+def valid_value(item):
+    """
+    Check if an item is non blank (null)
+    """
+    if item.strip() == "":
+        return(False)
+    return(True)
+
+def valid_date_value(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
+    or dd/mm/yyyy or mm/dd/yyyy
+    """
+    if item.strip() == "":
+        return(False)
+    if not valid_iso_date(item) and not valid_reverse_iso_date(item) and not valid_uk_date(item):
+        #print("Bad date : {0}".format(item))
+        return(False)
+    return(True)
+
+def get_datetime_value(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD), reverse-ISO
+    or dd/mm/yyyy or mm/dd/yyyy
+    """
+    dt = None
+    # Does the date parse as an ISO date?
+    try:
+        dt = datetime.datetime.strptime(item, "%Y-%m-%d")
+    except ValueError:
+        pass
+    if dt != None:
+      return(dt)
+
+    # Does the date parse as a reverse ISO date?
+    try:
+        dt = datetime.datetime.strptime(item, "%d-%m-%Y")
+    except ValueError:
+        pass
+
+    if dt != None:
+      return(dt)
+
+    # Does the date parse as a UK old-style date?
+    try:
+        dt = datetime.datetime.strptime(item, "%d/%m/%Y")
+    except ValueError:
+        pass
+
+    if dt != None:
+      return(dt)
+
+    return None
+
+def parse_date(item):
+    """
+    Crude hand-coded check on date format
+    """
+    datedata = item.split("-")
+    if len(datedata) != 3:
+        datedata = item.split("/")
+    if len(datedata) != 3:
+        return None
+    if len(datedata[2]) == 4:
+        return("{0}-{1}-{2}".format(datedata[2], datedata[1], datedata[0]))
+    return("{0}-{1}-{2}".format(datedata[0], datedata[1], datedata[2]))
+
+
+def valid_iso_date(item):
+    """
+    Check if a date item is non null and parses as ISO (YYYY-MM-DD)
+    """
+    try:
+        datetime.datetime.strptime(item, "%Y-%m-%d")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def valid_reverse_iso_date(item):
+    """
+    Check if a date item is non null and parses as reverse ISO (DD-MM-YYYY)
+    """
+    try:
+        datetime.datetime.strptime(item, "%d-%m-%Y")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def valid_uk_date(item):
+    """
+    Check if a date item is non null and parses as UK format (DD/MM/YYYY)
+    """
+    try:
+        datetime.datetime.strptime(item, "%d/%m/%Y")
+    except ValueError:
+        return(False)
+
+    return(True)
+
+def load_person_ids(fh, mappingrules, use_input_person_ids, person_number=1, delim=","):
+    person_ids = {}
+    person_columns = {}
+    person_col_in_hdr_number = 0
+    reject_count = 0
+
+    phdr = fh.readline()
+    personhdr = phdr.strip().split(delim)
+    print(personhdr)
+
+    # Make a dictionary of column names vs their positions
+    for col in personhdr:
+        person_columns[col] = person_col_in_hdr_number
+        person_col_in_hdr_number += 1
+
+    birth_datetime_source, person_id_source = mappingrules.get_person_source_field_info("person")
+    print("Load Person Data {0}, {1}".format(birth_datetime_source, person_id_source))
+    person_col = 0
+
+    for line in fh:
+        persondata = line.strip().split(delim)
+        if not valid_value(persondata[person_columns[person_id_source]]):
+            reject_count += 1
+            continue
+        if not valid_date_value(persondata[person_columns[birth_datetime_source]]):
+            reject_count += 1
+            continue
+        if persondata[person_col] not in person_ids:
+            if use_input_person_ids == "N":
+                person_ids[persondata[person_col]] = str(person_number)
+                person_number += 1
+            else:
+                person_ids[persondata[person_col]] = str(persondata[person_col])
+
+    return person_ids, reject_count
+
 @click.command(help="Perform OMOP Mapping given a python configuration file.")
 @click.option("--rules",
               help="input json file containing all the mapping rules to be applied")
@@ -631,7 +1015,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
 
     if type != 'csv':
         raise NotImplementedError("Can only handle inputs that are .csv so far")
-        
+
     #check if exists
     if any('*' in x for x in inputs):
         data_dir = os.path.dirname(carrot.__file__)
@@ -650,16 +1034,16 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
         if os.path.isdir(x):
             inputs.remove(x)
             inputs.extend(glob.glob(f'{x}{os.path.sep}*.csv'))
-        
+
     #convert the list into a map between the filename and the full path
     inputs = {
         os.path.basename(x):x
         for x in inputs
     }
-    
+
     if output_folder is None:
         output_folder = f'{os.getcwd()}{os.path.sep}output_data{os.path.sep}'
-        
+
     outputs = carrot.tools.create_csv_store(output_folder=output_folder)
 
 
@@ -675,7 +1059,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
     if pyconf not in available_classes:
         ctx.invoke(list_classes)
         raise KeyError(f"cannot find config {pyconf}. Run 'carrot map py list' to see available classes.")
-    
+
     module = __import__(available_classes[pyconf]['module'],fromlist=[pyconf])
     defined_classes = [
         m[0]
@@ -692,7 +1076,7 @@ def run_pyconfig(ctx,rules,pyconf,inputs,objects,
               use_profiler=use_profiler)
     #run it
     cdm.process(object_list)
-      
+
 @click.command(help="run as a Graphical User Interface (GUI)")
 @click.pass_context
 def gui(ctx):
@@ -708,14 +1092,14 @@ def gui(ctx):
                        'BORDER': 1,
                        'SLIDER_DEPTH': 1,
                        'PROGRESS_DEPTH': 0}
-    
+
     # Add your dictionary to the PySimpleGUI themes
     sg.theme_add_new('carrot', carrot_theme)
     sg.theme('carrot')
 
     _dir = os.path.dirname(os.path.abspath(carrot.__file__))
     data_dir = f"{_dir}{os.path.sep}data{os.path.sep}"
-    
+
     layout = [
         [sg.Image(f'{data_dir}logo.png'),sg.T("CO-CONNECT: Dataset2CDM",font = ("Roboto", 25))],
         [sg.T('Select the rules json:')],
@@ -734,18 +1118,18 @@ def gui(ctx):
     ]
 
     font = ("Roboto", 15)
-    
+
     window = sg.Window('carrot', layout, font=font)
     while True:
         event, values = window.Read()
-        
+
         if event == 'Cancel' or event == None:
             break
 
         output_folder = values['_OUTPUT_']
         if output_folder == '':
             output_folder = None
-            
+
         rules = values['_RULES_']
         if rules == '':
             sg.Popup(f'Error: please select a rules file')
@@ -768,17 +1152,14 @@ def gui(ctx):
             sg.Popup("Done!")
         except Exception as err:
             sg.popup_error("An exception occurred!",err)
-            
+
         break
-        
+
     window.close()
-    
 
 @click.group(help="Commands for using python configurations to run the ETL transformation.")
 def py():
     pass
-
-
 
 py.add_command(make_class,"make")
 py.add_command(register_class,"register")
@@ -787,6 +1168,8 @@ py.add_command(remove_class,"remove")
 py.add_command(run_pyconfig,"map")
 run.add_command(py,"py")
 run.add_command(map,"map")
+run.add_command(mapstream,"mapstream")
+run.add_command(list_classes, "list_classes")
 run.add_command(load,"load")
 run.add_command(analysis,"analysis")
 run.add_command(format,"format")

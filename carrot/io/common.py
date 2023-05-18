@@ -9,13 +9,13 @@ class DataCollection(Logger):
         self.__bricks = {}
         self.chunksize = chunksize
         self.nrows = nrows
-        
+
         if self.chunksize is not None:
             self.logger.info(f"Using a chunksize of '{self.chunksize}' nrows")
 
     def print(self):
         print (self.all())
-        
+
     def all(self):
         return {
             key:self[key]
@@ -23,7 +23,7 @@ class DataCollection(Logger):
         }
     def finalise(self):
         pass
-        
+
     def keys(self):
         return self.__bricks.keys()
 
@@ -39,7 +39,7 @@ class DataCollection(Logger):
 
     def load_indexing(self):
         return
-            
+
     def next(self):
         #loop over all loaded files
         self.logger.info("Getting next chunk of data")
@@ -48,26 +48,26 @@ class DataCollection(Logger):
         for key,brick in self.items():
             if brick.is_finished():
                 continue
-            
+
             if brick.is_init():
                 used_bricks.append(brick)
             else:
                 continue
-                
+
             self.logger.info(f"Getting the next chunk of size '{self.chunksize}' for '{key}'")
             brick.get_chunk(self.chunksize)
             n = len(brick.get_df())
             self.logger.info(f"--> Got {n} rows")
             if n == 0:
                 brick.set_finished(True)
-            
+
         #check if all __dataframe objects are empty
         #if they are, raise a StopIteration as processing has finished
         if all([x.is_finished() for x in used_bricks]):
             self.logger.info("All input files for this object have now been used.")
             raise StopIteration
-        
-                           
+
+
     def get_handler(self,key):
         brick = self.__bricks[key]
         return brick.get_handler()
@@ -80,21 +80,21 @@ class DataCollection(Logger):
 
     def get(self,key):
         return self.__bricks[key]
-            
+
     def __getitem__(self,key):
         brick = self.__bricks[key]
         if not brick.is_init():
             self.logger.info(f"Retrieving initial dataframe for '{key}' for the first time")
             brick.get_chunk(self.chunksize)
             brick.set_init(True)
-            
+
         #if any(not x.is_init() for x in self.__bricks.values()):
         #    self.get_all()
-                
+
         df = brick.get_df()
         self.logger.debug(f"Got brick {brick}")
         return df
-    
+
     def reset(self):
         self.logger.info(f"resetting used bricks")
         for key,brick in self.items():
@@ -107,13 +107,13 @@ class DataBrick:
         self.__df = None
         self.__end = False
         self.__is_init = False
-        
+
     def get_handler(self):
         return self.__df_handler
 
     def is_finished(self):
         return self.__end
-    
+
     def set_finished(self,value):
         self.__end = value
 
@@ -122,7 +122,7 @@ class DataBrick:
 
     def set_init(self,value):
         self.__is_init = value
-    
+
     def reset(self):
         if isinstance(self.__df_handler,pd.io.parsers.TextFileReader):
             options = self.__df_handler.orig_options
@@ -147,12 +147,11 @@ class DataBrick:
             #f is an i/o object or a filename (string)
             self.__df_handler = pd.io.parsers.TextFileReader(f,**options)
             
-                                    
         self.__df = None
         self.__end = False
         self.__is_init = False
         return True
-    
+
     def get_chunk(self,chunksize):
         if self.__end == True:
             return
