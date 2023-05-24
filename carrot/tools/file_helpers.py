@@ -169,7 +169,7 @@ def load_csv(_map,chunksize=None,
             if lower_col_names:
                 df.columns = df.columns.str.lower()
 
-        retval[key] = io.DataBrick(df,name=key)
+        retval[key] = df#io.DataBrick(df,name=key)
 
     return retval
 

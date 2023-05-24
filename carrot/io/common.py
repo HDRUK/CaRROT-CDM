@@ -32,7 +32,7 @@ class DataCollection(Logger):
 
     def __setitem__(self,key,obj):
         self.logger.info(f"Registering  {key} [{obj}]")
-        self.__bricks[key] = DataBrick(obj)
+        self.__bricks[key] = DataBrick(obj,name=key)
 
     def load_global_ids(self):
         return
