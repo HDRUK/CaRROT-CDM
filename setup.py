@@ -14,10 +14,11 @@ from _version import __version__ as version
 
 
 setuptools.setup(
+    #name="carrot-cdm-beta",
     name="carrot-cdm",
     author="CO-CONNECT Collaboration",
     version=version,
-    author_email="calmacx@gmail.com",
+    author_email="pdappleby@gmail.com",
     description="Python package for performing mapping of ETL to CDM ",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -53,7 +54,7 @@ setuptools.setup(
         "python-dotenv",
         "co-connect-pseudonymise"
     ],
-    package_data={'carrot': ['data/cdm/*','data/example/*/*','data/test/*/*','data/test/*/*/*']},
+    package_data={'carrot': ['data/config/*', 'data/cdm/*','data/example/*/*','data/test/*/*','data/test/*/*/*']},
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -2,6 +2,7 @@ class Metrics():
     def __init__(self):
         self.datasummary={}
         self.allcounts={}
+        self.log_data=""
 
     def get_new_mapstream_counts(self):
         counts = {}
@@ -104,3 +105,10 @@ class Metrics():
             summary_str += source + "\t" + fieldname + "\t" + tablename + "\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_date_fields + "\t" + invalid_source_fields + "\t" + output_count + "\n"
 
         return summary_str
+
+    def add_log_data(self, msg):
+        self.log_data += msg + "\n"
+
+    def get_log_data(self):
+        return self.log_data
+    

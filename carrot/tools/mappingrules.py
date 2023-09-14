@@ -25,11 +25,24 @@ class MappingRules:
 
     def get_all_outfile_names(self):
         file_list = []
+        
         for outfilename in self.rules_data["cdm"]:
             file_list.append(outfilename)
 
         return file_list
 
+    def get_all_infile_names(self):
+        file_list = []
+
+        for outfilename, conditions in self.rules_data["cdm"].items():
+            for outfield, source_field in conditions.items():
+                for source_field_name, source_data in source_field.items():
+                    if "source_table" in source_data:
+                        if source_data["source_table"] not in file_list:
+                            file_list.append(source_data["source_table"])
+
+        return file_list
+        
     def get_infile_data_fields(self, infilename):
         data_fields_lists = {}
 

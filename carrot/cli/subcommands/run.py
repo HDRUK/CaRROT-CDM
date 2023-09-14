@@ -608,7 +608,7 @@ def map(ctx,rules,inputs,format_level,
               help="File containing person_ids in the first column")
 @click.option("--omop-config",
               required=True,
-              help="File containing json configfor omop outputs")
+              help="File containing json config for omop outputs")
 @click.option("--saved-person-id-filename",
               default='person_ids.tsv',
               required=False,
@@ -664,22 +664,34 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
             tgtcolmaps[tgtfile] = omopcdm.get_omop_column_map(tgtfile)
 
     except IOError as e:
-        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        print("I/O - error({0}): {1} -> {2}".format(e.errno, e.strerror, str(e)))
         exit()
 
     print("person_id stats: total loaded {0}, reject count {1}".format(len(person_lookup), rejected_person_count))
 
-    input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
+    # TODO get this list of input files from the  parsed rules
+    existing_input_files = fnmatch.filter(os.listdir(input_dir[0]), '*.csv')
+    rules_input_files = mappingrules.get_all_infile_names()
+    for infile in existing_input_files:
+        if infile not in rules_input_files:
+            msg = "ERROR: no mapping rules found for existing input file - {0}".format(infile)
+            print(msg)
+            metrics.add_log_data(msg)
+    for infile in rules_input_files:
+        if infile not in existing_input_files:
+            msg = "ERROR: no data for mapped input file - {0}".format(infile)
+            print(msg)
+            metrics.add_log_data(msg)
     rejidcounts = {}
     rejdatecounts = {}
     src_tgt_counts = {}
+    print(rules_input_files)
 
-    for srcfilename in input_files:
+    for srcfilename in rules_input_files:
         rejidcounts[srcfilename] = 0
         rejdatecounts[srcfilename] = 0
 
-
-    for srcfilename in input_files:
+    for srcfilename in rules_input_files:
         outcounts = {}
         rejcounts = {}
         rcount = 0
@@ -688,8 +700,9 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
             fh = open(input_dir[0] + "/" + srcfilename, mode='r')
             csvr = csv.reader(fh)
         except IOError as e:
+            print("Unable to open: {0}".format(input_dir[0] + "/" + srcfilename))
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
-            exit()
+            continue
 
         tgtfiles, src_to_tgt = mappingrules.parse_rules_src_to_tgt(srcfilename)
         infile_datetime_source, infile_person_id_source = mappingrules.get_infile_date_person_id(srcfilename)
@@ -767,13 +780,17 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
     print("--------------------------------------------------------------------------------")
     data_summary = metrics.get_mapstream_summary()
+    log_report = metrics.get_log_data()
     try:
         dsfh = open(output_folder + "/summary_mapstream.tsv", mode="w")
         dsfh.write(data_summary)
         dsfh.close()
+        logfh = open(output_folder + "/error_report.txt", mode="w")
+        logfh.write(log_report)
+        logfh.close()
     except IOError as e:
         print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        print("Unable to write summary.tsv")
+        print("Unable to write file")
 
     nowtime = time.time()
     print("Elapsed time = {0:.5f} secs".format(nowtime - starttime))
