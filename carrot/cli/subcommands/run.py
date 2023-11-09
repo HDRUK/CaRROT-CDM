@@ -648,8 +648,10 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
 
     try:
         # TODO: add in person_ids.tsv existence testing and reload
-        fhp = open(person_file, mode="r")
-        person_lookup, rejected_person_count = load_person_ids(fhp, mappingrules, use_input_person_ids)
+        fhp = open(person_file, mode="r", encoding="utf-8-sig")
+        #fhp = open(person_file, mode="r")
+        csvrp = csv.reader(fhp)
+        person_lookup, rejected_person_count = load_person_ids(csvrp, mappingrules, use_input_person_ids)
         fhp.close()
         fhpout = open(output_folder + "/person_ids.tsv", mode="w")
         fhpout.write("SOURCE_SUBJECT\tTARGET_SUBJECT\n")
@@ -697,7 +699,7 @@ def mapstream(rules, output_folder, write_mode, person_file, omop_config, saved_
         rcount = 0
 
         try:
-            fh = open(input_dir[0] + "/" + srcfilename, mode='r')
+            fh = open(input_dir[0] + "/" + srcfilename, mode="r", encoding="utf-8-sig")
             csvr = csv.reader(fh)
         except IOError as e:
             print("Unable to open: {0}".format(input_dir[0] + "/" + srcfilename))
@@ -954,14 +956,13 @@ def valid_uk_date(item):
 
     return(True)
 
-def load_person_ids(fh, mappingrules, use_input_person_ids, person_number=1, delim=","):
+def load_person_ids(csvr, mappingrules, use_input_person_ids, person_number=1, delim=","):
     person_ids = {}
     person_columns = {}
     person_col_in_hdr_number = 0
     reject_count = 0
 
-    phdr = fh.readline()
-    personhdr = phdr.strip().split(delim)
+    personhdr = next(csvr)
     print(personhdr)
 
     # Make a dictionary of column names vs their positions
@@ -973,8 +974,7 @@ def load_person_ids(fh, mappingrules, use_input_person_ids, person_number=1, del
     print("Load Person Data {0}, {1}".format(birth_datetime_source, person_id_source))
     person_col = 0
 
-    for line in fh:
-        persondata = line.strip().split(delim)
+    for persondata in csvr:
         if not valid_value(persondata[person_columns[person_id_source]]):
             reject_count += 1
             continue
