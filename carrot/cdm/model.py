@@ -185,12 +185,19 @@ class CommonDataModel(Logger):
         self.logs = {
             'meta':{
                 'version': carrot_version,
-                'created_by': getpass.getuser(),
+                'created_by': self._get_user(),
                 'created_at': strftime("%Y-%m-%dT%H%M%S", gmtime()),
                 'dataset':name,
                 'total_data_processed':{}
             }
         }
+
+    def _get_user(self):
+        try:
+            user = getpass.getuser()
+            return user
+        except (OSError, KeyError):
+            return None
 
     def _load_inputs(self,inputs):
         for fname in inputs.keys():
