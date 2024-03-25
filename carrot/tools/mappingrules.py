@@ -4,11 +4,14 @@ from .omopcdm import OmopCDM
 
 class MappingRules:
 
-    def __init__(self, rulesfilepath, omopcfgfilepath):
+    def __init__(self, rulesfilepath, omopcdm):
         self.rules_data = self.load_json(rulesfilepath)
-        self.omopcdm = OmopCDM(omopcfgfilepath)
+        self.omopcdm = omopcdm
+        
         self.parsed_rules = {}
         self.outfile_names = {}
+
+        self.dataset_name = self.get_dsname_from_rules()
 
     def load_json(self, f_in):
         """
@@ -22,6 +25,21 @@ class MappingRules:
                 raise FileNotFoundError(f"{f_in} not found. Or cannot parse as json")
 
         return data
+    
+    def dump_parsed_rules(self):
+        return(json.dumps(self.parsed_rules, indent=2))
+
+    def get_dsname_from_rules(self):
+        dsname = "Unknown"
+
+        if "metadata" in self.rules_data:
+            if "dataset" in self.rules_data["metadata"]:
+                dsname = self.rules_data["metadata"]["dataset"]
+
+        return dsname
+
+    def get_dataset_name(self):
+        return self.dataset_name
 
     def get_all_outfile_names(self):
         file_list = []
