@@ -1,8 +1,10 @@
 class Metrics():
-    def __init__(self):
+    def __init__(self, dataset_name, log_threshold=0):
         self.datasummary={}
         self.allcounts={}
         self.log_data=""
+        self.dataset_name=dataset_name
+        self.log_threshold = log_threshold
 
     def get_new_mapstream_counts(self):
         counts = {}
@@ -80,29 +82,40 @@ class Metrics():
         return self.datasummary
 
     def get_mapstream_summary(self):
-        summary_str = "source\ttarget\tsource field\tincount\tinvalid persid\tinvalid date\tinvalid source\toutcount\n"
+        summary_str = "dsname\tsource\tsource_field\ttarget\tconcept_id\tadditional\tincount\tinvalid_persid\tinvalid_date\tinvalid_source\toutcount\n"
 
         for dkey in sorted(self.datasummary):
-            source, fieldname, tablename = dkey.split('~')
+            try:
+                source, fieldname, tablename, concept_id, additional = dkey.split('~')
+            except ValueError:
+                print("get_mapstream_summary - ValueError: {0}".format(dkey))
+                break
+              
             source = self.get_prefix(source)
-            input_count = ""
             dvalue = self.datasummary[dkey]
+
+            input_count = "0"
             if "input_count" in dvalue:
                 input_count = str(dvalue["input_count"])
-            invalid_person_ids = ""
+
+            invalid_person_ids = "0"
             if "invalid_person_ids" in dvalue:
                 invalid_person_ids = str(dvalue["invalid_person_ids"])
-            invalid_source_fields = ""
+
+            invalid_source_fields = "0"
             if "invalid_source_fields" in dvalue:
                 invalid_source_fields = str(dvalue["invalid_source_fields"])
-            invalid_date_fields = ""
+
+            invalid_date_fields = "0"
             if "invalid_date_fields" in dvalue:
                 invalid_date_fields = str(dvalue["invalid_date_fields"])
-            output_count = ""
+
+            output_count = "0"
             if "output_count" in dvalue:
                 output_count = str(dvalue["output_count"])
 
-            summary_str += source + "\t" + fieldname + "\t" + tablename + "\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_date_fields + "\t" + invalid_source_fields + "\t" + output_count + "\n"
+            if (int(output_count) >= self.log_threshold) or (tablename != "person"):
+              summary_str += self.dataset_name + "\t" + source + "\t" + fieldname + "\t" + tablename + "\t" + concept_id + "\t" + additional +"\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_date_fields + "\t" + invalid_source_fields + "\t" + output_count + "\n"
 
         return summary_str
 

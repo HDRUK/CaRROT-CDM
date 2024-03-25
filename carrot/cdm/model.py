@@ -77,7 +77,7 @@ class CommonDataModel(Logger):
                                  The default is set to false.
         """
         self.profiler = None
-        self.metrics = Metrics()
+        self.metrics = Metrics("Unknown")
         name = self.__class__.__name__ if name is None else self.__class__.__name__ + "::" + name
 
         self.logger.info(f"CommonDataModel ({omop_version}) created with co-connect-tools version {carrot_version}")
