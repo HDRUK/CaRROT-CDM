@@ -5,14 +5,14 @@ import re
 class OmopCDM:
 
     def __init__(self, omopddl, omopcfg):
-        self.numeric_types = ["integer", "NUMERIC"]
-        self.datetime_types = ["TIMESTAMP"]
+        self.numeric_types = ["integer", "numeric"]
+        self.datetime_types = ["timestamp"]
         self.date_types = ["date"]
         self.omop_json = self.load_ddl(omopddl)
         self.omop_json = self.merge_json(self.omop_json, omopcfg)
-        # self.omop_json = tools.load_json(omopcfg)
         self.all_columns = self.get_columns("all_columns")
         self.numeric_fields = self.get_columns("numeric_fields")
+        self.notnull_numeric_fields = self.get_columns("notnull_numeric_fields")
         self.datetime_linked_fields = self.get_columns("datetime_linked_fields")
         self.date_field_components = self.get_columns("date_field_components")
         self.datetime_fields = self.get_columns("datetime_fields")
@@ -37,6 +37,7 @@ class OmopCDM:
         output_dict = {}
         output_dict["all_columns"] = {}
         output_dict["numeric_fields"] = {}
+        output_dict["notnull_numeric_fields"] = {}
         output_dict["datetime_fields"] = {}
         output_dict["date_fields"] = {}
 
@@ -74,6 +75,8 @@ class OmopCDM:
                         output_dict["all_columns"][tabname] = []
                     if tabname not in output_dict["numeric_fields"]:
                         output_dict["numeric_fields"][tabname] = []
+                    if tabname not in output_dict["notnull_numeric_fields"]:
+                        output_dict["notnull_numeric_fields"][tabname] = []
                     if tabname not in output_dict["datetime_fields"]:
                         output_dict["datetime_fields"][tabname] = []
                     if tabname not in output_dict["date_fields"]:
@@ -81,11 +84,13 @@ class OmopCDM:
   
                     # Add in required column / field data
                     output_dict["all_columns"][tabname].append(fname)
-                    if ftype in self.numeric_types:
+                    if ftype.lower() in self.numeric_types:
                         output_dict["numeric_fields"][tabname].append(fname)
-                    if ftype in self.datetime_types:
+                    if ftype.lower() in self.numeric_types and "NOT" in line and "NULL" in line:
+                        output_dict["notnull_numeric_fields"][tabname].append(fname)
+                    if ftype.lower() in self.datetime_types:
                         output_dict["datetime_fields"][tabname].append(fname)
-                    if ftype in self.date_types:
+                    if ftype.lower() in self.date_types:
                         output_dict["date_fields"][tabname].append(fname)
 
             ematch = end_rgx.search(line)
@@ -137,6 +142,12 @@ class OmopCDM:
         if self.numeric_fields != None:
             if tablename in self.numeric_fields:
                 return self.numeric_fields[tablename]
+        return []
+
+    def get_omop_notnull_numeric_fields(self, tablename):
+        if self.notnull_numeric_fields != None:
+            if tablename in self.notnull_numeric_fields:
+                return self.notnull_numeric_fields[tablename]
         return []
 
     def get_omop_datetime_linked_fields(self, tablename):

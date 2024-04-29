@@ -657,7 +657,7 @@ def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, om
     output_files = mappingrules.get_all_outfile_names()
     record_numbers = {}
     for output_file in output_files:
-        record_numbers[output_file] = 0
+        record_numbers[output_file] = 1
 
     fhd = {}
     tgtcolmaps = {}
@@ -827,7 +827,7 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
     tgtrecords = []
     date_col_data = omopcdm.get_omop_datetime_linked_fields(tgtfilename)
     date_component_data = omopcdm.get_omop_date_field_components(tgtfilename)
-    numeric_fields = omopcdm.get_omop_numeric_fields(tgtfilename)
+    notnull_numeric_fields = omopcdm.get_omop_notnull_numeric_fields(tgtfilename)
 
     srckey = srcfilename + "~" + srcfield + "~" + tgtfilename
     summarykey = srcfilename + "~" + srcfield + "~" + tgtfilename + "~all~"
@@ -844,8 +844,8 @@ def get_target_records(tgtfilename, tgtcolmap, rulesmap, srcfield, srcdata, srcc
             for dictkey in dictkeys:
                 for out_data_elem in rulesmap[dictkey]:
                     valid_data_elem = True
-                    tgtarray = [""]*len(tgtcolmap)
-                    for req_integer in numeric_fields:
+                    tgtarray = ['']*len(tgtcolmap)
+                    for req_integer in notnull_numeric_fields:
                         tgtarray[tgtcolmap[req_integer]] = "0"
                     for infield, outfield_list in out_data_elem.items():
                         for output_col_data in outfield_list:
