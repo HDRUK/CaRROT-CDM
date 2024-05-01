@@ -126,7 +126,7 @@ jobs:
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.12
+          python-version: 3.9
       - run: pip3 install wheel
       - uses: actions/checkout@v2
       - run:  |
@@ -144,7 +144,7 @@ jobs:
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.12
+          python-version: 3.9
       - uses: actions/checkout@v2
       - name: Install setuptools
         run: pip3 install setuptools
