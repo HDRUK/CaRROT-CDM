@@ -789,6 +789,12 @@ def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, om
                                 else:
                                     key = srcfilename + "~" + datacol +"~" + tgtfile + "~" + outrecord[2] + "~"
                                     metrics.increment_key_count(key, "output_count")
+                                    key = srcfilename + "~all~" + tgtfile + "~" + outrecord[2] + "~"
+                                    metrics.increment_key_count(key, "output_count")
+                                    key = "all~all~" + tgtfile + "~" + outrecord[2] + "~"
+                                    metrics.increment_key_count(key, "output_count")
+                                    key = "all~all~all~" + outrecord[2] + "~"
+                                    metrics.increment_key_count(key, "output_count")
                                 fhd[tgtfile].write("\t".join(outrecord) + "\n")
                             else:
                                 key = srcfilename + "~all~" + tgtfile + "~all~"

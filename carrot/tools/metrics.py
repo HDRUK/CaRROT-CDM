@@ -114,7 +114,8 @@ class Metrics():
             if "output_count" in dvalue:
                 output_count = str(dvalue["output_count"])
 
-            if (int(output_count) >= self.log_threshold) or (tablename == "person"):
+            #if (int(output_count) >= self.log_threshold) or (tablename == "person"):
+            if (int(output_count) >= self.log_threshold):
               summary_str += self.dataset_name + "\t" + source + "\t" + fieldname + "\t" + tablename + "\t" + concept_id + "\t" + additional +"\t" + input_count + "\t" + invalid_person_ids + "\t" + invalid_date_fields + "\t" + invalid_source_fields + "\t" + output_count + "\n"
 
         return summary_str
