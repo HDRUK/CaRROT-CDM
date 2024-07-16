@@ -598,7 +598,7 @@ def map(ctx,rules,inputs,format_level,
               help="json file containing mapping rules")
 @click.option("--output-dir",
               default=None,
-              help="define the output directory for tsv files")
+              help="define the output directory for OMOP-format tsv files")
 @click.option("--write-mode",
               default='w',
               type=click.Choice(['w','a']),
@@ -620,6 +620,10 @@ def map(ctx,rules,inputs,format_level,
               required=False,
               default='N',
               help="Use person ids as input without generating new integers")
+@click.option("--last-used-ids-file",
+              default=None,
+              required=False,
+              help="Full path to last used ids file for OMOP tables - format: tablename\tlast_used_id, \nwhere last_used_id must be an integer")
 @click.option("--log-file-threshold",
               required=False,
               default=0,
@@ -627,7 +631,7 @@ def map(ctx,rules,inputs,format_level,
 @click.argument("input-dir",
                 required=False,
                 nargs=-1)
-def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, omop_config_file, saved_person_id_file, use_input_person_ids, log_file_threshold, input_dir):
+def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, omop_config_file, saved_person_id_file, use_input_person_ids, last_used_ids_file, log_file_threshold, input_dir):
     """
     Map to output using input streams
     """
@@ -644,7 +648,7 @@ def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, om
         saved_person_id_file = output_dir + "/" + "person_ids.tsv"
         if os.path.exists(saved_person_id_file):
             os.remove(saved_person_id_file)
-    
+   
     starttime = time.time()
     omopcdm = tools.omopcdm.OmopCDM(omop_ddl_file, omop_config_file)
     #print(omopcdm.dump_ddl())
@@ -669,6 +673,10 @@ def mapstream(rules_file, output_dir, write_mode, person_file, omop_ddl_file, om
         else:
             person_lookup = {}
             last_used_integer = 1
+        if last_used_ids_file != None:
+            if os.path.isfile(last_used_ids_file):
+                record_numbers = load_last_used_ids(last_used_ids_file, record_numbers)
+ 
         #fhp = open(person_file, mode="r", encoding="utf-8-sig")
         #csvrp = csv.reader(fhp)
         person_lookup, rejected_person_count = load_person_ids(person_file, person_lookup, mappingrules, use_input_person_ids, last_used_integer)
@@ -987,6 +995,16 @@ def valid_uk_date(item):
         return(False)
 
     return(True)
+
+def load_last_used_ids(last_used_ids_file, last_used_ids):
+    fh = open(last_used_ids_file, mode="r", encoding="utf-8-sig")
+    csvr = csv.reader(fh, delimiter="\t")
+
+    for last_ids_data in csvr:
+        last_used_ids[last_ids_data[0]] = int(last_ids_data[1]) + 1
+
+    fh.close()
+    return last_used_ids
 
 def load_saved_person_ids(person_file):
     fh = open(person_file, mode="r", encoding="utf-8-sig")
