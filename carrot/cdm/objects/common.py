@@ -373,7 +373,7 @@ class DestinationTable(Logger):
                 
         #set these to a nan/null series
         for field in missing_fields:
-            df[field] = np.NaN
+            df[field] = np.nan
 
         #simply order the columns 
         df = df[self.fields]
